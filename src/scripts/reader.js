@@ -8,7 +8,7 @@ class ReaderApp {
         this.zoomLevel = 1;
         this.minZoom = 0.5;
         this.maxZoom = 3.0;
-        this.zoomStep = 0.1;
+        this.zoomStep = 0.05;
         this.selectedText = '';
         this.highlights = [];
         this.bookmarks = [];
@@ -160,10 +160,10 @@ class ReaderApp {
 
                 if (lastTouchDistance > 0) {
                     const scale = currentDistance / lastTouchDistance;
-                    if (scale > 1.1) {
+                    if (scale > 1.3) {
                         this.zoomIn();
                         lastTouchDistance = currentDistance;
-                    } else if (scale < 0.9) {
+                    } else if (scale < 0.7) {
                         this.zoomOut();
                         lastTouchDistance = currentDistance;
                     }
@@ -321,7 +321,7 @@ class ReaderApp {
             
             // 创建包装div
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh;';
+            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible;';
             
             // 创建标题
             const title = document.createElement('h2');
@@ -343,7 +343,7 @@ class ReaderApp {
                 
                 // 创建页面容器
                 const pageContainer = document.createElement('div');
-                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center;';
+                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center; width: 100%; display: block;';
                 
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
@@ -352,7 +352,7 @@ class ReaderApp {
                 
                 // 创建Canvas容器
                 const canvasContainer = document.createElement('div');
-                canvasContainer.style.cssText = 'display: inline-block; border: 2px solid #4A90E2; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1);';
+                canvasContainer.style.cssText = 'display: block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto; max-width: 100%;';
                 
                 // 组装页面
                 canvasContainer.appendChild(pageCanvas);
@@ -407,6 +407,8 @@ class ReaderApp {
             canvas.style.background = '#fff';
             canvas.style.maxWidth = '100%';
             canvas.style.height = 'auto';
+            canvas.style.width = '100%';
+            canvas.style.objectFit = 'contain';
             
             // 确保Canvas有正确的尺寸
             canvas.setAttribute('width', canvas.width);
