@@ -257,6 +257,16 @@ class ReaderApp {
             const context = canvas.getContext('2d');
             canvas.height = viewport.height;
             canvas.width = viewport.width;
+            
+            // 强制设置Canvas的显示属性
+            canvas.style.display = 'block';
+            canvas.style.visibility = 'visible';
+            canvas.style.opacity = '1';
+            canvas.style.width = canvas.width + 'px';
+            canvas.style.height = canvas.height + 'px';
+            canvas.style.border = '1px solid #ccc';
+            canvas.style.background = '#fff';
+            
             console.log('Canvas尺寸:', canvas.width, 'x', canvas.height);
             
             const renderContext = {
@@ -275,34 +285,24 @@ class ReaderApp {
             console.log('Canvas是否有内容:', hasContent);
             console.log('Canvas前几个像素:', Array.from(imageData.data.slice(0, 20)));
             
+            // 检查Canvas的显示属性
+            console.log('Canvas display:', window.getComputedStyle(canvas).display);
+            console.log('Canvas visibility:', window.getComputedStyle(canvas).visibility);
+            console.log('Canvas opacity:', window.getComputedStyle(canvas).opacity);
+            console.log('Canvas width/height:', canvas.width, 'x', canvas.height);
+            console.log('Canvas offsetWidth/Height:', canvas.offsetWidth, 'x', canvas.offsetHeight);
+            
             const container = document.getElementById('documentContainer');
             console.log('文档容器元素:', container);
             
             if (container) {
-                // 简化测试界面，直接显示Canvas
+                // 直接显示Canvas，最小化HTML结构
                 container.innerHTML = `
-                    <div style="max-width: 1000px; margin: 0 auto; padding: 20px; background: #f8f9fa;">
-                        <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #4A90E2;">
-                            <h2 style="color: #2c3e50; margin-bottom: 8px;">📄 ${this.getFileName(this.currentFile)}</h2>
-                            <p style="color: #7f8c8d; font-size: 14px;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
-                        </div>
-                        
-                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                            <h3 style="color: #2c3e50; margin-bottom: 10px;">Canvas调试信息:</h3>
-                            <p><strong>尺寸:</strong> ${canvas.width} x ${canvas.height}</p>
-                            <p><strong>Canvas ID:</strong> ${canvas.id || '无ID'}</p>
-                            <p><strong>Canvas类名:</strong> ${canvas.className || '无类名'}</p>
-                            <p><strong>Canvas样式:</strong> ${canvas.style.cssText || '无内联样式'}</p>
-                        </div>
-                        
-                        <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #4A90E2;">
-                            <h3 style="color: #2c3e50; margin-bottom: 10px;">🔍 Canvas内容测试:</h3>
-                            <p>如果下面的Canvas是空白的，说明PDF渲染有问题</p>
-                        </div>
-                        
+                    <div style="padding: 20px; background: #f8f9fa; min-height: 100vh;">
+                        <h2 style="color: #2c3e50; margin-bottom: 20px; text-align: center;">📄 ${this.getFileName(this.currentFile)}</h2>
                         <div style="text-align: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                            <h3 style="color: #2c3e50; margin-bottom: 15px;">PDF内容:</h3>
-                            <div style="border: 2px solid #4A90E2; border-radius: 8px; overflow: hidden; display: inline-block;">
+                            <p style="margin-bottom: 15px; color: #666;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
+                            <div style="display: inline-block; border: 3px solid #4A90E2; border-radius: 8px; overflow: hidden;">
                                 ${canvas.outerHTML}
                             </div>
                         </div>
