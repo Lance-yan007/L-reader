@@ -324,7 +324,7 @@ class ReaderApp {
             // 创建包装div
             const wrapper = document.createElement('div');
             wrapper.className = 'pdf-wrapper';
-            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: block;';
+            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: block; text-align: center;';
             
             // 创建标题
             const title = document.createElement('h2');
@@ -339,31 +339,27 @@ class ReaderApp {
             wrapper.appendChild(title);
             wrapper.appendChild(pageInfo);
 
-            // 渲染所有页面
+            // 渲染所有页面 - 让所有Canvas Container连在一起
             for (let pageNum = 1; pageNum <= this.totalPages; pageNum++) {
                 console.log(`渲染第${pageNum}页...`);
                 const pageCanvas = await this.renderSinglePDFPage(pdf, pageNum);
                 
-                // 创建页面容器
-                const pageContainer = document.createElement('div');
-                pageContainer.className = 'page-container';
-                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center; width: 100%; display: block; position: relative; overflow: visible; min-height: 100vh;';
+                // 创建Canvas容器 - 直接添加到wrapper，不创建单独的pageContainer
+                const canvasContainer = document.createElement('div');
+                canvasContainer.className = 'canvas-container';
+                canvasContainer.style.cssText = 'display: inline-block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 10px; width: auto; max-width: 100%; min-height: 200px; position: relative; vertical-align: top;';
                 
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
                 pageTitle.textContent = `第 ${pageNum} 页`;
-                pageTitle.style.cssText = 'color: #2c3e50; margin-bottom: 10px; font-size: 16px;';
+                pageTitle.style.cssText = 'color: #2c3e50; margin-bottom: 10px; font-size: 16px; text-align: center;';
                 
-                // 创建Canvas容器
-                const canvasContainer = document.createElement('div');
-                canvasContainer.className = 'canvas-container';
-                canvasContainer.style.cssText = 'display: block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto; width: 100%; max-width: 100%; min-height: 200px; position: relative;';
-                
-                // 组装页面
+                // 组装Canvas容器
+                canvasContainer.appendChild(pageTitle);
                 canvasContainer.appendChild(pageCanvas);
-                pageContainer.appendChild(pageTitle);
-                pageContainer.appendChild(canvasContainer);
-                wrapper.appendChild(pageContainer);
+                
+                // 直接添加到wrapper，让所有Canvas Container连在一起
+                wrapper.appendChild(canvasContainer);
                 
                 console.log(`第${pageNum}页渲染完成`);
             }
@@ -418,6 +414,7 @@ class ReaderApp {
             canvas.style.position = 'relative';
             canvas.style.zIndex = '1';
             canvas.style.boxSizing = 'border-box';
+            canvas.style.display = 'block';
             
             // 确保Canvas有正确的尺寸
             canvas.setAttribute('width', canvas.width);
