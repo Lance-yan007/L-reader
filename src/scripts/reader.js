@@ -324,7 +324,7 @@ class ReaderApp {
             // 创建包装div
             const wrapper = document.createElement('div');
             wrapper.className = 'pdf-wrapper';
-            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;';
+            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: block; text-align: center;';
             
             // 创建标题
             const title = document.createElement('h2');
@@ -339,15 +339,20 @@ class ReaderApp {
             wrapper.appendChild(title);
             wrapper.appendChild(pageInfo);
 
-            // 渲染所有页面 - 让所有Canvas Container连在一起
+            // 创建一个包含所有Canvas的整体容器
+            const allPagesContainer = document.createElement('div');
+            allPagesContainer.className = 'all-pages-container';
+            allPagesContainer.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 10px; width: 100%;';
+            
+            // 渲染所有页面到整体容器中
             for (let pageNum = 1; pageNum <= this.totalPages; pageNum++) {
                 console.log(`渲染第${pageNum}页...`);
                 const pageCanvas = await this.renderSinglePDFPage(pdf, pageNum);
                 
-                // 创建Canvas容器 - 使用flexbox让它们连在一起
+                // 创建单个Canvas容器
                 const canvasContainer = document.createElement('div');
                 canvasContainer.className = 'canvas-container';
-                canvasContainer.style.cssText = 'display: flex; flex-direction: column; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 5px; width: auto; max-width: 100%; min-height: 200px; position: relative; flex-shrink: 0;';
+                canvasContainer.style.cssText = 'display: flex; flex-direction: column; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: auto; min-height: 200px; position: relative; flex-shrink: 0;';
                 
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
@@ -358,11 +363,14 @@ class ReaderApp {
                 canvasContainer.appendChild(pageTitle);
                 canvasContainer.appendChild(pageCanvas);
                 
-                // 直接添加到wrapper，让所有Canvas Container连在一起
-                wrapper.appendChild(canvasContainer);
+                // 添加到整体容器中
+                allPagesContainer.appendChild(canvasContainer);
                 
                 console.log(`第${pageNum}页渲染完成`);
             }
+            
+            // 将整体容器添加到wrapper
+            wrapper.appendChild(allPagesContainer);
             
             container.appendChild(wrapper);
             console.log('所有PDF页面已渲染到DOM');
@@ -943,13 +951,13 @@ class ReaderApp {
     applyZoom() {
         const container = document.getElementById('documentContainer');
         if (container) {
-            // 只缩放Canvas Container，不缩放Page Container
-            const canvasContainers = container.querySelectorAll('.canvas-container');
-            canvasContainers.forEach(canvasContainer => {
-                canvasContainer.style.transform = `scale(${this.zoomLevel})`;
-                canvasContainer.style.transformOrigin = 'center center';
-                canvasContainer.style.transition = 'transform 0.2s ease';
-            });
+            // 缩放整个all-pages-container，让所有页面作为一个整体缩放
+            const allPagesContainer = container.querySelector('.all-pages-container');
+            if (allPagesContainer) {
+                allPagesContainer.style.transform = `scale(${this.zoomLevel})`;
+                allPagesContainer.style.transformOrigin = 'center top';
+                allPagesContainer.style.transition = 'transform 0.2s ease';
+            }
         }
         this.updateZoomDisplay();
     }
