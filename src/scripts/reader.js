@@ -265,43 +265,46 @@ class ReaderApp {
             };
             
             console.log('开始渲染到Canvas...');
-            await page.render(renderContext).promise;
+            const renderTask = page.render(renderContext);
+            await renderTask.promise;
             console.log('Canvas渲染完成');
+            
+            // 验证Canvas是否有内容
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const hasContent = imageData.data.some(pixel => pixel !== 0);
+            console.log('Canvas是否有内容:', hasContent);
+            console.log('Canvas前几个像素:', Array.from(imageData.data.slice(0, 20)));
             
             const container = document.getElementById('documentContainer');
             console.log('文档容器元素:', container);
             
             if (container) {
-                // 添加一个非常明显的测试内容
+                // 简化测试界面，直接显示Canvas
                 container.innerHTML = `
-                    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ff0000; z-index: 9999; display: flex; align-items: center; justify-content: center;">
-                        <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center; max-width: 600px;">
-                            <h1 style="color: #ff0000; font-size: 32px; margin-bottom: 20px;">🚨 PDF渲染测试 🚨</h1>
-                            <h2 style="color: #333; margin-bottom: 15px;">📄 ${this.getFileName(this.currentFile)}</h2>
-                            <p style="color: #666; margin-bottom: 20px;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
-                            <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                                <p><strong>Canvas尺寸:</strong> ${canvas.width} x ${canvas.height}</p>
-                                <p><strong>容器高度:</strong> ${container.offsetHeight}px</p>
-                                <p><strong>内容长度:</strong> ${container.innerHTML.length} 字符</p>
-                            </div>
-                            <button onclick="this.parentElement.parentElement.style.display='none'" style="background: #4A90E2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px;">
-                                关闭测试界面
-                            </button>
-                        </div>
-                    </div>
-                    <div style="max-width: 800px; margin: 0 auto; padding: 20px; background: #f0f0f0; border: 2px solid #4A90E2;">
-                        <h1 style="color: #4A90E2; text-align: center; margin-bottom: 20px;">🔍 PDF渲染测试</h1>
-                        <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4A90E2;">
+                    <div style="max-width: 1000px; margin: 0 auto; padding: 20px; background: #f8f9fa;">
+                        <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #4A90E2;">
                             <h2 style="color: #2c3e50; margin-bottom: 8px;">📄 ${this.getFileName(this.currentFile)}</h2>
                             <p style="color: #7f8c8d; font-size: 14px;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
                         </div>
-                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <h3 style="color: #2c3e50; margin-bottom: 10px;">Canvas信息:</h3>
-                            <p>尺寸: ${canvas.width} x ${canvas.height}</p>
-                            <p>Canvas元素: ${canvas.outerHTML.substring(0, 100)}...</p>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                            <h3 style="color: #2c3e50; margin-bottom: 10px;">Canvas调试信息:</h3>
+                            <p><strong>尺寸:</strong> ${canvas.width} x ${canvas.height}</p>
+                            <p><strong>Canvas ID:</strong> ${canvas.id || '无ID'}</p>
+                            <p><strong>Canvas类名:</strong> ${canvas.className || '无类名'}</p>
+                            <p><strong>Canvas样式:</strong> ${canvas.style.cssText || '无内联样式'}</p>
                         </div>
-                        <div class="pdf-page" style="text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; margin-top: 20px;">
-                            ${canvas.outerHTML}
+                        
+                        <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #4A90E2;">
+                            <h3 style="color: #2c3e50; margin-bottom: 10px;">🔍 Canvas内容测试:</h3>
+                            <p>如果下面的Canvas是空白的，说明PDF渲染有问题</p>
+                        </div>
+                        
+                        <div style="text-align: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                            <h3 style="color: #2c3e50; margin-bottom: 15px;">PDF内容:</h3>
+                            <div style="border: 2px solid #4A90E2; border-radius: 8px; overflow: hidden; display: inline-block;">
+                                ${canvas.outerHTML}
+                            </div>
                         </div>
                     </div>
                 `;
