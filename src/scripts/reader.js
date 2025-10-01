@@ -323,6 +323,7 @@ class ReaderApp {
             
             // 创建包装div
             const wrapper = document.createElement('div');
+            wrapper.className = 'pdf-wrapper';
             wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: block;';
             
             // 创建标题
@@ -345,7 +346,8 @@ class ReaderApp {
                 
                 // 创建页面容器
                 const pageContainer = document.createElement('div');
-                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center; width: 100%; display: block; position: relative; overflow: visible;';
+                pageContainer.className = 'page-container';
+                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center; width: 100%; display: block; position: relative; overflow: visible; min-height: 100vh;';
                 
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
@@ -354,6 +356,7 @@ class ReaderApp {
                 
                 // 创建Canvas容器
                 const canvasContainer = document.createElement('div');
+                canvasContainer.className = 'canvas-container';
                 canvasContainer.style.cssText = 'display: block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto; width: 100%; max-width: 100%; min-height: 200px; position: relative;';
                 
                 // 组装页面
@@ -943,10 +946,13 @@ class ReaderApp {
     applyZoom() {
         const container = document.getElementById('documentContainer');
         if (container) {
-            // 缩放整个document-container，让所有Canvas Container一起变化
-            container.style.transform = `scale(${this.zoomLevel})`;
-            container.style.transformOrigin = 'center top';
-            container.style.transition = 'transform 0.2s ease';
+            // 只缩放Canvas Container，不缩放Page Container
+            const canvasContainers = container.querySelectorAll('.canvas-container');
+            canvasContainers.forEach(canvasContainer => {
+                canvasContainer.style.transform = `scale(${this.zoomLevel})`;
+                canvasContainer.style.transformOrigin = 'center center';
+                canvasContainer.style.transition = 'transform 0.2s ease';
+            });
         }
         this.updateZoomDisplay();
     }
