@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPDF Reader - 主界面</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="app-title">NPDF Reader</h1>
+                <span class="app-subtitle">智能英文阅读器</span>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-primary" id="openFileBtn">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                    </svg>
+                    打开文件
+                </button>
+                <button class="btn btn-secondary" id="openFolderBtn">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" />
+                    </svg>
+                    打开文件夹
+                </button>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 欢迎区域 -->
+            <div class="welcome-section" id="welcomeSection">
+                <div class="welcome-content">
+                    <div class="welcome-icon">
+                        <svg viewBox="0 0 24 24" width="80" height="80">
+                            <path fill="#4A90E2" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                        </svg>
+                    </div>
+                    <h2>欢迎使用 NPDF Reader</h2>
+                    <p>专为中国留学生设计的智能英文阅读器</p>
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <svg class="feature-icon" viewBox="0 0 24 24">
+                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
+                            </svg>
+                            <span>支持PDF、Word等多种格式</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg class="feature-icon" viewBox="0 0 24 24">
+                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
+                            </svg>
+                            <span>智能AI翻译功能</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg class="feature-icon" viewBox="0 0 24 24">
+                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
+                            </svg>
+                            <span>荧光笔和批注功能</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg class="feature-icon" viewBox="0 0 24 24">
+                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
+                            </svg>
+                            <span>自动生成翻译记录</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近文件区域 -->
+            <div class="recent-files-section" id="recentFilesSection" style="display: none;">
+                <div class="section-header">
+                    <h3>最近打开的文件</h3>
+                    <button class="btn btn-text" id="clearRecentBtn">清空记录</button>
+                </div>
+                <div class="file-list" id="recentFileList">
+                    <!-- 最近文件列表将在这里动态生成 -->
+                </div>
+            </div>
+
+            <!-- 文件夹内容区域 -->
+            <div class="folder-content-section" id="folderContentSection" style="display: none;">
+                <div class="section-header">
+                    <h3 id="folderPathTitle">文件夹内容</h3>
+                    <button class="btn btn-text" id="backToMainBtn">返回主界面</button>
+                </div>
+                <div class="file-list" id="folderFileList">
+                    <!-- 文件夹文件列表将在这里动态生成 -->
+                </div>
+            </div>
+        </main>
+
+        <!-- 底部状态栏 -->
+        <footer class="footer">
+            <div class="status-info">
+                <span id="statusText">就绪</span>
+            </div>
+            <div class="app-info">
+                <span>NPDF Reader v1.0.0</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 文件项模板 -->
+    <template id="fileItemTemplate">
+        <div class="file-item" data-file-path="">
+            <div class="file-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                </svg>
+            </div>
+            <div class="file-info">
+                <div class="file-name"></div>
+                <div class="file-meta">
+                    <span class="file-size"></span>
+                    <span class="file-date"></span>
+                </div>
+            </div>
+            <div class="file-actions">
+                <button class="btn-icon" title="打开文件">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+                    </svg>
+                </button>
+                <button class="btn-icon" title="从列表中移除">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <script src="scripts/main.js"></script>
+</body>
+</html>

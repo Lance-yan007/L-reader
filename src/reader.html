@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPDF Reader - 阅读器</title>
+    <link rel="stylesheet" href="styles/reader.css">
+</head>
+<body>
+    <div class="reader-container">
+        <!-- 顶部工具栏 -->
+        <header class="toolbar">
+            <div class="toolbar-left">
+                <button class="btn btn-icon" id="backToMainBtn" title="返回主界面">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" />
+                    </svg>
+                </button>
+                <div class="file-info">
+                    <span class="file-name" id="currentFileName">未命名文档</span>
+                    <span class="file-status" id="fileStatus">就绪</span>
+                </div>
+            </div>
+            <div class="toolbar-center">
+                <div class="zoom-controls">
+                    <button class="btn btn-icon" id="zoomOutBtn" title="缩小">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19,13H5V11H19V13Z" />
+                        </svg>
+                    </button>
+                    <span class="zoom-level" id="zoomLevel">100%</span>
+                    <button class="btn btn-icon" id="zoomInBtn" title="放大">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="toolbar-right">
+                <button class="btn btn-icon" id="fullscreenBtn" title="全屏">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M10,17V19H5V14H7V17H10Z" />
+                    </svg>
+                </button>
+                <button class="btn btn-icon" id="settingsBtn" title="设置">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 左侧边栏 -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h3>导航</h3>
+                    <button class="btn btn-icon" id="toggleSidebarBtn" title="收起侧边栏">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="sidebar-content">
+                    <!-- 导航标签页 -->
+                    <div class="sidebar-tabs">
+                        <button class="tab-btn active" data-tab="outline">大纲</button>
+                        <button class="tab-btn" data-tab="bookmarks">书签</button>
+                        <button class="tab-btn" data-tab="notes">注释</button>
+                        <button class="tab-btn" data-tab="translations">翻译</button>
+                    </div>
+
+                    <!-- 大纲面板 -->
+                    <div class="tab-panel active" id="outlinePanel">
+                        <div class="outline-list" id="outlineList">
+                            <!-- 大纲内容将在这里动态生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 书签面板 -->
+                    <div class="tab-panel" id="bookmarksPanel">
+                        <div class="bookmarks-list" id="bookmarksList">
+                            <!-- 书签内容将在这里动态生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 注释面板 -->
+                    <div class="tab-panel" id="notesPanel">
+                        <div class="notes-list" id="notesList">
+                            <!-- 注释内容将在这里动态生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 翻译面板 -->
+                    <div class="tab-panel" id="translationsPanel">
+                        <div class="translations-list" id="translationsList">
+                            <!-- 翻译内容将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 文档显示区域 -->
+            <main class="document-area">
+                <div class="document-container" id="documentContainer">
+                    <!-- 文档内容将在这里渲染 -->
+                    <div class="loading" id="loadingIndicator">
+                        <div class="loading-spinner"></div>
+                        <p>正在加载文档...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- 底部状态栏 -->
+        <footer class="status-bar">
+            <div class="status-left">
+                <span id="pageInfo">第 1 页，共 1 页</span>
+            </div>
+            <div class="status-center">
+                <div class="highlight-tools" id="highlightTools" style="display: none;">
+                    <button class="btn btn-sm" id="translateBtn">翻译选中文本</button>
+                    <button class="btn btn-sm" id="addNoteBtn">添加注释</button>
+                    <button class="btn btn-sm" id="highlightBtn">高亮显示</button>
+                </div>
+            </div>
+            <div class="status-right">
+                <span id="selectionInfo"></span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 翻译弹窗 -->
+    <div class="modal" id="translationModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>AI翻译</h3>
+                <button class="btn btn-icon" id="closeTranslationModal">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="translation-content">
+                    <div class="original-text">
+                        <h4>原文：</h4>
+                        <p id="originalText"></p>
+                    </div>
+                    <div class="translated-text">
+                        <h4>翻译：</h4>
+                        <p id="translatedText"></p>
+                    </div>
+                </div>
+                <div class="translation-actions">
+                    <button class="btn btn-primary" id="saveTranslationBtn">保存翻译</button>
+                    <button class="btn btn-secondary" id="copyTranslationBtn">复制翻译</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注释弹窗 -->
+    <div class="modal" id="noteModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加注释</h3>
+                <button class="btn btn-icon" id="closeNoteModal">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="note-content">
+                    <div class="selected-text">
+                        <h4>选中文本：</h4>
+                        <p id="selectedTextForNote"></p>
+                    </div>
+                    <div class="note-input">
+                        <h4>注释内容：</h4>
+                        <textarea id="noteTextarea" placeholder="请输入您的注释..."></textarea>
+                    </div>
+                </div>
+                <div class="note-actions">
+                    <button class="btn btn-primary" id="saveNoteBtn">保存注释</button>
+                    <button class="btn btn-secondary" id="cancelNoteBtn">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/reader.js"></script>
+</body>
+</html>

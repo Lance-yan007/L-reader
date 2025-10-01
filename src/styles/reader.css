@@ -1,0 +1,617 @@
+/* 全局样式重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+    overflow: hidden;
+}
+
+/* 阅读器容器 */
+.reader-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #fff;
+}
+
+/* 顶部工具栏 */
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.toolbar-center {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.file-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.file-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.file-status {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.zoom-level {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e50;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* 主内容区域 */
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* 左侧边栏 */
+.sidebar {
+    width: 300px;
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.sidebar.collapsed {
+    width: 0;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f9fa;
+}
+
+.sidebar-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 侧边栏标签页 */
+.sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    color: #7f8c8d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-btn:hover {
+    background: #f8f9fa;
+    color: #4A90E2;
+}
+
+.tab-btn.active {
+    color: #4A90E2;
+    border-bottom-color: #4A90E2;
+    background: #f8f9fa;
+}
+
+/* 标签面板 */
+.tab-panel {
+    flex: 1;
+    overflow-y: auto;
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+/* 大纲列表 */
+.outline-list {
+    padding: 16px;
+}
+
+.outline-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 4px;
+}
+
+.outline-item:hover {
+    background: #f8f9fa;
+}
+
+.outline-item.active {
+    background: #e3f2fd;
+    color: #4A90E2;
+}
+
+.outline-level-1 { padding-left: 12px; }
+.outline-level-2 { padding-left: 24px; }
+.outline-level-3 { padding-left: 36px; }
+
+/* 书签列表 */
+.bookmarks-list {
+    padding: 16px;
+}
+
+.bookmark-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+}
+
+.bookmark-item:hover {
+    background: #e3f2fd;
+    border-color: #4A90E2;
+}
+
+.bookmark-icon {
+    width: 32px;
+    height: 32px;
+    background: #4A90E2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bookmark-info {
+    flex: 1;
+}
+
+.bookmark-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.bookmark-page {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+/* 注释列表 */
+.notes-list {
+    padding: 16px;
+}
+
+.note-item {
+    padding: 16px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.note-item:hover {
+    background: #e3f2fd;
+    border-color: #4A90E2;
+}
+
+.note-text {
+    font-size: 14px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.note-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.note-date {
+    font-weight: 500;
+}
+
+/* 翻译列表 */
+.translations-list {
+    padding: 16px;
+}
+
+.translation-item {
+    padding: 16px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.translation-item:hover {
+    background: #e3f2fd;
+    border-color: #4A90E2;
+}
+
+.translation-original {
+    font-size: 14px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-style: italic;
+}
+
+.translation-result {
+    font-size: 14px;
+    color: #4A90E2;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.translation-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+/* 文档显示区域 */
+.document-area {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.document-container {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+    background: #fff;
+    position: relative;
+}
+
+/* 加载指示器 */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #7f8c8d;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e0e0e0;
+    border-top: 3px solid #4A90E2;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* PDF 文档样式 */
+.pdf-page {
+    margin: 0 auto 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.pdf-page canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* 文本选择样式 */
+::selection {
+    background: rgba(74, 144, 226, 0.3);
+}
+
+.text-highlight {
+    background: rgba(255, 235, 59, 0.6);
+    padding: 2px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.text-highlight:hover {
+    background: rgba(255, 235, 59, 0.8);
+}
+
+/* 底部状态栏 */
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.status-center {
+    display: flex;
+    align-items: center;
+}
+
+.highlight-tools {
+    display: flex;
+    gap: 8px;
+}
+
+/* 按钮样式 */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #4A90E2;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #357ABD;
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: #4A90E2;
+    border: 1px solid #e0e0e0;
+}
+
+.btn-secondary:hover {
+    background: #e3f2fd;
+}
+
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #7f8c8d;
+    transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+    background: #f8f9fa;
+    color: #4A90E2;
+}
+
+.btn-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+/* 模态框样式 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.modal-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.translation-content,
+.note-content {
+    margin-bottom: 20px;
+}
+
+.translation-content h4,
+.note-content h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.translation-content p,
+.note-content p {
+    font-size: 14px;
+    color: #2c3e50;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.note-input textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.translation-actions,
+.note-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 250px;
+    }
+    
+    .toolbar {
+        padding: 8px 12px;
+    }
+    
+    .file-name {
+        font-size: 14px;
+    }
+    
+    .zoom-controls {
+        padding: 6px 8px;
+    }
+    
+    .document-container {
+        padding: 12px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
