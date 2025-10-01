@@ -266,6 +266,12 @@ class ReaderApp {
             canvas.style.height = canvas.height + 'px';
             canvas.style.border = '1px solid #ccc';
             canvas.style.background = '#fff';
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = 'auto';
+            
+            // 确保Canvas有正确的尺寸
+            canvas.setAttribute('width', canvas.width);
+            canvas.setAttribute('height', canvas.height);
             
             console.log('Canvas尺寸:', canvas.width, 'x', canvas.height);
             
@@ -285,12 +291,25 @@ class ReaderApp {
             console.log('Canvas是否有内容:', hasContent);
             console.log('Canvas前几个像素:', Array.from(imageData.data.slice(0, 20)));
             
+            // 强制刷新Canvas尺寸
+            canvas.style.width = canvas.width + 'px';
+            canvas.style.height = canvas.height + 'px';
+            
             // 检查Canvas的显示属性
             console.log('Canvas display:', window.getComputedStyle(canvas).display);
             console.log('Canvas visibility:', window.getComputedStyle(canvas).visibility);
             console.log('Canvas opacity:', window.getComputedStyle(canvas).opacity);
             console.log('Canvas width/height:', canvas.width, 'x', canvas.height);
             console.log('Canvas offsetWidth/Height:', canvas.offsetWidth, 'x', canvas.offsetHeight);
+            
+            // 如果offsetWidth/Height还是0，强制设置
+            if (canvas.offsetWidth === 0 || canvas.offsetHeight === 0) {
+                console.log('Canvas尺寸为0，强制设置...');
+                canvas.style.width = '918px';
+                canvas.style.height = '1188px';
+                canvas.style.minWidth = '918px';
+                canvas.style.minHeight = '1188px';
+            }
             
             const container = document.getElementById('documentContainer');
             console.log('文档容器元素:', container);
