@@ -272,18 +272,28 @@ class ReaderApp {
             console.log('文档容器元素:', container);
             
             if (container) {
+                // 先添加一个简单的测试内容
                 container.innerHTML = `
-                    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+                    <div style="max-width: 800px; margin: 0 auto; padding: 20px; background: #f0f0f0; border: 2px solid #4A90E2;">
+                        <h1 style="color: #4A90E2; text-align: center; margin-bottom: 20px;">🔍 PDF渲染测试</h1>
                         <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4A90E2;">
                             <h2 style="color: #2c3e50; margin-bottom: 8px;">📄 ${this.getFileName(this.currentFile)}</h2>
                             <p style="color: #7f8c8d; font-size: 14px;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
                         </div>
-                        <div class="pdf-page" style="text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <h3 style="color: #2c3e50; margin-bottom: 10px;">Canvas信息:</h3>
+                            <p>尺寸: ${canvas.width} x ${canvas.height}</p>
+                            <p>Canvas元素: ${canvas.outerHTML.substring(0, 100)}...</p>
+                        </div>
+                        <div class="pdf-page" style="text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; margin-top: 20px;">
                             ${canvas.outerHTML}
                         </div>
                     </div>
                 `;
                 console.log('PDF内容已渲染到DOM');
+                console.log('容器内容长度:', container.innerHTML.length);
+                console.log('容器可见性:', window.getComputedStyle(container).display);
+                console.log('容器高度:', container.offsetHeight);
             } else {
                 console.error('找不到documentContainer元素');
             }
