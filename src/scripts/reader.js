@@ -272,8 +272,23 @@ class ReaderApp {
             console.log('文档容器元素:', container);
             
             if (container) {
-                // 先添加一个简单的测试内容
+                // 添加一个非常明显的测试内容
                 container.innerHTML = `
+                    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ff0000; z-index: 9999; display: flex; align-items: center; justify-content: center;">
+                        <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center; max-width: 600px;">
+                            <h1 style="color: #ff0000; font-size: 32px; margin-bottom: 20px;">🚨 PDF渲染测试 🚨</h1>
+                            <h2 style="color: #333; margin-bottom: 15px;">📄 ${this.getFileName(this.currentFile)}</h2>
+                            <p style="color: #666; margin-bottom: 20px;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
+                            <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                                <p><strong>Canvas尺寸:</strong> ${canvas.width} x ${canvas.height}</p>
+                                <p><strong>容器高度:</strong> ${container.offsetHeight}px</p>
+                                <p><strong>内容长度:</strong> ${container.innerHTML.length} 字符</p>
+                            </div>
+                            <button onclick="this.parentElement.parentElement.style.display='none'" style="background: #4A90E2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                                关闭测试界面
+                            </button>
+                        </div>
+                    </div>
                     <div style="max-width: 800px; margin: 0 auto; padding: 20px; background: #f0f0f0; border: 2px solid #4A90E2;">
                         <h1 style="color: #4A90E2; text-align: center; margin-bottom: 20px;">🔍 PDF渲染测试</h1>
                         <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4A90E2;">

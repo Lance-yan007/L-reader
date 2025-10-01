@@ -336,6 +336,7 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    background: #fff;
 }
 
 .document-container {
@@ -344,6 +345,8 @@ body {
     padding: 20px;
     background: #fff;
     position: relative;
+    min-height: 400px;
+    z-index: 1;
 }
 
 /* 加载指示器 */
