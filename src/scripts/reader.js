@@ -197,6 +197,8 @@ class ReaderApp {
             script.src = '../node_modules/pdfjs-dist/build/pdf.min.js';
             script.onload = () => {
                 if (window.pdfjsLib) {
+                    // 配置PDF.js Worker
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.min.js';
                     resolve(window.pdfjsLib);
                 } else {
                     reject(new Error('PDF.js加载失败'));
@@ -602,7 +604,9 @@ class ReaderApp {
 
     showLoading(show) {
         const loading = document.getElementById('loadingIndicator');
-        loading.style.display = show ? 'flex' : 'none';
+        if (loading) {
+            loading.style.display = show ? 'flex' : 'none';
+        }
     }
 
     updateFileName(name) {
