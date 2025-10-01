@@ -132,9 +132,10 @@ class ReaderApp {
             }
         });
 
-        // 触控板双指缩放
+        // 触控板双指缩放 - 匀速缩放
         let lastTouchDistance = 0;
         let isZooming = false;
+        let zoomTimeout = null;
 
         documentContainer.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
@@ -160,12 +161,21 @@ class ReaderApp {
 
                 if (lastTouchDistance > 0) {
                     const scale = currentDistance / lastTouchDistance;
-                    if (scale > 1.3) {
-                        this.zoomIn();
-                        lastTouchDistance = currentDistance;
-                    } else if (scale < 0.7) {
-                        this.zoomOut();
-                        lastTouchDistance = currentDistance;
+                    
+                    // 清除之前的定时器
+                    if (zoomTimeout) {
+                        clearTimeout(zoomTimeout);
+                    }
+                    
+                    // 匀速缩放：固定时间间隔
+                    if (scale > 1.1) {
+                        zoomTimeout = setTimeout(() => {
+                            this.zoomIn();
+                        }, 50);
+                    } else if (scale < 0.9) {
+                        zoomTimeout = setTimeout(() => {
+                            this.zoomOut();
+                        }, 50);
                     }
                 }
                 e.preventDefault();
@@ -175,6 +185,10 @@ class ReaderApp {
         documentContainer.addEventListener('touchend', (e) => {
             if (e.touches.length < 2) {
                 isZooming = false;
+                if (zoomTimeout) {
+                    clearTimeout(zoomTimeout);
+                    zoomTimeout = null;
+                }
             }
         });
 
@@ -321,7 +335,7 @@ class ReaderApp {
             
             // 创建包装div
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible;';
+            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative;';
             
             // 创建标题
             const title = document.createElement('h2');
@@ -343,7 +357,7 @@ class ReaderApp {
                 
                 // 创建页面容器
                 const pageContainer = document.createElement('div');
-                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center; width: 100%; display: block;';
+                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center; width: 100%; display: block; position: relative;';
                 
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
@@ -352,7 +366,7 @@ class ReaderApp {
                 
                 // 创建Canvas容器
                 const canvasContainer = document.createElement('div');
-                canvasContainer.style.cssText = 'display: block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto; max-width: 100%;';
+                canvasContainer.style.cssText = 'display: block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto; width: 100%; max-width: 100%;';
                 
                 // 组装页面
                 canvasContainer.appendChild(pageCanvas);
@@ -406,9 +420,10 @@ class ReaderApp {
             canvas.style.border = '1px solid #ccc';
             canvas.style.background = '#fff';
             canvas.style.maxWidth = '100%';
-            canvas.style.height = 'auto';
             canvas.style.width = '100%';
+            canvas.style.height = 'auto';
             canvas.style.objectFit = 'contain';
+            canvas.style.margin = '0 auto';
             
             // 确保Canvas有正确的尺寸
             canvas.setAttribute('width', canvas.width);
@@ -937,9 +952,28 @@ class ReaderApp {
     applyZoom() {
         const container = document.getElementById('documentContainer');
         if (container) {
-            container.style.transform = `scale(${this.zoomLevel})`;
-            container.style.transformOrigin = 'center top';
-            container.style.transition = 'transform 0.2s ease';
+            // 不缩放整个容器，而是缩放内部的Canvas元素
+            const canvases = container.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                const originalWidth = canvas.getAttribute('data-original-width') || canvas.width;
+                const originalHeight = canvas.getAttribute('data-original-height') || canvas.height;
+                
+                // 保存原始尺寸
+                if (!canvas.getAttribute('data-original-width')) {
+                    canvas.setAttribute('data-original-width', originalWidth);
+                    canvas.setAttribute('data-original-height', originalHeight);
+                }
+                
+                // 计算缩放后的尺寸
+                const scaledWidth = originalWidth * this.zoomLevel;
+                const scaledHeight = originalHeight * this.zoomLevel;
+                
+                // 应用缩放
+                canvas.style.width = scaledWidth + 'px';
+                canvas.style.height = scaledHeight + 'px';
+                canvas.style.transform = 'none';
+                canvas.style.transformOrigin = 'center center';
+            });
         }
         this.updateZoomDisplay();
     }
