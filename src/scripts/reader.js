@@ -309,6 +309,16 @@ class ReaderApp {
                 canvas.style.height = '1188px';
                 canvas.style.minWidth = '918px';
                 canvas.style.minHeight = '1188px';
+                
+                // 使用setTimeout延迟设置，确保DOM更新完成
+                setTimeout(() => {
+                    console.log('延迟设置Canvas尺寸...');
+                    canvas.style.width = '918px';
+                    canvas.style.height = '1188px';
+                    canvas.style.display = 'block';
+                    canvas.style.visibility = 'visible';
+                    console.log('延迟设置后Canvas offsetWidth/Height:', canvas.offsetWidth, 'x', canvas.offsetHeight);
+                }, 100);
             }
             
             const container = document.getElementById('documentContainer');
@@ -331,6 +341,27 @@ class ReaderApp {
                 console.log('容器内容长度:', container.innerHTML.length);
                 console.log('容器可见性:', window.getComputedStyle(container).display);
                 console.log('容器高度:', container.offsetHeight);
+                
+                // 延迟检查Canvas是否在DOM中正确显示
+                setTimeout(() => {
+                    const canvasInDOM = container.querySelector('canvas');
+                    if (canvasInDOM) {
+                        console.log('DOM中的Canvas offsetWidth/Height:', canvasInDOM.offsetWidth, 'x', canvasInDOM.offsetHeight);
+                        console.log('DOM中的Canvas computedStyle:', window.getComputedStyle(canvasInDOM).width, 'x', window.getComputedStyle(canvasInDOM).height);
+                        
+                        // 如果Canvas尺寸还是0，强制设置
+                        if (canvasInDOM.offsetWidth === 0 || canvasInDOM.offsetHeight === 0) {
+                            console.log('DOM中Canvas尺寸为0，强制设置...');
+                            canvasInDOM.style.width = '918px';
+                            canvasInDOM.style.height = '1188px';
+                            canvasInDOM.style.display = 'block';
+                            canvasInDOM.style.visibility = 'visible';
+                            canvasInDOM.style.border = '2px solid red';
+                        }
+                    } else {
+                        console.log('在DOM中找不到Canvas元素');
+                    }
+                }, 200);
             } else {
                 console.error('找不到documentContainer元素');
             }
