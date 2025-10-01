@@ -132,10 +132,9 @@ class ReaderApp {
             }
         });
 
-        // 触控板双指缩放 - 匀速缩放
+        // 触控板双指缩放 - 简化版本
         let lastTouchDistance = 0;
         let isZooming = false;
-        let zoomTimeout = null;
 
         documentContainer.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
@@ -162,20 +161,13 @@ class ReaderApp {
                 if (lastTouchDistance > 0) {
                     const scale = currentDistance / lastTouchDistance;
                     
-                    // 清除之前的定时器
-                    if (zoomTimeout) {
-                        clearTimeout(zoomTimeout);
-                    }
-                    
-                    // 匀速缩放：固定时间间隔
-                    if (scale > 1.1) {
-                        zoomTimeout = setTimeout(() => {
-                            this.zoomIn();
-                        }, 50);
-                    } else if (scale < 0.9) {
-                        zoomTimeout = setTimeout(() => {
-                            this.zoomOut();
-                        }, 50);
+                    // 直接缩放，不使用定时器
+                    if (scale > 1.2) {
+                        this.zoomIn();
+                        lastTouchDistance = currentDistance;
+                    } else if (scale < 0.8) {
+                        this.zoomOut();
+                        lastTouchDistance = currentDistance;
                     }
                 }
                 e.preventDefault();
@@ -185,10 +177,6 @@ class ReaderApp {
         documentContainer.addEventListener('touchend', (e) => {
             if (e.touches.length < 2) {
                 isZooming = false;
-                if (zoomTimeout) {
-                    clearTimeout(zoomTimeout);
-                    zoomTimeout = null;
-                }
             }
         });
 
@@ -952,28 +940,10 @@ class ReaderApp {
     applyZoom() {
         const container = document.getElementById('documentContainer');
         if (container) {
-            // 不缩放整个容器，而是缩放内部的Canvas元素
-            const canvases = container.querySelectorAll('canvas');
-            canvases.forEach(canvas => {
-                const originalWidth = canvas.getAttribute('data-original-width') || canvas.width;
-                const originalHeight = canvas.getAttribute('data-original-height') || canvas.height;
-                
-                // 保存原始尺寸
-                if (!canvas.getAttribute('data-original-width')) {
-                    canvas.setAttribute('data-original-width', originalWidth);
-                    canvas.setAttribute('data-original-height', originalHeight);
-                }
-                
-                // 计算缩放后的尺寸
-                const scaledWidth = originalWidth * this.zoomLevel;
-                const scaledHeight = originalHeight * this.zoomLevel;
-                
-                // 应用缩放
-                canvas.style.width = scaledWidth + 'px';
-                canvas.style.height = scaledHeight + 'px';
-                canvas.style.transform = 'none';
-                canvas.style.transformOrigin = 'center center';
-            });
+            // 缩放整个容器，让所有Canvas一起变化
+            container.style.transform = `scale(${this.zoomLevel})`;
+            container.style.transformOrigin = 'center top';
+            container.style.transition = 'transform 0.2s ease';
         }
         this.updateZoomDisplay();
     }
