@@ -324,7 +324,7 @@ class ReaderApp {
             // 创建包装div
             const wrapper = document.createElement('div');
             wrapper.className = 'pdf-wrapper';
-            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: block; text-align: center;';
+            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;';
             
             // 创建标题
             const title = document.createElement('h2');
@@ -344,10 +344,10 @@ class ReaderApp {
                 console.log(`渲染第${pageNum}页...`);
                 const pageCanvas = await this.renderSinglePDFPage(pdf, pageNum);
                 
-                // 创建Canvas容器 - 直接添加到wrapper，不创建单独的pageContainer
+                // 创建Canvas容器 - 使用flexbox让它们连在一起
                 const canvasContainer = document.createElement('div');
                 canvasContainer.className = 'canvas-container';
-                canvasContainer.style.cssText = 'display: inline-block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 10px; width: auto; max-width: 100%; min-height: 200px; position: relative; vertical-align: top;';
+                canvasContainer.style.cssText = 'display: flex; flex-direction: column; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 5px; width: auto; max-width: 100%; min-height: 200px; position: relative; flex-shrink: 0;';
                 
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
