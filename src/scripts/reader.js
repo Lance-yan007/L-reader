@@ -145,23 +145,103 @@ class ReaderApp {
     }
 
     async loadPDF(filePath) {
-        // 这里应该集成PDF.js来渲染PDF
-        // 暂时显示模拟内容
-        const container = document.getElementById('documentContainer');
-        container.innerHTML = `
-            <div class="pdf-page">
-                <div style="width: 100%; height: 800px; background: #f0f0f0; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; color: #666;">
-                    <div style="text-align: center;">
-                        <h3>PDF文档预览</h3>
-                        <p>文件: ${this.getFileName(filePath)}</p>
-                        <p>这里将显示PDF内容</p>
+        try {
+            // 动态加载PDF.js
+            const pdfjsLib = await this.loadPDFJS();
+            
+            // 读取PDF文件
+            const result = await ipcRenderer.invoke('read-file', filePath);
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+            
+            // 加载PDF文档
+            const loadingTask = pdfjsLib.getDocument({
+                data: result.data,
+                cMapUrl: '../node_modules/pdfjs-dist/cmaps/',
+                cMapPacked: true
+            });
+            
+            const pdf = await loadingTask.promise;
+            this.totalPages = pdf.numPages;
+            this.updatePageInfo();
+            
+            // 渲染第一页
+            await this.renderPDFPage(pdf, 1);
+            
+        } catch (error) {
+            console.error('PDF加载失败:', error);
+            // 显示错误信息
+            const container = document.getElementById('documentContainer');
+            container.innerHTML = `
+                <div style="max-width: 800px; margin: 0 auto; padding: 40px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; text-align: center;">
+                    <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
+                        <h2 style="color: #e74c3c; margin-bottom: 8px;">❌ PDF加载失败</h2>
+                        <p style="color: #7f8c8d; font-size: 14px;">文件: ${this.getFileName(filePath)}</p>
+                    </div>
+                    <div style="margin-top: 20px; color: #2c3e50;">
+                        <p>错误信息: ${error.message}</p>
+                        <p style="margin-top: 10px; font-size: 14px; color: #7f8c8d;">
+                            请确保文件是有效的PDF格式，或者尝试重新打开文件。
+                        </p>
                     </div>
                 </div>
-            </div>
-        `;
-        
-        this.totalPages = 1;
-        this.updatePageInfo();
+            `;
+        }
+    }
+
+    async loadPDFJS() {
+        // 动态加载PDF.js
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = '../node_modules/pdfjs-dist/build/pdf.min.js';
+            script.onload = () => {
+                if (window.pdfjsLib) {
+                    resolve(window.pdfjsLib);
+                } else {
+                    reject(new Error('PDF.js加载失败'));
+                }
+            };
+            script.onerror = () => reject(new Error('PDF.js脚本加载失败'));
+            document.head.appendChild(script);
+        });
+    }
+
+    async renderPDFPage(pdf, pageNum) {
+        try {
+            const page = await pdf.getPage(pageNum);
+            const scale = 1.5;
+            const viewport = page.getViewport({ scale });
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            
+            const container = document.getElementById('documentContainer');
+            container.innerHTML = `
+                <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4A90E2;">
+                        <h2 style="color: #2c3e50; margin-bottom: 8px;">📄 ${this.getFileName(this.currentFile)}</h2>
+                        <p style="color: #7f8c8d; font-size: 14px;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
+                    </div>
+                    <div class="pdf-page" style="text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden;">
+                        ${canvas.outerHTML}
+                    </div>
+                </div>
+            `;
+            
+        } catch (error) {
+            console.error('PDF页面渲染失败:', error);
+            throw error;
+        }
     }
 
     async loadWord(filePath) {
