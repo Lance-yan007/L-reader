@@ -91,6 +91,7 @@ function createReaderWindow(filePath) {
 
   // 传递文件路径到渲染进程
   readerWindow.webContents.once('did-finish-load', () => {
+    console.log('发送文件路径到阅读器窗口:', filePath);
     readerWindow.webContents.send('file-opened', filePath);
   });
 

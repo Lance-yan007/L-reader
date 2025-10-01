@@ -100,6 +100,7 @@ class ReaderApp {
 
         // IPC事件监听
         ipcRenderer.on('file-opened', (event, filePath) => {
+            console.log('阅读器窗口接收到文件路径:', filePath);
             this.loadFile(filePath);
         });
 
@@ -167,7 +168,10 @@ class ReaderApp {
             const loadingTask = pdfjsLib.getDocument({
                 data: result.data,
                 cMapUrl: '../node_modules/pdfjs-dist/cmaps/',
-                cMapPacked: true
+                cMapPacked: true,
+                disableAutoFetch: true,
+                disableStream: true,
+                disableRange: true
             });
             
             const pdf = await loadingTask.promise;
