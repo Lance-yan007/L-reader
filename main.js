@@ -347,6 +347,16 @@ ipcMain.handle('get-translations', async (event, filePath) => {
   }
 });
 
+// 从主界面打开文件
+ipcMain.handle('open-file-from-main', async (event, filePath) => {
+  try {
+    openFile(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // 处理外部文件打开
 app.on('open-file', (event, filePath) => {
   event.preventDefault();

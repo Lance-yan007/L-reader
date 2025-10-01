@@ -190,10 +190,12 @@ class ReaderApp {
                 const text = result.data.toString('utf8');
                 const container = document.getElementById('documentContainer');
                 container.innerHTML = `
-                    <div style="max-width: 800px; margin: 0 auto; padding: 40px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                        <h2>文本文件内容</h2>
-                        <p>文件: ${this.getFileName(filePath)}</p>
-                        <div style="margin-top: 20px; line-height: 1.8; font-size: 16px; white-space: pre-wrap;">
+                    <div style="max-width: 800px; margin: 0 auto; padding: 40px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px;">
+                        <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
+                            <h2 style="color: #2c3e50; margin-bottom: 8px;">📄 ${this.getFileName(filePath)}</h2>
+                            <p style="color: #7f8c8d; font-size: 14px;">文本文件</p>
+                        </div>
+                        <div style="margin-top: 20px; line-height: 1.8; font-size: 16px; white-space: pre-wrap; color: #2c3e50; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
                             ${text}
                         </div>
                     </div>

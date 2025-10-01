@@ -75,12 +75,21 @@ class MainApp {
     }
 
     async handleFileOpened(filePath) {
-        // 添加到最近文件列表
-        this.addToRecentFiles(filePath);
-        
-        // 发送文件路径到主进程，打开阅读器窗口
-        // 这里主进程会自动创建阅读器窗口
-        this.updateStatus(`已打开文件: ${this.getFileName(filePath)}`);
+        try {
+            // 添加到最近文件列表
+            this.addToRecentFiles(filePath);
+            
+            // 通知主进程创建阅读器窗口
+            const result = await ipcRenderer.invoke('open-file-from-main', filePath);
+            
+            if (result.success) {
+                this.updateStatus(`已打开文件: ${this.getFileName(filePath)}`);
+            } else {
+                this.showError('打开文件失败: ' + result.error);
+            }
+        } catch (error) {
+            this.showError('打开文件失败: ' + error.message);
+        }
     }
 
     handleFolderOpened(folderPath) {
