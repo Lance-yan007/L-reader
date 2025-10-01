@@ -140,14 +140,14 @@ class MainApp {
         return [
             {
                 name: 'sample.pdf',
-                path: path.join(folderPath, 'sample.pdf'),
+                path: folderPath + '/sample.pdf',
                 size: '2.3 MB',
                 date: '2024-01-15',
                 type: 'pdf'
             },
             {
                 name: 'document.docx',
-                path: path.join(folderPath, 'document.docx'),
+                path: folderPath + '/document.docx',
                 size: '1.8 MB',
                 date: '2024-01-14',
                 type: 'docx'

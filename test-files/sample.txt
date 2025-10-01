@@ -1,0 +1,32 @@
+Welcome to NPDF Reader!
+
+This is a sample text file for testing the NPDF Reader application.
+
+Features to test:
+1. Text selection and highlighting
+2. AI translation functionality
+3. Note-taking capabilities
+4. Translation history storage
+
+Sample English text for translation testing:
+
+"The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet and is commonly used for typing practice."
+
+"Technology has revolutionized the way we communicate, work, and learn. With the advent of artificial intelligence, we can now process and understand vast amounts of information more efficiently than ever before."
+
+"Learning a new language opens doors to new cultures, perspectives, and opportunities. It challenges our thinking and broadens our understanding of the world around us."
+
+Academic reading sample:
+
+"Research methodology is a crucial aspect of any scientific investigation. It provides the framework for collecting, analyzing, and interpreting data in a systematic and objective manner. The choice of methodology depends on the research question, the nature of the data, and the resources available."
+
+"Statistical analysis plays a vital role in validating research findings. Through various statistical tests and methods, researchers can determine the significance of their results and draw meaningful conclusions from their data."
+
+This file can be used to test:
+- Text selection and highlighting
+- Translation features
+- Note-taking functionality
+- File management
+- Recent files tracking
+
+Enjoy using NPDF Reader!
