@@ -111,6 +111,7 @@ class ReaderApp {
 
     async loadFile(filePath) {
         try {
+            console.log('开始加载文件:', filePath);
             this.updateStatus('正在加载文件...');
             this.showLoading(true);
             
@@ -119,25 +120,32 @@ class ReaderApp {
             
             // 根据文件类型加载不同的内容
             const fileType = this.getFileType(filePath);
+            console.log('检测到文件类型:', fileType);
             
             switch (fileType) {
                 case 'pdf':
+                    console.log('加载PDF文件');
                     await this.loadPDF(filePath);
                     break;
                 case 'docx':
                 case 'doc':
+                    console.log('加载Word文件');
                     await this.loadWord(filePath);
                     break;
                 case 'txt':
+                    console.log('加载文本文件');
                     await this.loadText(filePath);
                     break;
                 default:
-                    throw new Error('不支持的文件格式');
+                    console.log('不支持的文件格式:', fileType);
+                    throw new Error('不支持的文件格式: ' + fileType);
             }
             
             this.loadTranslations();
             this.updateStatus('文件加载完成');
+            console.log('文件加载完成');
         } catch (error) {
+            console.error('文件加载失败:', error);
             this.showError('加载文件失败: ' + error.message);
         } finally {
             this.showLoading(false);
@@ -267,25 +275,38 @@ class ReaderApp {
 
     async loadText(filePath) {
         try {
+            console.log('开始读取文本文件:', filePath);
             const result = await ipcRenderer.invoke('read-file', filePath);
+            console.log('文件读取结果:', result);
+            
             if (result.success) {
                 const text = result.data.toString('utf8');
+                console.log('文本内容长度:', text.length);
+                
                 const container = document.getElementById('documentContainer');
-                container.innerHTML = `
-                    <div style="max-width: 800px; margin: 0 auto; padding: 40px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px;">
-                        <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
-                            <h2 style="color: #2c3e50; margin-bottom: 8px;">📄 ${this.getFileName(filePath)}</h2>
-                            <p style="color: #7f8c8d; font-size: 14px;">文本文件</p>
+                console.log('文档容器元素:', container);
+                
+                if (container) {
+                    container.innerHTML = `
+                        <div style="max-width: 800px; margin: 0 auto; padding: 40px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px;">
+                            <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
+                                <h2 style="color: #2c3e50; margin-bottom: 8px;">📄 ${this.getFileName(filePath)}</h2>
+                                <p style="color: #7f8c8d; font-size: 14px;">文本文件</p>
+                            </div>
+                            <div style="margin-top: 20px; line-height: 1.8; font-size: 16px; white-space: pre-wrap; color: #2c3e50; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+                                ${text}
+                            </div>
                         </div>
-                        <div style="margin-top: 20px; line-height: 1.8; font-size: 16px; white-space: pre-wrap; color: #2c3e50; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-                            ${text}
-                        </div>
-                    </div>
-                `;
+                    `;
+                    console.log('文本内容已渲染到DOM');
+                } else {
+                    console.error('找不到documentContainer元素');
+                }
             } else {
                 throw new Error(result.error);
             }
         } catch (error) {
+            console.error('读取文本文件失败:', error);
             throw new Error('读取文本文件失败: ' + error.message);
         }
         
