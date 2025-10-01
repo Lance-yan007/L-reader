@@ -1,0 +1,50 @@
+{
+  "name": "npdf-reader",
+  "version": "1.0.0",
+  "description": "智能英文阅读器 - 专为中国留学生设计",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "dist": "electron-builder --publish=never"
+  },
+  "keywords": [
+    "pdf",
+    "reader",
+    "translation",
+    "ai",
+    "education"
+  ],
+  "author": "NPDF Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^3.11.174",
+    "mammoth": "^1.6.0",
+    "node-pandoc": "^0.3.0",
+    "axios": "^1.6.0"
+  },
+  "build": {
+    "appId": "com.npdf.reader",
+    "productName": "NPDF Reader",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.education"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
+
+
