@@ -325,43 +325,48 @@ class ReaderApp {
             console.log('文档容器元素:', container);
             
             if (container) {
-                // 直接显示Canvas，最小化HTML结构
-                container.innerHTML = `
-                    <div style="padding: 20px; background: #f8f9fa; min-height: 100vh;">
-                        <h2 style="color: #2c3e50; margin-bottom: 20px; text-align: center;">📄 ${this.getFileName(this.currentFile)}</h2>
-                        <div style="text-align: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                            <p style="margin-bottom: 15px; color: #666;">PDF文档 - 第${pageNum}页，共${this.totalPages}页</p>
-                            <div style="display: inline-block; border: 3px solid #4A90E2; border-radius: 8px; overflow: hidden;">
-                                ${canvas.outerHTML}
-                            </div>
-                        </div>
-                    </div>
-                `;
+                // 清空容器
+                container.innerHTML = '';
+                
+                // 创建包装div
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh;';
+                
+                // 创建标题
+                const title = document.createElement('h2');
+                title.textContent = `📄 ${this.getFileName(this.currentFile)}`;
+                title.style.cssText = 'color: #2c3e50; margin-bottom: 20px; text-align: center;';
+                
+                // 创建内容区域
+                const contentArea = document.createElement('div');
+                contentArea.style.cssText = 'text-align: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);';
+                
+                // 创建页面信息
+                const pageInfo = document.createElement('p');
+                pageInfo.textContent = `PDF文档 - 第${pageNum}页，共${this.totalPages}页`;
+                pageInfo.style.cssText = 'margin-bottom: 15px; color: #666;';
+                
+                // 创建Canvas容器
+                const canvasContainer = document.createElement('div');
+                canvasContainer.style.cssText = 'display: inline-block; border: 3px solid #4A90E2; border-radius: 8px; overflow: hidden;';
+                
+                // 直接插入Canvas对象（不使用outerHTML）
+                canvasContainer.appendChild(canvas);
+                
+                // 组装DOM结构
+                contentArea.appendChild(pageInfo);
+                contentArea.appendChild(canvasContainer);
+                wrapper.appendChild(title);
+                wrapper.appendChild(contentArea);
+                container.appendChild(wrapper);
                 console.log('PDF内容已渲染到DOM');
                 console.log('容器内容长度:', container.innerHTML.length);
                 console.log('容器可见性:', window.getComputedStyle(container).display);
                 console.log('容器高度:', container.offsetHeight);
                 
-                // 延迟检查Canvas是否在DOM中正确显示
-                setTimeout(() => {
-                    const canvasInDOM = container.querySelector('canvas');
-                    if (canvasInDOM) {
-                        console.log('DOM中的Canvas offsetWidth/Height:', canvasInDOM.offsetWidth, 'x', canvasInDOM.offsetHeight);
-                        console.log('DOM中的Canvas computedStyle:', window.getComputedStyle(canvasInDOM).width, 'x', window.getComputedStyle(canvasInDOM).height);
-                        
-                        // 如果Canvas尺寸还是0，强制设置
-                        if (canvasInDOM.offsetWidth === 0 || canvasInDOM.offsetHeight === 0) {
-                            console.log('DOM中Canvas尺寸为0，强制设置...');
-                            canvasInDOM.style.width = '918px';
-                            canvasInDOM.style.height = '1188px';
-                            canvasInDOM.style.display = 'block';
-                            canvasInDOM.style.visibility = 'visible';
-                            canvasInDOM.style.border = '2px solid red';
-                        }
-                    } else {
-                        console.log('在DOM中找不到Canvas元素');
-                    }
-                }, 200);
+                // 验证Canvas是否正确插入DOM
+                console.log('Canvas已直接插入DOM，offsetWidth/Height:', canvas.offsetWidth, 'x', canvas.offsetHeight);
+                console.log('Canvas在DOM中的位置:', canvas.parentElement);
             } else {
                 console.error('找不到documentContainer元素');
             }
