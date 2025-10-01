@@ -6,6 +6,9 @@ class ReaderApp {
         this.currentPage = 1;
         this.totalPages = 1;
         this.zoomLevel = 1;
+        this.minZoom = 0.5;
+        this.maxZoom = 3.0;
+        this.zoomStep = 0.1;
         this.selectedText = '';
         this.highlights = [];
         this.bookmarks = [];
@@ -103,10 +106,92 @@ class ReaderApp {
             console.log('阅读器窗口接收到文件路径:', filePath);
             this.loadFile(filePath);
         });
+        
+        // 缩放事件监听
+        this.bindZoomEvents();
 
         // 键盘快捷键
         document.addEventListener('keydown', (e) => {
             this.handleKeyboardShortcuts(e);
+        });
+    }
+
+    bindZoomEvents() {
+        const documentContainer = document.getElementById('documentContainer');
+        if (!documentContainer) return;
+
+        // 鼠标滚轮缩放（Ctrl + 滚轮）
+        documentContainer.addEventListener('wheel', (e) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    this.zoomIn();
+                } else {
+                    this.zoomOut();
+                }
+            }
+        });
+
+        // 触控板双指缩放
+        let lastTouchDistance = 0;
+        let isZooming = false;
+
+        documentContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                isZooming = true;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                lastTouchDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+                e.preventDefault();
+            }
+        });
+
+        documentContainer.addEventListener('touchmove', (e) => {
+            if (isZooming && e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+
+                if (lastTouchDistance > 0) {
+                    const scale = currentDistance / lastTouchDistance;
+                    if (scale > 1.1) {
+                        this.zoomIn();
+                        lastTouchDistance = currentDistance;
+                    } else if (scale < 0.9) {
+                        this.zoomOut();
+                        lastTouchDistance = currentDistance;
+                    }
+                }
+                e.preventDefault();
+            }
+        });
+
+        documentContainer.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                isZooming = false;
+            }
+        });
+
+        // 键盘快捷键缩放
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey) {
+                if (e.key === '+' || e.key === '=') {
+                    e.preventDefault();
+                    this.zoomIn();
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    this.zoomOut();
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    this.resetZoom();
+                }
+            }
         });
     }
 
@@ -280,6 +365,9 @@ class ReaderApp {
             
             container.appendChild(wrapper);
             console.log('所有PDF页面已渲染到DOM');
+            
+            // 应用当前的缩放级别
+            this.applyZoom();
             
         } catch (error) {
             console.error('渲染所有PDF页面失败:', error);
@@ -830,21 +918,35 @@ class ReaderApp {
     }
 
     zoomIn() {
-        this.zoomLevel = Math.min(this.zoomLevel + 0.1, 3);
+        this.zoomLevel = Math.min(this.zoomLevel + this.zoomStep, this.maxZoom);
         this.applyZoom();
     }
 
     zoomOut() {
-        this.zoomLevel = Math.max(this.zoomLevel - 0.1, 0.5);
+        this.zoomLevel = Math.max(this.zoomLevel - this.zoomStep, this.minZoom);
+        this.applyZoom();
+    }
+
+    resetZoom() {
+        this.zoomLevel = 1.0;
         this.applyZoom();
     }
 
     applyZoom() {
         const container = document.getElementById('documentContainer');
-        container.style.transform = `scale(${this.zoomLevel})`;
-        container.style.transformOrigin = 'top center';
-        
-        document.getElementById('zoomLevel').textContent = Math.round(this.zoomLevel * 100) + '%';
+        if (container) {
+            container.style.transform = `scale(${this.zoomLevel})`;
+            container.style.transformOrigin = 'center top';
+            container.style.transition = 'transform 0.2s ease';
+        }
+        this.updateZoomDisplay();
+    }
+
+    updateZoomDisplay() {
+        const zoomDisplay = document.getElementById('zoomLevel');
+        if (zoomDisplay) {
+            zoomDisplay.textContent = `${Math.round(this.zoomLevel * 100)}%`;
+        }
     }
 
     toggleFullscreen() {
