@@ -188,10 +188,10 @@ class ReaderApp {
             this.totalPages = pdf.numPages;
             this.updatePageInfo();
             
-            // 渲染第一页
-            console.log('开始渲染PDF第一页...');
-            await this.renderPDFPage(pdf, 1);
-            console.log('PDF第一页渲染完成');
+            // 渲染所有页面
+            console.log('开始渲染PDF所有页面...');
+            await this.renderAllPDFPages(pdf);
+            console.log('PDF所有页面渲染完成');
             
         } catch (error) {
             console.error('PDF加载失败:', error);
@@ -224,6 +224,129 @@ class ReaderApp {
         }
     }
 
+    async renderAllPDFPages(pdf) {
+        try {
+            const container = document.getElementById('documentContainer');
+            if (!container) {
+                throw new Error('找不到documentContainer元素');
+            }
+
+            // 清空容器
+            container.innerHTML = '';
+            
+            // 创建包装div
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh;';
+            
+            // 创建标题
+            const title = document.createElement('h2');
+            title.textContent = `📄 ${this.getFileName(this.currentFile)}`;
+            title.style.cssText = 'color: #2c3e50; margin-bottom: 20px; text-align: center;';
+            
+            // 创建页面信息
+            const pageInfo = document.createElement('p');
+            pageInfo.textContent = `PDF文档 - 共${this.totalPages}页`;
+            pageInfo.style.cssText = 'text-align: center; color: #666; margin-bottom: 20px;';
+            
+            wrapper.appendChild(title);
+            wrapper.appendChild(pageInfo);
+
+            // 渲染所有页面
+            for (let pageNum = 1; pageNum <= this.totalPages; pageNum++) {
+                console.log(`渲染第${pageNum}页...`);
+                const pageCanvas = await this.renderSinglePDFPage(pdf, pageNum);
+                
+                // 创建页面容器
+                const pageContainer = document.createElement('div');
+                pageContainer.style.cssText = 'margin-bottom: 20px; text-align: center;';
+                
+                // 创建页面标题
+                const pageTitle = document.createElement('h3');
+                pageTitle.textContent = `第 ${pageNum} 页`;
+                pageTitle.style.cssText = 'color: #2c3e50; margin-bottom: 10px; font-size: 16px;';
+                
+                // 创建Canvas容器
+                const canvasContainer = document.createElement('div');
+                canvasContainer.style.cssText = 'display: inline-block; border: 2px solid #4A90E2; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1);';
+                
+                // 组装页面
+                canvasContainer.appendChild(pageCanvas);
+                pageContainer.appendChild(pageTitle);
+                pageContainer.appendChild(canvasContainer);
+                wrapper.appendChild(pageContainer);
+                
+                console.log(`第${pageNum}页渲染完成`);
+            }
+            
+            container.appendChild(wrapper);
+            console.log('所有PDF页面已渲染到DOM');
+            
+        } catch (error) {
+            console.error('渲染所有PDF页面失败:', error);
+            throw error;
+        }
+    }
+
+    async renderSinglePDFPage(pdf, pageNum) {
+        try {
+            console.log(`获取PDF页面: ${pageNum}`);
+            const page = await pdf.getPage(pageNum);
+            console.log(`页面${pageNum}获取成功，开始渲染...`);
+            
+            const scale = 2.0; // 提高缩放比例，增加清晰度
+            const viewport = page.getViewport({ scale });
+            console.log(`页面${pageNum}视口尺寸:`, viewport.width, 'x', viewport.height);
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            // 高DPI支持，提高清晰度
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const scaledViewport = page.getViewport({ scale: scale * devicePixelRatio });
+            
+            canvas.height = scaledViewport.height;
+            canvas.width = scaledViewport.width;
+            
+            // 设置Canvas的显示尺寸（CSS像素）
+            canvas.style.width = viewport.width + 'px';
+            canvas.style.height = viewport.height + 'px';
+            
+            // 强制设置Canvas的显示属性
+            canvas.style.display = 'block';
+            canvas.style.visibility = 'visible';
+            canvas.style.opacity = '1';
+            canvas.style.border = '1px solid #ccc';
+            canvas.style.background = '#fff';
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = 'auto';
+            
+            // 确保Canvas有正确的尺寸
+            canvas.setAttribute('width', canvas.width);
+            canvas.setAttribute('height', canvas.height);
+            
+            console.log(`页面${pageNum} Canvas尺寸:`, canvas.width, 'x', canvas.height);
+            
+            // 缩放Canvas上下文以支持高DPI
+            context.scale(devicePixelRatio, devicePixelRatio);
+            
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            console.log(`开始渲染页面${pageNum}到Canvas...`);
+            const renderTask = page.render(renderContext);
+            await renderTask.promise;
+            console.log(`页面${pageNum} Canvas渲染完成`);
+            
+            return canvas;
+            
+        } catch (error) {
+            console.error(`渲染PDF页面${pageNum}失败:`, error);
+            throw error;
+        }
+    }
+
     async loadPDFJS() {
         // 动态加载PDF.js
         return new Promise((resolve, reject) => {
@@ -249,14 +372,23 @@ class ReaderApp {
             const page = await pdf.getPage(pageNum);
             console.log('页面获取成功，开始渲染...');
             
-            const scale = 1.5;
+            const scale = 2.0; // 提高缩放比例，增加清晰度
             const viewport = page.getViewport({ scale });
             console.log('视口尺寸:', viewport.width, 'x', viewport.height);
             
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+            
+            // 高DPI支持，提高清晰度
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const scaledViewport = page.getViewport({ scale: scale * devicePixelRatio });
+            
+            canvas.height = scaledViewport.height;
+            canvas.width = scaledViewport.width;
+            
+            // 设置Canvas的显示尺寸（CSS像素）
+            canvas.style.width = viewport.width + 'px';
+            canvas.style.height = viewport.height + 'px';
             
             // 强制设置Canvas的显示属性
             canvas.style.display = 'block';
@@ -274,6 +406,9 @@ class ReaderApp {
             canvas.setAttribute('height', canvas.height);
             
             console.log('Canvas尺寸:', canvas.width, 'x', canvas.height);
+            
+            // 缩放Canvas上下文以支持高DPI
+            context.scale(devicePixelRatio, devicePixelRatio);
             
             const renderContext = {
                 canvasContext: context,
