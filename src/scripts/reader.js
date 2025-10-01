@@ -6,9 +6,9 @@ class ReaderApp {
         this.currentPage = 1;
         this.totalPages = 1;
         this.zoomLevel = 1;
-        this.minZoom = 0.5;
-        this.maxZoom = 3.0;
-        this.zoomStep = 0.05;
+        this.minZoom = 0.2;
+        this.maxZoom = 2.0;
+        this.zoomStep = 0.1;
         this.selectedText = '';
         this.highlights = [];
         this.bookmarks = [];
@@ -162,10 +162,10 @@ class ReaderApp {
                     const scale = currentDistance / lastTouchDistance;
                     
                     // 直接缩放，不使用定时器
-                    if (scale > 1.2) {
+                    if (scale > 1.1) {
                         this.zoomIn();
                         lastTouchDistance = currentDistance;
-                    } else if (scale < 0.8) {
+                    } else if (scale < 0.9) {
                         this.zoomOut();
                         lastTouchDistance = currentDistance;
                     }
@@ -354,7 +354,7 @@ class ReaderApp {
                 
                 // 创建Canvas容器
                 const canvasContainer = document.createElement('div');
-                canvasContainer.style.cssText = 'display: block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto; width: 100%; max-width: 100%; min-height: 200px;';
+                canvasContainer.style.cssText = 'display: block; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto; width: 100%; max-width: 100%; min-height: 200px; position: relative;';
                 
                 // 组装页面
                 canvasContainer.appendChild(pageCanvas);
@@ -414,6 +414,7 @@ class ReaderApp {
             canvas.style.margin = '0 auto';
             canvas.style.position = 'relative';
             canvas.style.zIndex = '1';
+            canvas.style.boxSizing = 'border-box';
             
             // 确保Canvas有正确的尺寸
             canvas.setAttribute('width', canvas.width);
@@ -942,28 +943,10 @@ class ReaderApp {
     applyZoom() {
         const container = document.getElementById('documentContainer');
         if (container) {
-            // 缩放内部的Canvas元素，保持容器不变
-            const canvases = container.querySelectorAll('canvas');
-            canvases.forEach(canvas => {
-                const originalWidth = canvas.getAttribute('data-original-width') || canvas.width;
-                const originalHeight = canvas.getAttribute('data-original-height') || canvas.height;
-                
-                // 保存原始尺寸
-                if (!canvas.getAttribute('data-original-width')) {
-                    canvas.setAttribute('data-original-width', originalWidth);
-                    canvas.setAttribute('data-original-height', originalHeight);
-                }
-                
-                // 计算缩放后的尺寸
-                const scaledWidth = originalWidth * this.zoomLevel;
-                const scaledHeight = originalHeight * this.zoomLevel;
-                
-                // 应用缩放
-                canvas.style.width = scaledWidth + 'px';
-                canvas.style.height = scaledHeight + 'px';
-                canvas.style.transform = 'none';
-                canvas.style.transformOrigin = 'center center';
-            });
+            // 缩放整个document-container，让所有Canvas Container一起变化
+            container.style.transform = `scale(${this.zoomLevel})`;
+            container.style.transformOrigin = 'center top';
+            container.style.transition = 'transform 0.2s ease';
         }
         this.updateZoomDisplay();
     }
