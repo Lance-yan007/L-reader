@@ -8,7 +8,7 @@ class ReaderApp {
         this.zoomLevel = 1;
         this.minZoom = 0.2;
         this.maxZoom = 2.0;
-        this.zoomStep = 0.1;
+        this.zoomStep = 0.05; // 降低缩放速度，从0.1改为0.05
         this.selectedText = '';
         this.highlights = [];
         this.bookmarks = [];
@@ -132,25 +132,28 @@ class ReaderApp {
             }
         });
 
-        // 触控板双指缩放 - 简化版本
-        let lastTouchDistance = 0;
+        // 触控板双指缩放 - 直接映射，最平滑方案
+        let initialDistance = null;
+        let initialZoomLevel = 1;
         let isZooming = false;
+        const SCALE_SENSITIVITY = 0.002; // 手势敏感度
 
         documentContainer.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
                 isZooming = true;
                 const touch1 = e.touches[0];
                 const touch2 = e.touches[1];
-                lastTouchDistance = Math.sqrt(
+                initialDistance = Math.sqrt(
                     Math.pow(touch2.clientX - touch1.clientX, 2) +
                     Math.pow(touch2.clientY - touch1.clientY, 2)
                 );
+                initialZoomLevel = this.zoomLevel; // 记录初始缩放级别
                 e.preventDefault();
             }
         });
 
         documentContainer.addEventListener('touchmove', (e) => {
-            if (isZooming && e.touches.length === 2) {
+            if (isZooming && e.touches.length === 2 && initialDistance) {
                 const touch1 = e.touches[0];
                 const touch2 = e.touches[1];
                 const currentDistance = Math.sqrt(
@@ -158,18 +161,20 @@ class ReaderApp {
                     Math.pow(touch2.clientY - touch1.clientY, 2)
                 );
 
-                if (lastTouchDistance > 0) {
-                    const scale = currentDistance / lastTouchDistance;
-                    
-                    // 直接缩放，不使用定时器
-                    if (scale > 1.1) {
-                        this.zoomIn();
-                        lastTouchDistance = currentDistance;
-                    } else if (scale < 0.9) {
-                        this.zoomOut();
-                        lastTouchDistance = currentDistance;
-                    }
-                }
+                // 计算距离变化的比例
+                const distanceRatio = currentDistance / initialDistance;
+                
+                // 关键：使用线性映射，而不是直接乘法
+                const scaleChange = (distanceRatio - 1) * SCALE_SENSITIVITY * initialZoomLevel;
+                const newZoomLevel = initialZoomLevel + scaleChange;
+                
+                // 限制缩放范围
+                const clampedZoomLevel = Math.max(this.minZoom, Math.min(newZoomLevel, this.maxZoom));
+                
+                // 直接设置缩放级别，避免使用zoomIn/zoomOut
+                this.zoomLevel = clampedZoomLevel;
+                this.applyZoom();
+                
                 e.preventDefault();
             }
         });
@@ -177,6 +182,7 @@ class ReaderApp {
         documentContainer.addEventListener('touchend', (e) => {
             if (e.touches.length < 2) {
                 isZooming = false;
+                initialDistance = null;
             }
         });
 
