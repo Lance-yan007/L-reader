@@ -501,7 +501,7 @@ class ReaderApp {
     }
 
     /**
-     * 渲染PDF文本层（支持文本选择）- 按单词精确拆分
+     * 渲染PDF文本层（支持文本选择）- 使用Canvas精确测量
      * @param {Object} page - PDF页面对象
      * @param {Object} viewport - 视口对象
      * @returns {HTMLElement} 文本层div元素
@@ -512,6 +512,10 @@ class ReaderApp {
         textLayerDiv.className = 'pdf-text-layer';
         
         console.log(`📐 文本层基于viewport: ${viewport.width}x${viewport.height}`);
+        
+        // 创建Canvas测量上下文（用于精确测量文字宽度）
+        const measureCanvas = document.createElement('canvas');
+        const measureContext = measureCanvas.getContext('2d');
         
         try {
             // 提取PDF文本内容
@@ -536,27 +540,29 @@ class ReaderApp {
                 const fontHeight = item.height || fontSize;
                 const itemWidth = item.width * viewport.scale;
                 
+                // 设置测量上下文的字体（必须与显示字体一致）
+                measureContext.font = `${fontSize}px sans-serif`;
+                
+                // 测量整个item的实际渲染宽度
+                const actualItemWidth = measureContext.measureText(item.str).width;
+                
+                // 计算缩放比例（PDF宽度 vs 实际渲染宽度）
+                const widthScale = itemWidth / actualItemWidth;
+                
                 // 将文本按单词拆分（保留标点符号）
                 const words = this.splitTextIntoWords(item.str);
-                const totalChars = item.str.length;
                 
-                let currentOffset = 0;
+                // 累积计算每个单词的位置
+                let currentX = tx[4];  // 起始X位置
                 
                 words.forEach((wordInfo, wordIndex) => {
                     const { word, startIndex, endIndex } = wordInfo;
                     
-                    // 计算该单词在整个item中的相对位置
-                    const charRatio = startIndex / totalChars;
-                    const wordCharCount = endIndex - startIndex;
-                    const wordWidthRatio = wordCharCount / totalChars;
+                    // 使用Canvas精确测量当前单词的实际宽度
+                    const actualWordWidth = measureContext.measureText(word).width;
                     
-                    // 计算单词的精确位置和宽度
-                    const wordLeft = tx[4] + (itemWidth * charRatio);
-                    const wordWidth = itemWidth * wordWidthRatio;
-                    
-                    // 位置微调：向左3px，向上2px
-                    const adjustedLeft = wordLeft - 3;
-                    const adjustedTop = (tx[5] - fontHeight) - 2;
+                    // 应用缩放比例得到PDF中的显示宽度
+                    const displayWordWidth = actualWordWidth * widthScale;
                     
                     // 创建单词span元素
                     const wordSpan = document.createElement('span');
@@ -564,9 +570,9 @@ class ReaderApp {
                     wordSpan.setAttribute('data-word', word);
                     wordSpan.style.cssText = `
                         position: absolute;
-                        left: ${adjustedLeft}px;
-                        top: ${adjustedTop}px;
-                        width: ${wordWidth}px;
+                        left: ${currentX}px;
+                        top: ${tx[5] - fontHeight}px;
+                        width: ${displayWordWidth}px;
                         font-size: ${fontSize}px;
                         font-family: sans-serif;
                         color: transparent;
@@ -578,13 +584,16 @@ class ReaderApp {
                     
                     textLayerDiv.appendChild(wordSpan);
                     wordCount++;
+                    
+                    // 累积X位置，为下一个单词做准备
+                    currentX += displayWordWidth;
                 });
             });
             
             // 绑定文本选择事件
             this.bindTextSelectionEvents(textLayerDiv);
             
-            console.log(`✅ 文本层创建完成，共 ${wordCount} 个单词`);
+            console.log(`✅ 文本层创建完成，共 ${wordCount} 个单词（Canvas精确测量）`);
             
         } catch (error) {
             console.error('渲染文本层失败:', error);
