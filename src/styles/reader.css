@@ -714,16 +714,37 @@ body {
     color: transparent;
 }
 
-/* 已点击的单词 - 持久高亮 */
+/* 已点击的单词 - 持久高亮（默认黄色） */
 .pdf-text-layer span.word-highlighted {
-    background: rgba(74, 144, 226, 0.35);
+    background: rgba(255, 235, 59, 0.6);
     color: transparent;
     border-radius: 2px;
 }
 
 /* 已高亮的单词hover时加深颜色 */
 .pdf-text-layer span.word-highlighted:hover {
-    background: rgba(74, 144, 226, 0.45);
+    background: rgba(255, 235, 59, 0.75);
+}
+
+/* 不同颜色的高亮选项 */
+.pdf-text-layer span.word-highlighted.color-yellow {
+    background: rgba(255, 235, 59, 0.6);
+}
+
+.pdf-text-layer span.word-highlighted.color-green {
+    background: rgba(76, 175, 80, 0.5);
+}
+
+.pdf-text-layer span.word-highlighted.color-blue {
+    background: rgba(74, 144, 226, 0.5);
+}
+
+.pdf-text-layer span.word-highlighted.color-pink {
+    background: rgba(233, 30, 99, 0.5);
+}
+
+.pdf-text-layer span.word-highlighted.color-orange {
+    background: rgba(255, 152, 0, 0.5);
 }
 
 /* 点词翻译悬浮框 */
@@ -790,4 +811,73 @@ body {
     background: #4A90E2;
     transform: rotate(45deg);
     z-index: -1;
+}
+
+/* ========== 右键菜单样式 ========== */
+
+.context-menu {
+    position: fixed;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    padding: 8px 0;
+    z-index: 10001;
+    min-width: 180px;
+    display: none;
+}
+
+.context-menu-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: background-color 0.15s ease;
+    font-size: 14px;
+    color: #333;
+}
+
+.context-menu-item:hover {
+    background-color: #f5f5f5;
+}
+
+.context-menu-item.danger {
+    color: #e53935;
+}
+
+.context-menu-item.danger:hover {
+    background-color: #ffebee;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background-color: #e0e0e0;
+    margin: 4px 0;
+}
+
+.color-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid #ddd;
+}
+
+.color-indicator.yellow {
+    background-color: rgba(255, 235, 59, 0.8);
+}
+
+.color-indicator.green {
+    background-color: rgba(76, 175, 80, 0.8);
+}
+
+.color-indicator.blue {
+    background-color: rgba(74, 144, 226, 0.8);
+}
+
+.color-indicator.pink {
+    background-color: rgba(233, 30, 99, 0.8);
+}
+
+.color-indicator.orange {
+    background-color: rgba(255, 152, 0, 0.8);
 }

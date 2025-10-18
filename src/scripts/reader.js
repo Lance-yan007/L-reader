@@ -22,6 +22,12 @@ class ReaderApp {
         this.highlightedWords = new Set(); // 已高亮的单词集合
         this.wordTooltip = null; // 悬浮框DOM元素
         this.currentHoverWord = null; // 当前hover的单词
+        this.contextMenu = null; // 右键菜单DOM元素
+        this.currentContextTarget = null; // 当前右键点击的元素
+        
+        // Gemini API配置
+        this.geminiApiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
+        this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
         
         this.init();
     }
@@ -31,6 +37,7 @@ class ReaderApp {
         this.loadTranslations();
         this.updateStatus('就绪');
         this.initWordTooltip(); // 初始化悬浮框
+        this.initContextMenu(); // 初始化右键菜单
     }
 
     bindEvents() {
@@ -494,7 +501,7 @@ class ReaderApp {
     }
 
     /**
-     * 渲染PDF文本层（支持文本选择）
+     * 渲染PDF文本层（支持文本选择）- 按单词精确拆分
      * @param {Object} page - PDF页面对象
      * @param {Object} viewport - 视口对象
      * @returns {HTMLElement} 文本层div元素
@@ -511,7 +518,9 @@ class ReaderApp {
             const textContent = await page.getTextContent();
             console.log(`📝 提取到 ${textContent.items.length} 个文本项`);
             
-            // 遍历每个文本项，创建span元素并精确定位
+            let wordCount = 0;
+            
+            // 遍历每个文本项，按单词拆分并创建独立span
             textContent.items.forEach((item, index) => {
                 // 跳过空文本
                 if (!item.str || item.str.trim() === '') return;
@@ -525,30 +534,53 @@ class ReaderApp {
                 // 计算字体大小和位置
                 const fontSize = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
                 const fontHeight = item.height || fontSize;
+                const itemWidth = item.width * viewport.scale;
                 
-                // 创建文本span元素
-                const textSpan = document.createElement('span');
-                textSpan.textContent = item.str;
-                textSpan.style.cssText = `
-                    position: absolute;
-                    left: ${tx[4]}px;
-                    top: ${tx[5] - fontHeight}px;
-                    font-size: ${fontSize}px;
-                    font-family: sans-serif;
-                    color: transparent;
-                    white-space: pre;
-                    transform-origin: 0% 0%;
-                    user-select: text;
-                    cursor: text;
-                `;
+                // 将文本按单词拆分（保留标点符号）
+                const words = this.splitTextIntoWords(item.str);
+                const totalChars = item.str.length;
                 
-                textLayerDiv.appendChild(textSpan);
+                let currentOffset = 0;
+                
+                words.forEach((wordInfo, wordIndex) => {
+                    const { word, startIndex, endIndex } = wordInfo;
+                    
+                    // 计算该单词在整个item中的相对位置
+                    const charRatio = startIndex / totalChars;
+                    const wordCharCount = endIndex - startIndex;
+                    const wordWidthRatio = wordCharCount / totalChars;
+                    
+                    // 计算单词的精确位置和宽度
+                    const wordLeft = tx[4] + (itemWidth * charRatio);
+                    const wordWidth = itemWidth * wordWidthRatio;
+                    
+                    // 创建单词span元素
+                    const wordSpan = document.createElement('span');
+                    wordSpan.textContent = word;
+                    wordSpan.setAttribute('data-word', word);
+                    wordSpan.style.cssText = `
+                        position: absolute;
+                        left: ${wordLeft}px;
+                        top: ${tx[5] - fontHeight}px;
+                        width: ${wordWidth}px;
+                        font-size: ${fontSize}px;
+                        font-family: sans-serif;
+                        color: transparent;
+                        white-space: nowrap;
+                        transform-origin: 0% 0%;
+                        user-select: text;
+                        cursor: text;
+                    `;
+                    
+                    textLayerDiv.appendChild(wordSpan);
+                    wordCount++;
+                });
             });
             
             // 绑定文本选择事件
             this.bindTextSelectionEvents(textLayerDiv);
             
-            console.log(`✅ 文本层创建完成，共 ${textLayerDiv.children.length} 个文本元素`);
+            console.log(`✅ 文本层创建完成，共 ${wordCount} 个单词`);
             
         } catch (error) {
             console.error('渲染文本层失败:', error);
@@ -556,6 +588,60 @@ class ReaderApp {
         }
         
         return textLayerDiv;
+    }
+
+    /**
+     * 将文本按单词拆分（保留标点符号）
+     * @param {string} text - 原始文本
+     * @returns {Array} - 单词数组，每个元素包含{word, startIndex, endIndex}
+     */
+    splitTextIntoWords(text) {
+        const words = [];
+        let currentWord = '';
+        let startIndex = 0;
+        
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            
+            // 判断是否为分隔符（空格、制表符等）
+            if (/\s/.test(char)) {
+                // 如果有累积的单词，保存它
+                if (currentWord) {
+                    words.push({
+                        word: currentWord,
+                        startIndex: startIndex,
+                        endIndex: i
+                    });
+                    currentWord = '';
+                }
+                
+                // 保存空格作为独立元素（用于保持布局）
+                words.push({
+                    word: char,
+                    startIndex: i,
+                    endIndex: i + 1
+                });
+                
+                startIndex = i + 1;
+            } else {
+                // 累积字符到当前单词
+                if (!currentWord) {
+                    startIndex = i;
+                }
+                currentWord += char;
+            }
+        }
+        
+        // 保存最后一个单词
+        if (currentWord) {
+            words.push({
+                word: currentWord,
+                startIndex: startIndex,
+                endIndex: text.length
+            });
+        }
+        
+        return words;
     }
 
     /**
@@ -1219,6 +1305,9 @@ class ReaderApp {
                 // 点击事件
                 span.addEventListener('click', this.handleWordClick.bind(this));
                 
+                // 右键事件
+                span.addEventListener('contextmenu', this.handleWordContextMenu.bind(this));
+                
                 // hover事件
                 span.addEventListener('mouseenter', this.handleWordHover.bind(this));
                 span.addEventListener('mouseleave', this.handleWordLeave.bind(this));
@@ -1418,71 +1507,78 @@ class ReaderApp {
     }
 
     /**
-     * 调用翻译API（需要根据实际AI服务进行配置）
+     * 调用翻译API（使用Gemini API）
      * @param {string} word - 单词
      * @returns {Promise<string>} - 翻译结果
      */
     async callTranslationAPI(word) {
-        // 模拟API延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // 示例翻译数据（实际应用中应该调用真实的AI API）
-        const mockTranslations = {
-            'introduction': '介绍；引言；序言',
-            'the': '这个；那个（定冠词）',
-            'book': '书；书籍',
-            'chapter': '章节',
-            'section': '部分；区域',
-            'figure': '图表；数字',
-            'table': '表格',
-            'data': '数据',
-            'analysis': '分析',
-            'result': '结果',
-            'conclusion': '结论',
-            'reference': '参考文献',
-            'abstract': '摘要',
-            'method': '方法',
-            'experiment': '实验',
-            'research': '研究',
-            'study': '研究；学习',
-            'paper': '论文；纸',
-            'article': '文章',
-            'journal': '期刊；杂志'
-        };
-        
-        const lowerWord = word.toLowerCase();
-        if (mockTranslations[lowerWord]) {
-            return mockTranslations[lowerWord];
+        try {
+            console.log(`调用Gemini API翻译: ${word}`);
+            
+            const response = await fetch(`${this.geminiApiUrl}?key=${this.geminiApiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `请翻译这个英文单词或短语：${word}。只返回简洁的中文翻译，不要额外解释。如果是常用词，提供2-3个常见含义即可。`
+                        }]
+                    }]
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // 提取翻译结果
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const translation = data.candidates[0].content.parts[0].text.trim();
+                console.log(`翻译结果: ${translation}`);
+                return translation;
+            }
+            
+            throw new Error('API返回格式异常');
+            
+        } catch (error) {
+            console.error('Gemini API调用失败:', error);
+            
+            // 降级到本地词典
+            const mockTranslations = {
+                'introduction': '介绍；引言；序言',
+                'the': '这个；那个（定冠词）',
+                'book': '书；书籍',
+                'chapter': '章节',
+                'section': '部分；区域',
+                'figure': '图表；数字',
+                'table': '表格',
+                'data': '数据',
+                'analysis': '分析',
+                'result': '结果',
+                'conclusion': '结论',
+                'reference': '参考文献',
+                'abstract': '摘要',
+                'method': '方法',
+                'experiment': '实验',
+                'research': '研究',
+                'study': '研究；学习',
+                'paper': '论文；纸',
+                'article': '文章',
+                'journal': '期刊；杂志'
+            };
+            
+            const lowerWord = word.toLowerCase();
+            if (mockTranslations[lowerWord]) {
+                return mockTranslations[lowerWord];
+            }
+            
+            // 返回错误提示
+            return `翻译失败（${error.message}）`;
         }
-        
-        // 如果没有预设翻译，返回提示信息
-        return `"${word}"的翻译（需配置AI API）`;
-        
-        /* 
-         * 集成真实AI API的示例代码：
-         * 
-         * // 方案1: OpenAI GPT
-         * const response = await fetch('https://api.openai.com/v1/chat/completions', {
-         *     method: 'POST',
-         *     headers: {
-         *         'Content-Type': 'application/json',
-         *         'Authorization': 'Bearer YOUR_API_KEY'
-         *     },
-         *     body: JSON.stringify({
-         *         model: 'gpt-3.5-turbo',
-         *         messages: [{
-         *             role: 'user',
-         *             content: `请翻译这个英文单词：${word}，只返回中文翻译，简洁准确`
-         *         }]
-         *     })
-         * });
-         * const data = await response.json();
-         * return data.choices[0].message.content.trim();
-         * 
-         * // 方案2: Claude API
-         * // 方案3: 本地AI模型
-         * // 详见项目文档中的API集成指南
-         */
     }
 
     /**
@@ -1561,6 +1657,139 @@ class ReaderApp {
         });
         
         return words;
+    }
+
+    // ========== 右键菜单功能 ==========
+
+    /**
+     * 初始化右键菜单
+     */
+    initContextMenu() {
+        this.contextMenu = document.getElementById('contextMenu');
+        if (!this.contextMenu) {
+            console.error('右键菜单元素未找到');
+            return;
+        }
+
+        // 绑定菜单项点击事件
+        const menuItems = this.contextMenu.querySelectorAll('.context-menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.getAttribute('data-action');
+                this.handleContextMenuAction(action);
+            });
+        });
+
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', (e) => {
+            if (!this.contextMenu.contains(e.target)) {
+                this.hideContextMenu();
+            }
+        });
+
+        // 阻止默认右键菜单
+        document.addEventListener('contextmenu', (e) => {
+            // 只在PDF区域内阻止默认菜单
+            if (e.target.closest('.pdf-text-layer')) {
+                // 如果点词翻译模式开启，则阻止
+                if (this.wordTranslateMode) {
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+
+    /**
+     * 处理单词右键点击
+     * @param {Event} e - 右键事件
+     */
+    handleWordContextMenu(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const span = e.target;
+        
+        // 只对已高亮的单词显示右键菜单
+        if (!span.classList.contains('word-highlighted')) {
+            return;
+        }
+
+        this.currentContextTarget = span;
+        this.showContextMenu(e.clientX, e.clientY);
+    }
+
+    /**
+     * 显示右键菜单
+     * @param {number} x - X坐标
+     * @param {number} y - Y坐标
+     */
+    showContextMenu(x, y) {
+        if (!this.contextMenu) return;
+
+        // 显示菜单
+        this.contextMenu.style.display = 'block';
+
+        // 获取菜单尺寸
+        const rect = this.contextMenu.getBoundingClientRect();
+        const margin = 5;
+
+        // 计算位置（避免超出屏幕）
+        let left = x;
+        let top = y;
+
+        if (left + rect.width > window.innerWidth) {
+            left = window.innerWidth - rect.width - margin;
+        }
+        if (top + rect.height > window.innerHeight) {
+            top = window.innerHeight - rect.height - margin;
+        }
+
+        this.contextMenu.style.left = left + 'px';
+        this.contextMenu.style.top = top + 'px';
+    }
+
+    /**
+     * 隐藏右键菜单
+     */
+    hideContextMenu() {
+        if (this.contextMenu) {
+            this.contextMenu.style.display = 'none';
+        }
+    }
+
+    /**
+     * 处理右键菜单操作
+     * @param {string} action - 操作类型
+     */
+    handleContextMenuAction(action) {
+        if (!this.currentContextTarget) return;
+
+        const span = this.currentContextTarget;
+
+        if (action === 'remove-highlight') {
+            // 取消高亮
+            span.classList.remove('word-highlighted');
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange');
+            
+            // 从集合中移除
+            const word = this.extractWord(span.textContent);
+            if (word) {
+                this.highlightedWords.delete(word.toLowerCase());
+            }
+        } else if (action.startsWith('color-')) {
+            // 更改高亮颜色
+            const color = action.replace('color-', '');
+            
+            // 移除旧颜色
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange');
+            
+            // 添加新颜色
+            span.classList.add(`color-${color}`);
+        }
+
+        // 隐藏菜单
+        this.hideContextMenu();
+        this.currentContextTarget = null;
     }
 }
 

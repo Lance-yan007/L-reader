@@ -1,0 +1,15 @@
+这是一个简单的文本文件，用于测试文本位置识别功能。
+
+This is a simple text file for testing text position detection.
+
+The file contains multiple lines of text in both Chinese and English.
+
+We can test character position detection with this content.
+
+测试内容包括：
+- 中文字符：你好世界，这是一个测试文档
+- 英文字符：Hello World, this is a test document
+- 数字字符：0123456789
+- 符号字符：!@#$%^&*()_+-=[]{}|;':",./<>?
+
+字符位置识别功能应该能正确处理这些内容。
