@@ -554,14 +554,18 @@ class ReaderApp {
                     const wordLeft = tx[4] + (itemWidth * charRatio);
                     const wordWidth = itemWidth * wordWidthRatio;
                     
+                    // 位置微调：向左3px，向上2px
+                    const adjustedLeft = wordLeft - 3;
+                    const adjustedTop = (tx[5] - fontHeight) - 2;
+                    
                     // 创建单词span元素
                     const wordSpan = document.createElement('span');
                     wordSpan.textContent = word;
                     wordSpan.setAttribute('data-word', word);
                     wordSpan.style.cssText = `
                         position: absolute;
-                        left: ${wordLeft}px;
-                        top: ${tx[5] - fontHeight}px;
+                        left: ${adjustedLeft}px;
+                        top: ${adjustedTop}px;
                         width: ${wordWidth}px;
                         font-size: ${fontSize}px;
                         font-family: sans-serif;
