@@ -16,6 +16,13 @@ class ReaderApp {
         this.translations = [];
         this.isSidebarCollapsed = false;
         
+        // 点词翻译相关状态
+        this.wordTranslateMode = false; // 是否开启点词翻译模式
+        this.wordTranslationMap = new Map(); // 单词翻译映射表 word -> {translation, positions}
+        this.highlightedWords = new Set(); // 已高亮的单词集合
+        this.wordTooltip = null; // 悬浮框DOM元素
+        this.currentHoverWord = null; // 当前hover的单词
+        
         this.init();
     }
 
@@ -23,6 +30,7 @@ class ReaderApp {
         this.bindEvents();
         this.loadTranslations();
         this.updateStatus('就绪');
+        this.initWordTooltip(); // 初始化悬浮框
     }
 
     bindEvents() {
@@ -99,6 +107,11 @@ class ReaderApp {
         // 高亮按钮
         document.getElementById('highlightBtn').addEventListener('click', () => {
             this.addHighlight();
+        });
+
+        // 点词翻译按钮
+        document.getElementById('wordTranslateBtn').addEventListener('click', () => {
+            this.toggleWordTranslateMode();
         });
 
         // IPC事件监听
@@ -383,6 +396,11 @@ class ReaderApp {
             
             // 应用当前的缩放级别
             this.applyZoom();
+            
+            // 触发预翻译（可选，用于实现即点即显）
+            setTimeout(() => {
+                this.preTranslateDocument();
+            }, 500);
             
         } catch (error) {
             console.error('渲染所有PDF页面失败:', error);
@@ -1152,6 +1170,397 @@ class ReaderApp {
     formatDate(dateString) {
         const date = new Date(dateString);
         return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ========== 点词翻译功能 ==========
+
+    /**
+     * 初始化悬浮框DOM元素
+     */
+    initWordTooltip() {
+        this.wordTooltip = document.getElementById('wordTooltip');
+        if (!this.wordTooltip) {
+            console.error('悬浮框元素未找到');
+        }
+    }
+
+    /**
+     * 切换点词翻译模式
+     */
+    toggleWordTranslateMode() {
+        this.wordTranslateMode = !this.wordTranslateMode;
+        const btn = document.getElementById('wordTranslateBtn');
+        
+        if (this.wordTranslateMode) {
+            // 开启模式
+            btn.classList.add('active');
+            this.updateStatus('点词翻译模式已开启 - 点击单词即可翻译');
+            this.enableWordTranslateMode();
+        } else {
+            // 关闭模式
+            btn.classList.remove('active');
+            this.updateStatus('点词翻译模式已关闭');
+            this.disableWordTranslateMode();
+        }
+    }
+
+    /**
+     * 启用点词翻译模式
+     */
+    enableWordTranslateMode() {
+        // 给所有文本层添加word-translate-mode类
+        const textLayers = document.querySelectorAll('.pdf-text-layer');
+        textLayers.forEach(layer => {
+            layer.classList.add('word-translate-mode');
+            
+            // 给每个span绑定点击和hover事件
+            const spans = layer.querySelectorAll('span');
+            spans.forEach(span => {
+                // 点击事件
+                span.addEventListener('click', this.handleWordClick.bind(this));
+                
+                // hover事件
+                span.addEventListener('mouseenter', this.handleWordHover.bind(this));
+                span.addEventListener('mouseleave', this.handleWordLeave.bind(this));
+            });
+        });
+    }
+
+    /**
+     * 禁用点词翻译模式
+     */
+    disableWordTranslateMode() {
+        // 移除所有文本层的word-translate-mode类
+        const textLayers = document.querySelectorAll('.pdf-text-layer');
+        textLayers.forEach(layer => {
+            layer.classList.remove('word-translate-mode');
+            
+            // 移除所有span的事件监听（通过克隆方式）
+            const spans = layer.querySelectorAll('span');
+            spans.forEach(span => {
+                const newSpan = span.cloneNode(true);
+                span.parentNode.replaceChild(newSpan, span);
+            });
+        });
+        
+        // 隐藏悬浮框
+        this.hideWordTooltip();
+    }
+
+    /**
+     * 处理单词点击事件
+     * @param {Event} e - 点击事件
+     */
+    async handleWordClick(e) {
+        e.stopPropagation();
+        const span = e.target;
+        const rawText = span.textContent;
+        
+        // 提取纯净单词（去除标点符号）
+        const word = this.extractWord(rawText);
+        if (!word) return;
+        
+        console.log(`点击单词: "${word}"`);
+        
+        // 添加高亮
+        span.classList.add('word-highlighted');
+        this.highlightedWords.add(word.toLowerCase());
+        
+        // 如果已有翻译，直接显示；否则获取翻译
+        if (this.wordTranslationMap.has(word.toLowerCase())) {
+            const data = this.wordTranslationMap.get(word.toLowerCase());
+            this.showWordTooltip(word, data.translation, e.clientX, e.clientY);
+        } else {
+            // 显示加载状态
+            this.showWordTooltip(word, '翻译中...', e.clientX, e.clientY, true);
+            
+            // 获取翻译
+            try {
+                const translation = await this.translateWord(word);
+                this.wordTranslationMap.set(word.toLowerCase(), {
+                    word: word,
+                    translation: translation,
+                    clickCount: 1
+                });
+                
+                // 更新悬浮框内容
+                this.showWordTooltip(word, translation, e.clientX, e.clientY);
+            } catch (error) {
+                console.error('翻译失败:', error);
+                this.showWordTooltip(word, '翻译失败，请重试', e.clientX, e.clientY);
+            }
+        }
+    }
+
+    /**
+     * 处理单词hover事件
+     * @param {Event} e - hover事件
+     */
+    handleWordHover(e) {
+        const span = e.target;
+        const rawText = span.textContent;
+        const word = this.extractWord(rawText);
+        
+        if (!word) return;
+        
+        this.currentHoverWord = word;
+        
+        // 如果已点击过（有高亮），显示翻译
+        if (span.classList.contains('word-highlighted') && 
+            this.wordTranslationMap.has(word.toLowerCase())) {
+            const data = this.wordTranslationMap.get(word.toLowerCase());
+            const rect = span.getBoundingClientRect();
+            this.showWordTooltip(word, data.translation, rect.left, rect.top);
+        }
+    }
+
+    /**
+     * 处理单词离开事件
+     */
+    handleWordLeave(e) {
+        this.currentHoverWord = null;
+        // 延迟隐藏，避免闪烁
+        setTimeout(() => {
+            if (!this.currentHoverWord) {
+                this.hideWordTooltip();
+            }
+        }, 100);
+    }
+
+    /**
+     * 提取纯净单词（去除标点符号）
+     * @param {string} text - 原始文本
+     * @returns {string} - 纯净单词
+     */
+    extractWord(text) {
+        if (!text) return '';
+        
+        // 去除标点符号，只保留字母、数字、连字符
+        const cleaned = text.replace(/[^\w\s-]/g, '').trim();
+        
+        // 如果是空或只有空格，返回空
+        if (!cleaned || /^\s*$/.test(cleaned)) return '';
+        
+        return cleaned;
+    }
+
+    /**
+     * 显示悬浮框
+     * @param {string} word - 单词
+     * @param {string} translation - 翻译
+     * @param {number} x - X坐标
+     * @param {number} y - Y坐标
+     * @param {boolean} loading - 是否加载状态
+     */
+    showWordTooltip(word, translation, x, y, loading = false) {
+        if (!this.wordTooltip) return;
+        
+        // 更新内容
+        document.getElementById('tooltipWord').textContent = word;
+        document.getElementById('tooltipTranslation').textContent = translation;
+        
+        // 设置加载状态
+        if (loading) {
+            this.wordTooltip.classList.add('loading');
+        } else {
+            this.wordTooltip.classList.remove('loading');
+        }
+        
+        // 显示悬浮框
+        this.wordTooltip.style.display = 'block';
+        
+        // 计算位置（避免超出屏幕）
+        const rect = this.wordTooltip.getBoundingClientRect();
+        const margin = 10;
+        
+        let left = x;
+        let top = y - rect.height - margin;
+        
+        // 边界检查 - 左右
+        if (left + rect.width > window.innerWidth) {
+            left = window.innerWidth - rect.width - margin;
+        }
+        if (left < margin) {
+            left = margin;
+        }
+        
+        // 边界检查 - 上下
+        if (top < margin) {
+            top = y + margin; // 如果上方空间不够，显示在下方
+        }
+        
+        this.wordTooltip.style.left = left + 'px';
+        this.wordTooltip.style.top = top + 'px';
+    }
+
+    /**
+     * 隐藏悬浮框
+     */
+    hideWordTooltip() {
+        if (this.wordTooltip) {
+            this.wordTooltip.style.display = 'none';
+        }
+    }
+
+    /**
+     * 翻译单词（调用AI API）
+     * @param {string} word - 要翻译的单词
+     * @returns {Promise<string>} - 翻译结果
+     */
+    async translateWord(word) {
+        console.log(`开始翻译单词: ${word}`);
+        
+        // TODO: 这里需要集成真实的AI API
+        // 目前使用模拟翻译
+        const translation = await this.callTranslationAPI(word);
+        
+        return translation;
+    }
+
+    /**
+     * 调用翻译API（需要根据实际AI服务进行配置）
+     * @param {string} word - 单词
+     * @returns {Promise<string>} - 翻译结果
+     */
+    async callTranslationAPI(word) {
+        // 模拟API延迟
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // 示例翻译数据（实际应用中应该调用真实的AI API）
+        const mockTranslations = {
+            'introduction': '介绍；引言；序言',
+            'the': '这个；那个（定冠词）',
+            'book': '书；书籍',
+            'chapter': '章节',
+            'section': '部分；区域',
+            'figure': '图表；数字',
+            'table': '表格',
+            'data': '数据',
+            'analysis': '分析',
+            'result': '结果',
+            'conclusion': '结论',
+            'reference': '参考文献',
+            'abstract': '摘要',
+            'method': '方法',
+            'experiment': '实验',
+            'research': '研究',
+            'study': '研究；学习',
+            'paper': '论文；纸',
+            'article': '文章',
+            'journal': '期刊；杂志'
+        };
+        
+        const lowerWord = word.toLowerCase();
+        if (mockTranslations[lowerWord]) {
+            return mockTranslations[lowerWord];
+        }
+        
+        // 如果没有预设翻译，返回提示信息
+        return `"${word}"的翻译（需配置AI API）`;
+        
+        /* 
+         * 集成真实AI API的示例代码：
+         * 
+         * // 方案1: OpenAI GPT
+         * const response = await fetch('https://api.openai.com/v1/chat/completions', {
+         *     method: 'POST',
+         *     headers: {
+         *         'Content-Type': 'application/json',
+         *         'Authorization': 'Bearer YOUR_API_KEY'
+         *     },
+         *     body: JSON.stringify({
+         *         model: 'gpt-3.5-turbo',
+         *         messages: [{
+         *             role: 'user',
+         *             content: `请翻译这个英文单词：${word}，只返回中文翻译，简洁准确`
+         *         }]
+         *     })
+         * });
+         * const data = await response.json();
+         * return data.choices[0].message.content.trim();
+         * 
+         * // 方案2: Claude API
+         * // 方案3: 本地AI模型
+         * // 详见项目文档中的API集成指南
+         */
+    }
+
+    /**
+     * 预翻译PDF全文（PDF加载完成后调用）
+     * 这是实现"即点即显"的关键
+     */
+    async preTranslateDocument() {
+        console.log('开始预翻译文档...');
+        this.updateStatus('正在进行AI全文翻译...');
+        
+        try {
+            // 提取所有文本
+            const allText = this.extractAllText();
+            
+            if (!allText || allText.length === 0) {
+                console.log('没有可翻译的文本');
+                return;
+            }
+            
+            // 提取所有唯一单词
+            const words = this.extractUniqueWords(allText);
+            console.log(`提取到 ${words.size} 个唯一单词`);
+            
+            // TODO: 批量翻译所有单词（需要AI API支持）
+            // 目前先不执行预翻译，点击时再翻译
+            // 实际应用中应该在这里调用AI进行批量翻译
+            
+            this.updateStatus('文档加载完成');
+            console.log('预翻译准备完成');
+            
+        } catch (error) {
+            console.error('预翻译失败:', error);
+            this.updateStatus('预翻译失败');
+        }
+    }
+
+    /**
+     * 提取文档中的所有文本
+     * @returns {Array<string>} - 文本数组
+     */
+    extractAllText() {
+        const textLayers = document.querySelectorAll('.pdf-text-layer');
+        const allText = [];
+        
+        textLayers.forEach(layer => {
+            const spans = layer.querySelectorAll('span');
+            spans.forEach(span => {
+                const text = span.textContent;
+                if (text && text.trim()) {
+                    allText.push(text.trim());
+                }
+            });
+        });
+        
+        return allText;
+    }
+
+    /**
+     * 提取唯一单词集合
+     * @param {Array<string>} textArray - 文本数组
+     * @returns {Set<string>} - 唯一单词集合
+     */
+    extractUniqueWords(textArray) {
+        const words = new Set();
+        
+        textArray.forEach(text => {
+            // 分词并清理
+            const cleaned = text.replace(/[^\w\s-]/g, ' ');
+            const wordList = cleaned.split(/\s+/).filter(w => w.length > 0);
+            
+            wordList.forEach(word => {
+                if (word.length > 0) {
+                    words.add(word.toLowerCase());
+                }
+            });
+        });
+        
+        return words;
     }
 }
 

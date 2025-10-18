@@ -684,3 +684,110 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+/* ========== 点词翻译功能样式 ========== */
+
+/* 点词翻译按钮激活状态 */
+#wordTranslateBtn.active {
+    background: #4A90E2;
+    color: white;
+}
+
+#wordTranslateBtn.active svg {
+    fill: white;
+}
+
+/* 点词翻译模式下的文本层 */
+.pdf-text-layer.word-translate-mode {
+    cursor: pointer;
+}
+
+/* 点词翻译模式下的span元素 */
+.pdf-text-layer.word-translate-mode span {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+/* hover效果 */
+.pdf-text-layer.word-translate-mode span:hover {
+    background: rgba(74, 144, 226, 0.15);
+    color: transparent;
+}
+
+/* 已点击的单词 - 持久高亮 */
+.pdf-text-layer span.word-highlighted {
+    background: rgba(74, 144, 226, 0.35);
+    color: transparent;
+    border-radius: 2px;
+}
+
+/* 已高亮的单词hover时加深颜色 */
+.pdf-text-layer span.word-highlighted:hover {
+    background: rgba(74, 144, 226, 0.45);
+}
+
+/* 点词翻译悬浮框 */
+.word-tooltip {
+    position: fixed;
+    background: #4A90E2;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+    z-index: 10000;
+    pointer-events: none;
+    font-size: 14px;
+    max-width: 300px;
+    min-width: 150px;
+    animation: tooltipFadeIn 0.2s ease;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.word-tooltip-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.word-tooltip-word {
+    font-weight: 600;
+    font-size: 16px;
+    color: white;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 6px;
+}
+
+.word-tooltip-translation {
+    font-size: 14px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+/* 加载状态 */
+.word-tooltip.loading .word-tooltip-translation {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* 悬浮框箭头（可选，增强视觉效果） */
+.word-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 20px;
+    width: 12px;
+    height: 12px;
+    background: #4A90E2;
+    transform: rotate(45deg);
+    z-index: -1;
+}
