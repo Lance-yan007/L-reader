@@ -571,7 +571,7 @@ class ReaderApp {
                     wordSpan.style.cssText = `
                         position: absolute;
                         left: ${currentX}px;
-                        top: ${tx[5] - fontHeight}px;
+                        top: ${tx[5] - fontHeight - 1}px;
                         width: ${displayWordWidth}px;
                         font-size: ${fontSize}px;
                         font-family: sans-serif;
