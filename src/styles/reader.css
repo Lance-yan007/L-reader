@@ -390,11 +390,75 @@ body {
     height: auto;
 }
 
-/* 文本选择样式 */
+/* ========== PDF双层渲染样式 ========== */
+
+/* PDF页面容器 */
+.pdf-page-container {
+    position: relative;
+    margin: 0 auto;
+    display: block;
+}
+
+/* PDF页面容器 - 建立层叠上下文 */
+.pdf-page-container {
+    position: relative;
+    display: block;
+}
+
+/* Canvas层 - 显示PDF图像（底层） */
+.pdf-page-container canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* PDF文本层 - 覆盖在Canvas上方用于文本选择（顶层） */
+.pdf-text-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    line-height: 1.0;
+    user-select: text;
+    cursor: text;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+/* 文本层中的文本元素 */
+.pdf-text-layer span {
+    color: transparent; /* 透明文本，只用于选择 */
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+    user-select: text;
+}
+
+/* ========== 文本选择高亮样式 ========== */
+
+/* 全局文本选择样式 */
 ::selection {
     background: rgba(74, 144, 226, 0.3);
 }
 
+/* PDF文本层的选择样式 - 蓝色半透明高亮 */
+.pdf-text-layer ::selection {
+    background: rgba(74, 144, 226, 0.3); /* 蓝色半透明 */
+    color: transparent;
+}
+
+.pdf-text-layer ::-moz-selection {
+    background: rgba(74, 144, 226, 0.3); /* Firefox浏览器 */
+    color: transparent;
+}
+
+/* 文本高亮标记 */
 .text-highlight {
     background: rgba(255, 235, 59, 0.6);
     padding: 2px 4px;

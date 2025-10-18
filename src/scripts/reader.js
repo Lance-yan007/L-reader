@@ -355,22 +355,22 @@ class ReaderApp {
                 console.log(`渲染第${pageNum}页...`);
                 const pageCanvas = await this.renderSinglePDFPage(pdf, pageNum);
                 
-                // 创建单个Canvas容器
-                const canvasContainer = document.createElement('div');
-                canvasContainer.className = 'canvas-container';
-                canvasContainer.style.cssText = 'display: flex; flex-direction: column; border: 2px solid #4A90E2; border-radius: 8px; overflow: visible; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: auto; min-height: 200px; position: relative; flex-shrink: 0;';
+                // 创建单个页面包装容器
+                const pageWrapper = document.createElement('div');
+                pageWrapper.className = 'page-wrapper';
+                pageWrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; flex-shrink: 0;';
                 
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
                 pageTitle.textContent = `第 ${pageNum} 页`;
                 pageTitle.style.cssText = 'color: #2c3e50; margin-bottom: 10px; font-size: 16px; text-align: center;';
                 
-                // 组装Canvas容器
-                canvasContainer.appendChild(pageTitle);
-                canvasContainer.appendChild(pageCanvas);
+                // 组装：标题 + pageCanvas (已包含Canvas和文本层)
+                pageWrapper.appendChild(pageTitle);
+                pageWrapper.appendChild(pageCanvas);
                 
                 // 添加到整体容器中
-                allPagesContainer.appendChild(canvasContainer);
+                allPagesContainer.appendChild(pageWrapper);
                 
                 console.log(`第${pageNum}页渲染完成`);
             }
@@ -410,25 +410,16 @@ class ReaderApp {
             canvas.height = scaledViewport.height;
             canvas.width = scaledViewport.width;
             
-            // 设置Canvas的显示尺寸（CSS像素）
-            canvas.style.width = viewport.width + 'px';
-            canvas.style.height = viewport.height + 'px';
-            
-            // 强制设置Canvas的显示属性
-            canvas.style.display = 'block';
-            canvas.style.visibility = 'visible';
-            canvas.style.opacity = '1';
-            canvas.style.border = '1px solid #ccc';
-            canvas.style.background = '#fff';
-            canvas.style.maxWidth = '100%';
-            canvas.style.width = '100%';
-            canvas.style.height = 'auto';
-            canvas.style.objectFit = 'contain';
-            canvas.style.margin = '0 auto';
-            canvas.style.position = 'relative';
-            canvas.style.zIndex = '1';
-            canvas.style.boxSizing = 'border-box';
-            canvas.style.display = 'block';
+            // 设置Canvas的显示尺寸（CSS像素）- 必须与文本层尺寸一致
+            canvas.style.cssText = `
+                width: ${viewport.width}px;
+                height: ${viewport.height}px;
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                z-index: 1;
+            `;
             
             // 确保Canvas有正确的尺寸
             canvas.setAttribute('width', canvas.width);
@@ -449,12 +440,117 @@ class ReaderApp {
             await renderTask.promise;
             console.log(`页面${pageNum} Canvas渲染完成`);
             
-            return canvas;
+            // ========== 创建文本层（支持文本选择）==========
+            console.log(`开始渲染页面${pageNum}的文本层...`);
+            const textLayerDiv = await this.renderTextLayer(page, viewport);
+            console.log(`页面${pageNum} 文本层渲染完成`);
+            
+            // ========== 组装双层结构 ==========
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'pdf-page-container';
+            pageContainer.style.cssText = `
+                position: relative;
+                display: block;
+                width: ${viewport.width}px;
+                height: ${viewport.height}px;
+                border: 2px solid #4A90E2;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                background: white;
+            `;
+            
+            pageContainer.appendChild(canvas);      // 底层：Canvas图像
+            pageContainer.appendChild(textLayerDiv); // 顶层：可选文本
+            
+            console.log(`📦 页面容器尺寸: ${viewport.width}x${viewport.height}`);
+            console.log(`📦 Canvas显示尺寸: ${canvas.style.width} x ${canvas.style.height}`);
+            console.log(`📦 文本层尺寸: ${textLayerDiv.style.width} x ${textLayerDiv.style.height}`);
+            
+            return pageContainer;
             
         } catch (error) {
             console.error(`渲染PDF页面${pageNum}失败:`, error);
             throw error;
         }
+    }
+
+    /**
+     * 渲染PDF文本层（支持文本选择）
+     * @param {Object} page - PDF页面对象
+     * @param {Object} viewport - 视口对象
+     * @returns {HTMLElement} 文本层div元素
+     */
+    async renderTextLayer(page, viewport) {
+        // 创建文本层容器（样式由CSS控制）
+        const textLayerDiv = document.createElement('div');
+        textLayerDiv.className = 'pdf-text-layer';
+        
+        console.log(`📐 文本层基于viewport: ${viewport.width}x${viewport.height}`);
+        
+        try {
+            // 提取PDF文本内容
+            const textContent = await page.getTextContent();
+            console.log(`📝 提取到 ${textContent.items.length} 个文本项`);
+            
+            // 遍历每个文本项，创建span元素并精确定位
+            textContent.items.forEach((item, index) => {
+                // 跳过空文本
+                if (!item.str || item.str.trim() === '') return;
+                
+                // 使用PDF.js的变换工具进行坐标转换
+                const tx = window.pdfjsLib.Util.transform(
+                    viewport.transform,
+                    item.transform
+                );
+                
+                // 计算字体大小和位置
+                const fontSize = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
+                const fontHeight = item.height || fontSize;
+                
+                // 创建文本span元素
+                const textSpan = document.createElement('span');
+                textSpan.textContent = item.str;
+                textSpan.style.cssText = `
+                    position: absolute;
+                    left: ${tx[4]}px;
+                    top: ${tx[5] - fontHeight}px;
+                    font-size: ${fontSize}px;
+                    font-family: sans-serif;
+                    color: transparent;
+                    white-space: pre;
+                    transform-origin: 0% 0%;
+                    user-select: text;
+                    cursor: text;
+                `;
+                
+                textLayerDiv.appendChild(textSpan);
+            });
+            
+            // 绑定文本选择事件
+            this.bindTextSelectionEvents(textLayerDiv);
+            
+            console.log(`✅ 文本层创建完成，共 ${textLayerDiv.children.length} 个文本元素`);
+            
+        } catch (error) {
+            console.error('渲染文本层失败:', error);
+            // 即使失败也返回空的文本层，不影响PDF显示
+        }
+        
+        return textLayerDiv;
+    }
+
+    /**
+     * 绑定文本选择事件
+     * @param {HTMLElement} textLayerDiv - 文本层元素
+     */
+    bindTextSelectionEvents(textLayerDiv) {
+        // 监听文本选择事件
+        textLayerDiv.addEventListener('mouseup', () => {
+            setTimeout(() => {
+                this.handleTextSelection();
+            }, 10);
+        });
     }
 
     async loadPDFJS() {
