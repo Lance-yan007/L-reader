@@ -27,8 +27,8 @@ class ReaderApp {
         
         // Gemini API配置
         this.geminiApiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
-        // 使用v1beta版本的Gemini API
-        this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+        // 使用Gemini 2.0 Flash模型 - 快速且稳定
+        this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
         
         this.init();
     }
@@ -1527,9 +1527,11 @@ class ReaderApp {
      */
     async callTranslationAPI(word) {
         try {
-            console.log(`调用Gemini API翻译: ${word}`);
+            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+            console.log(`📡 调用Gemini API翻译: ${word}`);
+            console.log(`🔗 请求URL: ${this.geminiApiUrl}?key=${this.geminiApiKey.substring(0, 10)}...`);
             
-            const response = await fetch(`${this.geminiApiUrl}?key=${this.geminiApiKey}`, {
+            const response = await fetch(fullUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1543,8 +1545,13 @@ class ReaderApp {
                 })
             });
             
+            console.log(`📊 响应状态: ${response.status} ${response.statusText}`);
+            
             if (!response.ok) {
-                throw new Error(`API请求失败: ${response.status}`);
+                // 尝试读取错误详情
+                const errorText = await response.text();
+                console.error(`❌ API错误详情: ${errorText}`);
+                throw new Error(`API请求失败: ${response.status} - ${errorText}`);
             }
             
             const data = await response.json();
