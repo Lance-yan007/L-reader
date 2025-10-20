@@ -569,18 +569,28 @@ class ReaderApp {
                     const wordSpan = document.createElement('span');
                     wordSpan.textContent = word;
                     wordSpan.setAttribute('data-word', word);
+                    
+                    // 计算精确的垂直位置（考虑圆角和视觉对齐）
+                    // tx[5]是baseline位置，fontHeight是字体高度
+                    // 使用更精确的对齐方式
+                    const topPosition = tx[5] - fontHeight;
+                    
                     wordSpan.style.cssText = `
                         position: absolute;
                         left: ${currentX}px;
-                        top: ${tx[5] - fontHeight - 1}px;
+                        top: ${topPosition}px;
                         width: ${displayWordWidth}px;
+                        height: ${fontHeight}px;
                         font-size: ${fontSize}px;
                         font-family: sans-serif;
                         color: transparent;
                         white-space: nowrap;
+                        line-height: ${fontHeight}px;
                         transform-origin: 0% 0%;
                         user-select: text;
                         cursor: text;
+                        display: inline-block;
+                        vertical-align: baseline;
                     `;
                     
                     textLayerDiv.appendChild(wordSpan);
@@ -1338,10 +1348,16 @@ class ReaderApp {
         textLayers.forEach(layer => {
             layer.classList.remove('word-translate-mode');
             
-            // 移除所有span的事件监听（通过克隆方式）
+            // 移除click事件，但保留hover事件以便查看已有翻译
             const spans = layer.querySelectorAll('span');
             spans.forEach(span => {
+                // 创建新的span保留内容和类名
                 const newSpan = span.cloneNode(true);
+                
+                // 重新绑定hover事件（用于显示已有翻译）
+                newSpan.addEventListener('mouseenter', this.handleWordHover.bind(this));
+                newSpan.addEventListener('mouseleave', this.handleWordLeave.bind(this));
+                
                 span.parentNode.replaceChild(newSpan, span);
             });
         });
@@ -1355,6 +1371,9 @@ class ReaderApp {
      * @param {Event} e - 点击事件
      */
     async handleWordClick(e) {
+        // 只在翻译模式开启时才处理点击
+        if (!this.wordTranslateMode) return;
+        
         e.stopPropagation();
         const span = e.target;
         const rawText = span.textContent;
@@ -1369,13 +1388,20 @@ class ReaderApp {
         span.classList.add('word-highlighted');
         this.highlightedWords.add(word.toLowerCase());
         
+        // ⚠️ 关键：强制浏览器立即重排，确保CSS样式被计算
+        // 通过读取offsetHeight强制浏览器同步计算样式
+        void span.offsetHeight;
+        
+        // 再次强制获取计算后的样式
+        window.getComputedStyle(span).backgroundColor;
+        
         // 如果已有翻译，直接显示；否则获取翻译
         if (this.wordTranslationMap.has(word.toLowerCase())) {
             const data = this.wordTranslationMap.get(word.toLowerCase());
-            this.showWordTooltip(word, data.translation, e.clientX, e.clientY);
+            this.showWordTooltip(word, data.translation, span, false);
         } else {
-            // 显示加载状态
-            this.showWordTooltip(word, '翻译中...', e.clientX, e.clientY, true);
+            // 先显示"翻译中"状态（使用高亮颜色）
+            this.showWordTooltip(word, '翻译中...', span, true);
             
             // 获取翻译
             try {
@@ -1386,11 +1412,11 @@ class ReaderApp {
                     clickCount: 1
                 });
                 
-                // 更新悬浮框内容
-                this.showWordTooltip(word, translation, e.clientX, e.clientY);
+                // 更新为真实翻译
+                this.showWordTooltip(word, translation, span, false);
             } catch (error) {
                 console.error('翻译失败:', error);
-                this.showWordTooltip(word, '翻译失败，请重试', e.clientX, e.clientY);
+                this.showWordTooltip(word, '翻译失败', span, false);
             }
         }
     }
@@ -1408,12 +1434,11 @@ class ReaderApp {
         
         this.currentHoverWord = word;
         
-        // 如果已点击过（有高亮），显示翻译
+        // 如果已点击过（有高亮），显示翻译（不论翻译模式是否开启）
         if (span.classList.contains('word-highlighted') && 
             this.wordTranslationMap.has(word.toLowerCase())) {
             const data = this.wordTranslationMap.get(word.toLowerCase());
-            const rect = span.getBoundingClientRect();
-            this.showWordTooltip(word, data.translation, rect.left, rect.top);
+            this.showWordTooltip(word, data.translation, span, false);
         }
     }
 
@@ -1451,12 +1476,11 @@ class ReaderApp {
      * 显示悬浮框
      * @param {string} word - 单词
      * @param {string} translation - 翻译
-     * @param {number} x - X坐标
-     * @param {number} y - Y坐标
+     * @param {HTMLElement} span - span元素
      * @param {boolean} loading - 是否加载状态
      */
-    showWordTooltip(word, translation, x, y, loading = false) {
-        if (!this.wordTooltip) return;
+    showWordTooltip(word, translation, span, loading = false) {
+        if (!this.wordTooltip || !span) return;
         
         // 更新内容
         document.getElementById('tooltipWord').textContent = word;
@@ -1465,31 +1489,78 @@ class ReaderApp {
         // 设置加载状态
         if (loading) {
             this.wordTooltip.classList.add('loading');
+            // 翻译中时，设置最小宽度为span宽度
+            const spanRect = span.getBoundingClientRect();
+            this.wordTooltip.style.minWidth = spanRect.width + 'px';
+            this.wordTooltip.style.maxWidth = spanRect.width + 'px';
         } else {
             this.wordTooltip.classList.remove('loading');
+            // 显示翻译时，恢复自适应宽度
+            this.wordTooltip.style.minWidth = '';
+            this.wordTooltip.style.maxWidth = '200px';
         }
+        
+        // ⚠️ 关键改进：从CSS规则直接读取高亮颜色，而不是从计算样式
+        // 因为计算样式可能还未更新
+        let bgColor = 'rgb(255, 252, 158)'; // 默认黄色 #FFFC9E
+        
+        if (span.classList.contains('word-highlighted')) {
+            // 强制同步样式计算
+            const computedBg = window.getComputedStyle(span).backgroundColor;
+            console.log('🎨 读取到的背景色:', computedBg);
+            
+            const match = computedBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (match) {
+                const r = match[1];
+                const g = match[2];
+                const b = match[3];
+                // 检查是否是透明或默认颜色
+                if (r !== '0' || g !== '0' || b !== '0') {
+                    // tooltip使用相同颜色但完全不透明
+                    bgColor = `rgb(${r}, ${g}, ${b})`;
+                    console.log('✅ 使用高亮颜色:', bgColor);
+                }
+            }
+        }
+        
+        this.wordTooltip.style.background = bgColor;
+        
+        // 更新箭头颜色
+        const style = document.createElement('style');
+        style.textContent = `.word-tooltip::after { border-top-color: ${bgColor}; }`;
+        // 移除旧的样式
+        const oldStyle = document.querySelector('style[data-tooltip-arrow]');
+        if (oldStyle) oldStyle.remove();
+        style.setAttribute('data-tooltip-arrow', 'true');
+        document.head.appendChild(style);
         
         // 显示悬浮框
         this.wordTooltip.style.display = 'block';
         
-        // 计算位置（避免超出屏幕）
-        const rect = this.wordTooltip.getBoundingClientRect();
-        const margin = 10;
+        // 获取span的位置
+        const spanRect = span.getBoundingClientRect();
+        const tooltipRect = this.wordTooltip.getBoundingClientRect();
         
-        let left = x;
-        let top = y - rect.height - margin;
+        // 计算位置：在span正上方，水平居中
+        const margin = 12; // tooltip和span之间的间距（包含箭头）
+        
+        // 水平居中对齐
+        let left = spanRect.left + (spanRect.width / 2) - (tooltipRect.width / 2);
+        
+        // 垂直位置：在span上方
+        let top = spanRect.top - tooltipRect.height - margin;
         
         // 边界检查 - 左右
-        if (left + rect.width > window.innerWidth) {
-            left = window.innerWidth - rect.width - margin;
+        if (left < 5) {
+            left = 5;
         }
-        if (left < margin) {
-            left = margin;
+        if (left + tooltipRect.width > window.innerWidth - 5) {
+            left = window.innerWidth - tooltipRect.width - 5;
         }
         
         // 边界检查 - 上下
-        if (top < margin) {
-            top = y + margin; // 如果上方空间不够，显示在下方
+        if (top < 5) {
+            top = spanRect.bottom + margin; // 如果上方空间不够，显示在下方
         }
         
         this.wordTooltip.style.left = left + 'px';
@@ -1836,34 +1907,124 @@ class ReaderApp {
      */
     initContextMenu() {
         this.contextMenu = document.getElementById('contextMenu');
+        this.colorPickerPanel = document.getElementById('colorPickerPanel');
+        this.opacitySliderPanel = document.getElementById('opacitySliderPanel');
+        this.currentColorCircle = document.getElementById('currentColorCircle');
+        this.currentColorFill = this.currentColorCircle?.querySelector('.current-color-fill');
+        this.currentOpacity = 0.5; // 默认透明度50%
+        
         if (!this.contextMenu) {
             console.error('右键菜单元素未找到');
             return;
         }
 
-        // 绑定菜单项点击事件
-        const menuItems = this.contextMenu.querySelectorAll('.context-menu-item');
-        menuItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const action = item.getAttribute('data-action');
-                this.handleContextMenuAction(action);
+        // 绑定当前颜色圆形点击事件 - 切换调色板
+        if (this.currentColorCircle) {
+            this.currentColorCircle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleColorPicker();
+            });
+        }
+
+        // 绑定透明度调节按钮
+        const opacityBtn = document.getElementById('opacityBtn');
+        if (opacityBtn) {
+            opacityBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleOpacitySlider();
+            });
+        }
+
+        // 绑定透明度滑块
+        const opacitySlider = document.getElementById('opacitySlider');
+        const opacityValue = document.getElementById('opacityValue');
+        if (opacitySlider && opacityValue) {
+            opacitySlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                this.currentOpacity = value / 100;
+                opacityValue.textContent = value + '%';
+                this.applyOpacityToCurrentTarget();
+            });
+        }
+
+        // 绑定下划线按钮
+        const underlineBtn = document.getElementById('underlineBtn');
+        if (underlineBtn) {
+            underlineBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleUnderline();
+            });
+        }
+
+        // 绑定复制文本按钮
+        const copyTextBtn = document.getElementById('copyTextBtn');
+        if (copyTextBtn) {
+            copyTextBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.copyWordText();
+            });
+        }
+
+        // 绑定删除所有标记按钮
+        const clearMarksBtn = document.getElementById('clearMarksBtn');
+        if (clearMarksBtn) {
+            clearMarksBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.clearAllMarks();
+            });
+        }
+
+        // 绑定调色板中的颜色选项
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const color = option.getAttribute('data-color');
+                this.applyHighlightColor(color);
+                this.hideColorPicker();
             });
         });
 
-        // 点击其他地方关闭菜单
+        // 绑定自定义颜色输入
+        const customColorInput = document.getElementById('customColorInput');
+        if (customColorInput) {
+            customColorInput.addEventListener('change', (e) => {
+                const color = e.target.value;
+                this.applyHighlightColor(color);
+                this.hideColorPicker();
+            });
+        }
+
+        // 点击其他地方关闭菜单和所有面板
         document.addEventListener('click', (e) => {
-            if (!this.contextMenu.contains(e.target)) {
+            if (!this.contextMenu.contains(e.target) && 
+                !this.colorPickerPanel?.contains(e.target) &&
+                !this.opacitySliderPanel?.contains(e.target)) {
                 this.hideContextMenu();
+                this.hideColorPicker();
+                this.hideOpacitySlider();
             }
         });
 
-        // 阻止默认右键菜单
+        // 全局右键菜单处理
         document.addEventListener('contextmenu', (e) => {
-            // 只在PDF区域内阻止默认菜单
-            if (e.target.closest('.pdf-text-layer')) {
-                // 如果点词翻译模式开启，则阻止
-                if (this.wordTranslateMode) {
-                    e.preventDefault();
+            const pdfTextLayer = e.target.closest('.pdf-text-layer');
+            
+            if (pdfTextLayer) {
+                e.preventDefault(); // 始终阻止默认右键菜单
+                
+                // 检查是否点击了单词span或选择了文本
+                const span = e.target.closest('span');
+                const selection = window.getSelection();
+                const selectedText = selection.toString().trim();
+                
+                if (span && span.textContent.trim()) {
+                    // 点击了单词
+                    this.currentContextTarget = span;
+                    this.showContextMenu(e.clientX, e.clientY);
+                } else if (selectedText) {
+                    // 选择了文本
+                    this.handleTextSelection(e, selection);
                 }
             }
         });
@@ -1879,11 +2040,7 @@ class ReaderApp {
 
         const span = e.target;
         
-        // 只对已高亮的单词显示右键菜单
-        if (!span.classList.contains('word-highlighted')) {
-            return;
-        }
-
+        // 所有单词都可以右键打开菜单（不再限制只有高亮的单词）
         this.currentContextTarget = span;
         this.showContextMenu(e.clientX, e.clientY);
     }
@@ -1896,8 +2053,18 @@ class ReaderApp {
     showContextMenu(x, y) {
         if (!this.contextMenu) return;
 
+        // 更新当前颜色显示
+        if (this.currentContextTarget && this.currentColorFill) {
+            const currentBgColor = window.getComputedStyle(this.currentContextTarget).backgroundColor;
+            if (currentBgColor && currentBgColor !== 'rgba(0, 0, 0, 0)' && currentBgColor !== 'transparent') {
+                this.currentColorFill.style.background = currentBgColor;
+            } else {
+                this.currentColorFill.style.background = '#FFFC9E'; // 默认黄色
+            }
+        }
+
         // 显示菜单
-        this.contextMenu.style.display = 'block';
+        this.contextMenu.style.display = 'flex';
 
         // 获取菜单尺寸
         const rect = this.contextMenu.getBoundingClientRect();
@@ -1931,7 +2098,7 @@ class ReaderApp {
      * 处理右键菜单操作
      * @param {string} action - 操作类型
      */
-    handleContextMenuAction(action) {
+    handleContextMenuAction(action, customColor = null) {
         if (!this.currentContextTarget) return;
 
         const span = this.currentContextTarget;
@@ -1939,7 +2106,8 @@ class ReaderApp {
         if (action === 'remove-highlight') {
             // 取消高亮
             span.classList.remove('word-highlighted');
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange');
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            span.style.backgroundColor = ''; // 清除自定义背景色
             
             // 从集合中移除
             const word = this.extractWord(span.textContent);
@@ -1951,15 +2119,401 @@ class ReaderApp {
             const color = action.replace('color-', '');
             
             // 移除旧颜色
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange');
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            span.style.backgroundColor = ''; // 清除之前的自定义背景色
             
-            // 添加新颜色
-            span.classList.add(`color-${color}`);
+            if (color === 'custom' && customColor) {
+                // 自定义颜色：使用内联样式
+                span.classList.add('color-custom');
+                // 将hex颜色转换为rgba格式，透明度0.5
+                const rgb = this.hexToRgb(customColor);
+                if (rgb) {
+                    span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+                }
+            } else {
+                // 添加新颜色
+                span.classList.add(`color-${color}`);
+            }
         }
 
         // 隐藏菜单
         this.hideContextMenu();
         this.currentContextTarget = null;
+    }
+
+    /**
+     * 将hex颜色转换为RGB对象
+     * @param {string} hex - hex颜色值 (如 #ff0000)
+     * @returns {Object} - {r, g, b} 对象
+     */
+    hexToRgb(hex) {
+        // 移除#号
+        hex = hex.replace(/^#/, '');
+        
+        // 处理3位简写形式
+        if (hex.length === 3) {
+            hex = hex.split('').map(char => char + char).join('');
+        }
+        
+        const bigint = parseInt(hex, 16);
+        return {
+            r: (bigint >> 16) & 255,
+            g: (bigint >> 8) & 255,
+            b: bigint & 255
+        };
+    }
+
+    /**
+     * 切换调色板显示/隐藏
+     */
+    toggleColorPicker() {
+        if (!this.colorPickerPanel) return;
+
+        const isVisible = this.colorPickerPanel.style.display === 'block';
+        
+        if (isVisible) {
+            this.hideColorPicker();
+        } else {
+            // 显示调色板
+            this.colorPickerPanel.style.display = 'block';
+            
+            // 定位到右键菜单下方
+            const menuRect = this.contextMenu.getBoundingClientRect();
+            const panelRect = this.colorPickerPanel.getBoundingClientRect();
+            
+            let left = menuRect.left;
+            let top = menuRect.bottom + 5;
+            
+            // 避免超出屏幕
+            if (left + panelRect.width > window.innerWidth) {
+                left = window.innerWidth - panelRect.width - 5;
+            }
+            if (top + panelRect.height > window.innerHeight) {
+                top = menuRect.top - panelRect.height - 5;
+            }
+            
+            this.colorPickerPanel.style.left = left + 'px';
+            this.colorPickerPanel.style.top = top + 'px';
+        }
+    }
+
+    /**
+     * 隐藏调色板
+     */
+    hideColorPicker() {
+        if (this.colorPickerPanel) {
+            this.colorPickerPanel.style.display = 'none';
+        }
+    }
+
+    /**
+     * 切换透明度滑块显示/隐藏
+     */
+    toggleOpacitySlider() {
+        if (!this.opacitySliderPanel) return;
+
+        const isVisible = this.opacitySliderPanel.style.display === 'block';
+        
+        if (isVisible) {
+            this.hideOpacitySlider();
+        } else {
+            // 显示透明度滑块
+            this.opacitySliderPanel.style.display = 'block';
+            
+            // 获取当前高亮的透明度
+            if (this.currentContextTarget) {
+                const bgColor = window.getComputedStyle(this.currentContextTarget).backgroundColor;
+                const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                if (match && match[4]) {
+                    const opacity = parseFloat(match[4]);
+                    this.currentOpacity = opacity;
+                    const opacitySlider = document.getElementById('opacitySlider');
+                    const opacityValue = document.getElementById('opacityValue');
+                    if (opacitySlider && opacityValue) {
+                        opacitySlider.value = Math.round(opacity * 100);
+                        opacityValue.textContent = Math.round(opacity * 100) + '%';
+                    }
+                }
+            }
+            
+            // 定位到右键菜单下方
+            const menuRect = this.contextMenu.getBoundingClientRect();
+            const panelRect = this.opacitySliderPanel.getBoundingClientRect();
+            
+            let left = menuRect.left;
+            let top = menuRect.bottom + 5;
+            
+            // 避免超出屏幕
+            if (left + panelRect.width > window.innerWidth) {
+                left = window.innerWidth - panelRect.width - 5;
+            }
+            if (top + panelRect.height > window.innerHeight) {
+                top = menuRect.top - panelRect.height - 5;
+            }
+            
+            this.opacitySliderPanel.style.left = left + 'px';
+            this.opacitySliderPanel.style.top = top + 'px';
+        }
+    }
+
+    /**
+     * 隐藏透明度滑块
+     */
+    hideOpacitySlider() {
+        if (this.opacitySliderPanel) {
+            this.opacitySliderPanel.style.display = 'none';
+        }
+    }
+
+    /**
+     * 应用透明度到当前目标
+     */
+    applyOpacityToCurrentTarget() {
+        if (!this.currentContextTarget) return;
+
+        // 应用到所有选中的span
+        this.applyToSelectedSpans((span) => {
+            const bgColor = window.getComputedStyle(span).backgroundColor;
+            const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (match) {
+                const r = match[1];
+                const g = match[2];
+                const b = match[3];
+                span.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${this.currentOpacity})`;
+            }
+        });
+    }
+
+    /**
+     * 应用高亮颜色
+     * @param {string} color - 颜色hex值
+     */
+    applyHighlightColor(color) {
+        if (!this.currentContextTarget) return;
+
+        const rgb = this.hexToRgb(color);
+        const opacity = this.currentOpacity || 0.5;
+        
+        // 应用到所有选中的span
+        this.applyToSelectedSpans((span) => {
+            // 移除所有预设颜色类
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
+                                'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            
+            // 应用自定义颜色和透明度
+            span.classList.add('word-highlighted', 'color-custom');
+            span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+            
+            // 记录到集合中
+            const word = this.extractWord(span.textContent);
+            if (word) {
+                this.highlightedWords.add(word.toLowerCase());
+            }
+        });
+        
+        // 更新当前颜色圆形显示
+        if (this.currentColorFill) {
+            this.currentColorFill.style.background = color;
+        }
+    }
+
+    /**
+     * 切换下划线
+     */
+    toggleUnderline() {
+        if (!this.currentContextTarget) return;
+
+        const hasUnderline = this.currentContextTarget.classList.contains('word-underlined');
+        
+        // 应用到所有选中的span
+        this.applyToSelectedSpans((span) => {
+            if (hasUnderline) {
+                // 移除下划线
+                span.classList.remove('word-underlined');
+            } else {
+                // 添加下划线
+                span.classList.add('word-underlined');
+            }
+        });
+        
+        this.hideContextMenu();
+        this.hideColorPicker();
+    }
+
+    /**
+     * 复制文本
+     */
+    copyWordText() {
+        if (!this.currentContextTarget) return;
+
+        // 如果有选中的多个span，复制所有文本
+        let text = '';
+        if (this.selectedSpans && this.selectedSpans.length > 0) {
+            text = this.selectedSpans.map(span => span.textContent).join('');
+        } else {
+            text = this.extractWord(this.currentContextTarget.textContent);
+        }
+        
+        if (text) {
+            // 使用Clipboard API复制文本
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    console.log('文本已复制:', text);
+                    this.showToast('已复制: ' + text);
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    this.fallbackCopyText(text);
+                });
+            } else {
+                // 降级方案
+                this.fallbackCopyText(text);
+            }
+        }
+        
+        this.selectedSpans = null; // 清空选择
+        this.hideContextMenu();
+    }
+
+    /**
+     * 降级复制方案（兼容性）
+     * @param {string} text - 要复制的文本
+     */
+    fallbackCopyText(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            document.execCommand('copy');
+            console.log('文本已复制（降级方案）:', text);
+            this.showToast('已复制: ' + text);
+        } catch (err) {
+            console.error('复制失败（降级方案）:', err);
+        }
+        
+        document.body.removeChild(textarea);
+    }
+
+    /**
+     * 显示临时提示
+     * @param {string} message - 提示消息
+     */
+    showToast(message) {
+        // 创建临时提示元素
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-size: 14px;
+            z-index: 10003;
+            animation: fadeInOut 2s ease;
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // 2秒后移除
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 2000);
+    }
+
+    /**
+     * 删除所有标记（高亮和下划线）
+     */
+    clearAllMarks() {
+        if (!this.currentContextTarget) return;
+
+        // 应用到所有选中的span
+        this.applyToSelectedSpans((span) => {
+            // 移除高亮
+            span.classList.remove('word-highlighted');
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
+                                'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            span.style.backgroundColor = '';
+            
+            // 移除下划线
+            span.classList.remove('word-underlined');
+            
+            // 从集合中移除
+            const word = this.extractWord(span.textContent);
+            if (word) {
+                this.highlightedWords.delete(word.toLowerCase());
+            }
+        });
+        
+        this.hideContextMenu();
+        this.hideColorPicker();
+    }
+
+    /**
+     * 处理文本选择的右键菜单
+     * @param {Event} e - 右键事件
+     * @param {Selection} selection - 选择对象
+     */
+    handleTextSelection(e, selection) {
+        if (!selection || selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        
+        // 获取选择范围内的所有span元素
+        const container = range.commonAncestorContainer;
+        let spans = [];
+        
+        if (container.nodeType === Node.TEXT_NODE) {
+            // 如果是文本节点，获取其父span
+            const parentSpan = container.parentElement;
+            if (parentSpan && parentSpan.tagName === 'SPAN') {
+                spans.push(parentSpan);
+            }
+        } else if (container.nodeType === Node.ELEMENT_NODE) {
+            // 获取范围内的所有span
+            const allSpans = container.querySelectorAll('span');
+            allSpans.forEach(span => {
+                if (selection.containsNode(span, true)) {
+                    spans.push(span);
+                }
+            });
+        }
+        
+        // 如果没有找到span，尝试获取起始节点的父span
+        if (spans.length === 0) {
+            const startSpan = range.startContainer.parentElement?.closest('span');
+            if (startSpan) {
+                spans.push(startSpan);
+            }
+        }
+        
+        // 保存选中的spans，用于批量操作
+        this.selectedSpans = spans;
+        this.currentContextTarget = spans[0]; // 用第一个span作为当前目标
+        
+        this.showContextMenu(e.clientX, e.clientY);
+    }
+
+    /**
+     * 应用操作到所有选中的spans（重写以支持批量操作）
+     */
+    applyToSelectedSpans(callback) {
+        if (this.selectedSpans && this.selectedSpans.length > 0) {
+            this.selectedSpans.forEach(span => {
+                callback(span);
+            });
+            this.selectedSpans = null; // 清空选择
+        } else if (this.currentContextTarget) {
+            callback(this.currentContextTarget);
+        }
     }
 }
 
