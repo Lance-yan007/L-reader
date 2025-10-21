@@ -716,48 +716,62 @@ body {
 
 /* 已点击的单词 - 持久高亮（默认黄色） */
 .pdf-text-layer span.word-highlighted {
-    background: rgba(255, 252, 158, 0.6); /* #FFFC9E */
-    color: transparent;
-    border-radius: 4px;
+    position: relative; /* 为伪元素定位 */
     padding: 2px 0; /* 增加上下padding让高亮框更高 */
     box-sizing: content-box; /* padding不计入width/height */
+    isolation: isolate; /* 🎯 创建独立的层叠上下文，避免与Canvas层混合 */
+}
+
+/* 使用 ::before 伪元素作为背景层，让文字清晰显示在上方 */
+.pdf-text-layer span.word-highlighted::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--highlight-color, rgba(255, 255, 200, 0.45)); /* 🎯 更亮的黄色，较低透明度 */
+    border-radius: 4px;
+    z-index: -1; /* 放在文字下方 */
+    pointer-events: none; /* 确保不阻挡鼠标事件 */
 }
 
 /* 不同颜色的高亮选项 */
-.pdf-text-layer span.word-highlighted.color-yellow {
-    background: rgba(255, 252, 158, 0.6); /* #FFFC9E */
+.pdf-text-layer span.word-highlighted.color-yellow::before {
+    background: rgba(255, 255, 200, 0.45); /* 更亮的黄色 #FFFFC8 */
 }
 
-.pdf-text-layer span.word-highlighted.color-green {
-    background: rgba(76, 175, 80, 0.5);
+.pdf-text-layer span.word-highlighted.color-green::before {
+    background: rgba(180, 255, 180, 0.4); /* 更亮的绿色 */
 }
 
-.pdf-text-layer span.word-highlighted.color-blue {
-    background: rgba(74, 144, 226, 0.5);
+.pdf-text-layer span.word-highlighted.color-blue::before {
+    background: rgba(180, 220, 255, 0.4); /* 更亮的蓝色 */
 }
 
-.pdf-text-layer span.word-highlighted.color-pink {
-    background: rgba(233, 30, 99, 0.5);
+.pdf-text-layer span.word-highlighted.color-pink::before {
+    background: rgba(255, 180, 220, 0.4); /* 更亮的粉色 */
 }
 
-.pdf-text-layer span.word-highlighted.color-orange {
-    background: rgba(255, 152, 0, 0.5);
+.pdf-text-layer span.word-highlighted.color-orange::before {
+    background: rgba(255, 220, 180, 0.4); /* 更亮的橙色 */
 }
 
-.pdf-text-layer span.word-highlighted.color-purple {
-    background: rgba(156, 39, 176, 0.5);
+.pdf-text-layer span.word-highlighted.color-purple::before {
+    background: rgba(220, 180, 255, 0.4); /* 更亮的紫色 */
 }
 
-.pdf-text-layer span.word-highlighted.color-red {
-    background: rgba(244, 67, 54, 0.5);
+.pdf-text-layer span.word-highlighted.color-red::before {
+    background: rgba(255, 180, 180, 0.4); /* 更亮的红色 */
 }
 
-.pdf-text-layer span.word-highlighted.color-cyan {
-    background: rgba(0, 188, 212, 0.5);
+.pdf-text-layer span.word-highlighted.color-cyan::before {
+    background: rgba(180, 240, 255, 0.4); /* 更亮的青色 */
 }
 
-.pdf-text-layer span.word-highlighted.color-custom {
-    /* 自定义颜色将通过内联样式设置 */
+.pdf-text-layer span.word-highlighted.color-custom::before {
+    /* 自定义颜色将通过CSS变量设置 */
+    background: var(--highlight-color);
 }
 
 /* 下划线样式 */
@@ -834,14 +848,23 @@ body {
 
 /* 加载状态 */
 .word-tooltip.loading {
-    padding: 6px 10px; /* 加载时更紧凑 */
+    padding: 1px 4px !important; /* 加载时极度紧凑 */
+    min-height: auto !important; /* 允许自动高度 */
+    height: auto !important; /* 自动高度 */
 }
 
 .word-tooltip.loading .word-tooltip-translation {
     opacity: 0.7;
     font-style: italic;
-    font-size: 12px;
+    font-size: 9px !important; /* 更小的字体 */
+    line-height: 1.2 !important; /* 紧凑的行高 */
     text-align: center;
+    padding: 0 !important; /* 移除任何额外padding */
+    margin: 0 !important; /* 移除任何额外margin */
+}
+
+.word-tooltip.loading .word-tooltip-content {
+    gap: 0 !important; /* 移除间距 */
 }
 
 /* ========== 右键菜单样式 ========== */

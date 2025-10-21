@@ -30,6 +30,12 @@ class ReaderApp {
         // 使用Gemini 2.0 Flash模型 - 快速且稳定
         this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
         
+        // API请求限流器配置（免费层：15次/分钟）
+        this.apiRequestQueue = []; // 请求时间戳队列
+        this.maxRequestsPerMinute = 12; // 设置为12次以留出余量
+        this.requestDelayMs = 5000; // 两次请求之间最小间隔5秒
+        this.lastRequestTime = 0; // 上次请求时间
+        
         this.init();
     }
 
@@ -1388,20 +1394,25 @@ class ReaderApp {
         span.classList.add('word-highlighted');
         this.highlightedWords.add(word.toLowerCase());
         
-        // ⚠️ 关键：强制浏览器立即重排，确保CSS样式被计算
-        // 通过读取offsetHeight强制浏览器同步计算样式
-        void span.offsetHeight;
+        // 🎯 关键改进：获取即将应用的高亮颜色（从CSS变量或默认值）
+        let highlightColor = 'rgb(255, 255, 200)'; // 默认亮黄色 #FFFFC8
         
-        // 再次强制获取计算后的样式
-        window.getComputedStyle(span).backgroundColor;
+        // 如果已经有自定义颜色（通过CSS变量设置），直接使用
+        const cssVarColor = span.style.getPropertyValue('--highlight-color');
+        if (cssVarColor) {
+            highlightColor = cssVarColor;
+        } else {
+            // 否则使用默认的亮黄色
+            highlightColor = 'rgb(255, 255, 200)';
+        }
         
         // 如果已有翻译，直接显示；否则获取翻译
         if (this.wordTranslationMap.has(word.toLowerCase())) {
             const data = this.wordTranslationMap.get(word.toLowerCase());
-            this.showWordTooltip(word, data.translation, span, false);
+            this.showWordTooltip(word, data.translation, span, highlightColor, false);
         } else {
-            // 先显示"翻译中"状态（使用高亮颜色）
-            this.showWordTooltip(word, '翻译中...', span, true);
+            // 先显示"翻译中"状态（使用预知的高亮颜色）
+            this.showWordTooltip(word, '翻译中...', span, highlightColor, true);
             
             // 获取翻译
             try {
@@ -1413,10 +1424,10 @@ class ReaderApp {
                 });
                 
                 // 更新为真实翻译
-                this.showWordTooltip(word, translation, span, false);
+                this.showWordTooltip(word, translation, span, highlightColor, false);
             } catch (error) {
                 console.error('翻译失败:', error);
-                this.showWordTooltip(word, '翻译失败', span, false);
+                this.showWordTooltip(word, '翻译失败', span, highlightColor, false);
             }
         }
     }
@@ -1438,7 +1449,13 @@ class ReaderApp {
         if (span.classList.contains('word-highlighted') && 
             this.wordTranslationMap.has(word.toLowerCase())) {
             const data = this.wordTranslationMap.get(word.toLowerCase());
-            this.showWordTooltip(word, data.translation, span, false);
+            
+            // 获取当前的高亮颜色（从CSS变量或伪元素）
+            let highlightColor = span.style.getPropertyValue('--highlight-color') || 
+                               window.getComputedStyle(span, '::before').backgroundColor || 
+                               'rgb(255, 255, 200)';
+            
+            this.showWordTooltip(word, data.translation, span, highlightColor, false);
         }
     }
 
@@ -1477,9 +1494,10 @@ class ReaderApp {
      * @param {string} word - 单词
      * @param {string} translation - 翻译
      * @param {HTMLElement} span - span元素
+     * @param {string} highlightColor - 高亮颜色（直接传入，避免异步读取）
      * @param {boolean} loading - 是否加载状态
      */
-    showWordTooltip(word, translation, span, loading = false) {
+    showWordTooltip(word, translation, span, highlightColor, loading = false) {
         if (!this.wordTooltip || !span) return;
         
         // 更新内容
@@ -1500,28 +1518,19 @@ class ReaderApp {
             this.wordTooltip.style.maxWidth = '200px';
         }
         
-        // ⚠️ 关键改进：从CSS规则直接读取高亮颜色，而不是从计算样式
-        // 因为计算样式可能还未更新
-        let bgColor = 'rgb(255, 252, 158)'; // 默认黄色 #FFFC9E
+        // 🎯 关键改进：直接使用传入的高亮颜色，无需读取计算样式
+        let bgColor = highlightColor;
         
-        if (span.classList.contains('word-highlighted')) {
-            // 强制同步样式计算
-            const computedBg = window.getComputedStyle(span).backgroundColor;
-            console.log('🎨 读取到的背景色:', computedBg);
-            
-            const match = computedBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-            if (match) {
-                const r = match[1];
-                const g = match[2];
-                const b = match[3];
-                // 检查是否是透明或默认颜色
-                if (r !== '0' || g !== '0' || b !== '0') {
-                    // tooltip使用相同颜色但完全不透明
-                    bgColor = `rgb(${r}, ${g}, ${b})`;
-                    console.log('✅ 使用高亮颜色:', bgColor);
-                }
-            }
+        // 如果颜色是rgba格式，转换为rgb格式（tooltip需要完全不透明）
+        const rgbaMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (rgbaMatch) {
+            const r = rgbaMatch[1];
+            const g = rgbaMatch[2];
+            const b = rgbaMatch[3];
+            bgColor = `rgb(${r}, ${g}, ${b})`;
         }
+        
+        console.log('🎨 使用高亮颜色:', bgColor);
         
         this.wordTooltip.style.background = bgColor;
         
@@ -1592,15 +1601,64 @@ class ReaderApp {
     }
 
     /**
-     * 调用翻译API（使用Gemini API）
+     * 检查是否可以发送API请求（基于限流规则）
+     * @returns {boolean}
+     */
+    canMakeRequest() {
+        const now = Date.now();
+        const oneMinuteAgo = now - 60000;
+        
+        // 清理1分钟前的请求记录
+        this.apiRequestQueue = this.apiRequestQueue.filter(time => time > oneMinuteAgo);
+        
+        // 检查1分钟内的请求数
+        if (this.apiRequestQueue.length >= this.maxRequestsPerMinute) {
+            console.warn(`⚠️ 已达到每分钟请求上限 (${this.maxRequestsPerMinute}次)`);
+            return false;
+        }
+        
+        // 检查距离上次请求的时间间隔
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        if (timeSinceLastRequest < this.requestDelayMs) {
+            console.warn(`⚠️ 请求过快，需等待 ${Math.ceil((this.requestDelayMs - timeSinceLastRequest) / 1000)} 秒`);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 等待直到可以发送请求
+     * @returns {Promise<void>}
+     */
+    async waitForRateLimit() {
+        const now = Date.now();
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        
+        if (timeSinceLastRequest < this.requestDelayMs) {
+            const waitTime = this.requestDelayMs - timeSinceLastRequest;
+            console.log(`⏳ 等待 ${Math.ceil(waitTime / 1000)} 秒后继续...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+    }
+
+    /**
+     * 调用翻译API（使用Gemini API，带限流和重试）
      * @param {string} word - 单词
      * @returns {Promise<string>} - 翻译结果
      */
     async callTranslationAPI(word) {
         try {
+            // 等待限流器允许
+            await this.waitForRateLimit();
+            
+            // 记录请求时间
+            const now = Date.now();
+            this.apiRequestQueue.push(now);
+            this.lastRequestTime = now;
+            
             const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-            console.log(`📡 调用Gemini API翻译: ${word}`);
-            console.log(`🔗 请求URL: ${this.geminiApiUrl}?key=${this.geminiApiKey.substring(0, 10)}...`);
+            console.log(`📡 调用Gemini API翻译: ${word} (队列: ${this.apiRequestQueue.length}/${this.maxRequestsPerMinute})`);
             
             const response = await fetch(fullUrl, {
                 method: 'POST',
@@ -1619,10 +1677,15 @@ class ReaderApp {
             console.log(`📊 响应状态: ${response.status} ${response.statusText}`);
             
             if (!response.ok) {
-                // 尝试读取错误详情
-                const errorText = await response.text();
-                console.error(`❌ API错误详情: ${errorText}`);
-                throw new Error(`API请求失败: ${response.status} - ${errorText}`);
+                const errorData = await response.json();
+                console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
+                
+                // 如果是429错误（配额超限），显示友好提示
+                if (response.status === 429) {
+                    throw new Error('API_RATE_LIMIT');
+                }
+                
+                throw new Error(`API请求失败: ${response.status}`);
             }
             
             const data = await response.json();
@@ -1630,7 +1693,7 @@ class ReaderApp {
             // 提取翻译结果
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const translation = data.candidates[0].content.parts[0].text.trim();
-                console.log(`翻译结果: ${translation}`);
+                console.log(`✅ 翻译结果: ${translation}`);
                 return translation;
             }
             
@@ -1638,6 +1701,11 @@ class ReaderApp {
             
         } catch (error) {
             console.error('Gemini API调用失败:', error);
+            
+            // 如果是速率限制错误，返回特殊提示
+            if (error.message === 'API_RATE_LIMIT') {
+                return '⏳ API请求过快，请稍后再试';
+            }
             
             // 降级到本地词典（扩展版）
             const mockTranslations = {
@@ -1814,11 +1882,12 @@ class ReaderApp {
             
             const lowerWord = word.toLowerCase();
             if (mockTranslations[lowerWord]) {
+                console.log(`📚 使用本地词典: ${word} -> ${mockTranslations[lowerWord]}`);
                 return mockTranslations[lowerWord];
             }
             
-            // 返回错误提示
-            return `翻译失败（${error.message}）`;
+            // 返回友好的错误提示
+            return `[词典未收录]`;
         }
     }
 
@@ -2053,13 +2122,20 @@ class ReaderApp {
     showContextMenu(x, y) {
         if (!this.contextMenu) return;
 
-        // 更新当前颜色显示
+        // 更新当前颜色显示（从CSS变量或伪元素读取）
         if (this.currentContextTarget && this.currentColorFill) {
-            const currentBgColor = window.getComputedStyle(this.currentContextTarget).backgroundColor;
+            // 优先从CSS变量读取
+            let currentBgColor = this.currentContextTarget.style.getPropertyValue('--highlight-color');
+            
+            // 如果没有CSS变量，从::before伪元素读取
+            if (!currentBgColor) {
+                currentBgColor = window.getComputedStyle(this.currentContextTarget, '::before').backgroundColor;
+            }
+            
             if (currentBgColor && currentBgColor !== 'rgba(0, 0, 0, 0)' && currentBgColor !== 'transparent') {
                 this.currentColorFill.style.background = currentBgColor;
             } else {
-                this.currentColorFill.style.background = '#FFFC9E'; // 默认黄色
+                this.currentColorFill.style.background = '#FFFFC8'; // 默认亮黄色
             }
         }
 
@@ -2220,9 +2296,16 @@ class ReaderApp {
             // 显示透明度滑块
             this.opacitySliderPanel.style.display = 'block';
             
-            // 获取当前高亮的透明度
+            // 获取当前高亮的透明度（从CSS变量或伪元素）
             if (this.currentContextTarget) {
-                const bgColor = window.getComputedStyle(this.currentContextTarget).backgroundColor;
+                // 优先从CSS变量读取
+                let bgColor = this.currentContextTarget.style.getPropertyValue('--highlight-color');
+                
+                // 如果没有CSS变量，从::before伪元素读取
+                if (!bgColor) {
+                    bgColor = window.getComputedStyle(this.currentContextTarget, '::before').backgroundColor;
+                }
+                
                 const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
                 if (match && match[4]) {
                     const opacity = parseFloat(match[4]);
@@ -2232,6 +2315,15 @@ class ReaderApp {
                     if (opacitySlider && opacityValue) {
                         opacitySlider.value = Math.round(opacity * 100);
                         opacityValue.textContent = Math.round(opacity * 100) + '%';
+                    }
+                } else {
+                    // 如果没有透明度值（rgb格式），默认为60%
+                    this.currentOpacity = 0.6;
+                    const opacitySlider = document.getElementById('opacitySlider');
+                    const opacityValue = document.getElementById('opacityValue');
+                    if (opacitySlider && opacityValue) {
+                        opacitySlider.value = 60;
+                        opacityValue.textContent = '60%';
                     }
                 }
             }
@@ -2273,13 +2365,26 @@ class ReaderApp {
 
         // 应用到所有选中的span
         this.applyToSelectedSpans((span) => {
-            const bgColor = window.getComputedStyle(span).backgroundColor;
+            // 从CSS变量或计算样式获取背景色
+            let bgColor = span.style.getPropertyValue('--highlight-color') || 
+                         window.getComputedStyle(span, '::before').backgroundColor;
+            
             const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
             if (match) {
                 const r = match[1];
                 const g = match[2];
                 const b = match[3];
-                span.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${this.currentOpacity})`;
+                
+                // 如果是自定义颜色，使用CSS变量
+                if (span.classList.contains('color-custom')) {
+                    span.style.setProperty('--highlight-color', `rgba(${r}, ${g}, ${b}, ${this.currentOpacity})`);
+                } else {
+                    // 预设颜色也转为自定义颜色并使用CSS变量
+                    span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
+                                        'color-orange', 'color-purple', 'color-red', 'color-cyan');
+                    span.classList.add('color-custom');
+                    span.style.setProperty('--highlight-color', `rgba(${r}, ${g}, ${b}, ${this.currentOpacity})`);
+                }
             }
         });
     }
@@ -2302,7 +2407,8 @@ class ReaderApp {
             
             // 应用自定义颜色和透明度
             span.classList.add('word-highlighted', 'color-custom');
-            span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+            // 使用CSS变量设置颜色，让::before伪元素读取
+            span.style.setProperty('--highlight-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
             
             // 记录到集合中
             const word = this.extractWord(span.textContent);
@@ -2441,7 +2547,8 @@ class ReaderApp {
             span.classList.remove('word-highlighted');
             span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
                                 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            span.style.backgroundColor = '';
+            // 清除CSS变量
+            span.style.removeProperty('--highlight-color');
             
             // 移除下划线
             span.classList.remove('word-underlined');
