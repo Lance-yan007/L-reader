@@ -6,10 +6,11 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-    background-color: #f8f9fa;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background-color: #2c2c2e;
     color: #333;
     line-height: 1.6;
+    overflow: hidden;
 }
 
 /* 应用容器 */
@@ -17,10 +18,10 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #2c2c2e;
 }
 
-/* 顶部导航栏 */
+/* ========== 顶部导航栏 ========== */
 .header {
     display: flex;
     justify-content: space-between;
@@ -67,7 +68,6 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    text-decoration: none;
 }
 
 .btn-primary {
@@ -92,44 +92,18 @@ body {
     transform: translateY(-1px);
 }
 
-.btn-text {
-    background: none;
-    color: #7f8c8d;
-    padding: 8px 12px;
-}
-
-.btn-text:hover {
-    color: #4A90E2;
-    background: rgba(74, 144, 226, 0.1);
-}
-
-.btn-icon {
-    background: none;
-    border: none;
-    padding: 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    color: #7f8c8d;
-    transition: all 0.2s ease;
-}
-
-.btn-icon:hover {
-    background: rgba(74, 144, 226, 0.1);
-    color: #4A90E2;
-}
-
-/* 图标样式 */
 .icon {
     width: 18px;
     height: 18px;
     fill: currentColor;
 }
 
-/* 主内容区域 */
+/* ========== 主内容区域 ========== */
 .main-content {
     flex: 1;
-    padding: 40px 30px;
+    padding: 24px;
     overflow-y: auto;
+    background-color: #2c2c2e;
 }
 
 /* 欢迎区域 */
@@ -137,7 +111,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 400px;
+    min-height: 500px;
 }
 
 .welcome-content {
@@ -197,99 +171,183 @@ body {
     font-weight: 500;
 }
 
-/* 区域标题 */
-.section-header {
+/* ========== 文件视图 ========== */
+.files-view {
+    height: 100%;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    flex-direction: column;
 }
 
-.section-header h3 {
-    font-size: 20px;
-    font-weight: 600;
-    color: white;
-}
-
-/* 文件列表 */
-.file-list {
-    display: grid;
-    gap: 12px;
-}
-
-.file-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.95);
+/* 外层深灰色容器 */
+.outer-container {
+    flex: 1;
+    background-color: #3a3a3c;
     border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 标签栏 */
+.tabs-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.tab-item {
+    padding: 8px 20px;
+    border: none;
+    background: transparent;
+    color: #8e8e93;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
 }
 
-.file-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+.tab-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
 }
 
-.file-icon {
-    width: 40px;
-    height: 40px;
+.tab-item.active {
+    background: #2c2c2e;
+    color: #ffffff;
+}
+
+/* 内层浅灰色容器 */
+.inner-container {
+    flex: 1;
+    background-color: #e5e5ea;
+    border-radius: 8px;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+/* 文件网格 */
+.files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+/* 文件卡片 */
+.file-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.file-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 文件预览区域 - 显示PDF上2/5部分 */
+.file-preview {
+    position: relative;
+    width: 100%;
+    height: 160px;
+    background: #f5f5f7;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.preview-canvas {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    object-position: top;
+}
+
+.preview-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(74, 144, 226, 0.1);
-    border-radius: 8px;
-    flex-shrink: 0;
 }
 
-.file-icon svg {
-    width: 24px;
-    height: 24px;
-    fill: #4A90E2;
+/* 文件信息 */
+.file-info-card {
+    padding: 12px;
+    background: white;
 }
 
-.file-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.file-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 4px;
+.file-name-card {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1c1c1e;
+    margin-bottom: 6px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.4;
 }
 
-.file-meta {
+.file-meta-card {
     display: flex;
-    gap: 16px;
-    font-size: 12px;
-    color: #7f8c8d;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #8e8e93;
 }
 
-.file-actions {
-    display: flex;
-    gap: 8px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+/* 滚动条样式 */
+.main-content::-webkit-scrollbar,
+.inner-container::-webkit-scrollbar {
+    width: 8px;
 }
 
-.file-item:hover .file-actions {
-    opacity: 1;
+.main-content::-webkit-scrollbar-track,
+.inner-container::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-.file-actions svg {
-    width: 16px;
-    height: 16px;
+.main-content::-webkit-scrollbar-thumb,
+.inner-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
 }
+
+.main-content::-webkit-scrollbar-thumb:hover,
+.inner-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.file-card {
+    animation: fadeIn 0.4s ease-out;
+    animation-fill-mode: both;
+}
+
+.file-card:nth-child(1) { animation-delay: 0.05s; }
+.file-card:nth-child(2) { animation-delay: 0.1s; }
+.file-card:nth-child(3) { animation-delay: 0.15s; }
+.file-card:nth-child(4) { animation-delay: 0.2s; }
+.file-card:nth-child(5) { animation-delay: 0.25s; }
+.file-card:nth-child(6) { animation-delay: 0.3s; }
+.file-card:nth-child(7) { animation-delay: 0.35s; }
+.file-card:nth-child(8) { animation-delay: 0.4s; }
 
 /* 底部状态栏 */
 .footer {
@@ -313,6 +371,12 @@ body {
 }
 
 /* 响应式设计 */
+@media (max-width: 1200px) {
+    .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+}
+
 @media (max-width: 768px) {
     .header {
         padding: 16px 20px;
@@ -323,59 +387,25 @@ body {
     }
     
     .main-content {
-        padding: 20px;
+        padding: 16px;
     }
     
-    .welcome-content {
-        padding: 40px 20px;
+    .outer-container {
+        padding: 16px;
     }
     
-    .feature-list {
-        grid-template-columns: 1fr;
+    .inner-container {
+        padding: 16px;
     }
     
-    .header-right {
-        flex-direction: column;
-        gap: 8px;
+    .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
     }
 }
 
-/* 滚动条样式 */
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
-}
-
-/* 动画效果 */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+@media (max-width: 480px) {
+    .files-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.welcome-content,
-.file-item {
-    animation: fadeIn 0.6s ease-out;
-}
-
-.file-item {
-    animation-delay: calc(var(--item-index, 0) * 0.1s);
 }

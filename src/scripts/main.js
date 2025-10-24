@@ -3,14 +3,29 @@ const { ipcRenderer } = require('electron');
 class MainApp {
     constructor() {
         this.recentFiles = [];
-        this.currentFolder = null;
+        this.pdfLib = null;
         this.init();
     }
 
-    init() {
+    async init() {
+        await this.loadPDFJS();
         this.bindEvents();
         this.loadRecentFiles();
-        this.updateStatus('就绪');
+    }
+
+    async loadPDFJS() {
+        try {
+            const pdfjsLib = window['pdfjs-dist/build/pdf'];
+            if (!pdfjsLib) {
+                this.pdfLib = require('pdfjs-dist');
+                this.pdfLib.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.js';
+            } else {
+                this.pdfLib = pdfjsLib;
+            }
+            console.log('PDF.js加载成功');
+        } catch (error) {
+            console.error('加载PDF.js失败:', error);
+        }
     }
 
     bindEvents() {
@@ -20,30 +35,62 @@ class MainApp {
         });
 
         // 打开文件夹按钮
-        document.getElementById('openFolderBtn').addEventListener('click', () => {
-            this.openFolder();
+        const openFolderBtn = document.getElementById('openFolderBtn');
+        if (openFolderBtn) {
+            openFolderBtn.addEventListener('click', () => {
+                this.openFolder();
+            });
+        }
+
+        // 标签切换
+        document.getElementById('recentTab').addEventListener('click', () => {
+            this.switchTab('recent');
         });
 
-        // 清空最近文件记录
-        document.getElementById('clearRecentBtn').addEventListener('click', () => {
-            this.clearRecentFiles();
+        document.getElementById('favoriteTab').addEventListener('click', () => {
+            this.switchTab('favorite');
         });
+    }
 
-        // 返回主界面
-        document.getElementById('backToMainBtn').addEventListener('click', () => {
-            this.showMainView();
+    switchTab(tabName) {
+        // 更新标签状态
+        document.querySelectorAll('.tab-item').forEach(btn => {
+            btn.classList.remove('active');
         });
+        
+        if (tabName === 'recent') {
+            document.getElementById('recentTab').classList.add('active');
+            this.renderRecentFiles();
+        } else if (tabName === 'favorite') {
+            document.getElementById('favoriteTab').classList.add('active');
+            this.showEmptyState('暂无收藏文件');
+        }
+    }
 
-        // IPC事件监听
-        ipcRenderer.on('folder-opened', (event, folderPath) => {
-            this.handleFolderOpened(folderPath);
-        });
+    showWelcomeView() {
+        document.getElementById('welcomeSection').style.display = 'flex';
+        document.getElementById('filesView').style.display = 'none';
+    }
+
+    showFilesView() {
+        document.getElementById('welcomeSection').style.display = 'none';
+        document.getElementById('filesView').style.display = 'flex';
+    }
+
+    showEmptyState(message) {
+        const grid = document.getElementById('filesGrid');
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #8e8e93;">
+                <svg viewBox="0 0 24 24" width="64" height="64" style="margin-bottom: 16px; opacity: 0.3;">
+                    <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                </svg>
+                <p style="font-size: 15px;">${message}</p>
+            </div>
+        `;
     }
 
     async openFile() {
         try {
-            this.updateStatus('正在打开文件...');
-            
             const result = await ipcRenderer.invoke('open-file-dialog');
             
             if (!result.canceled && result.filePaths.length > 0) {
@@ -51,235 +98,198 @@ class MainApp {
                 await this.handleFileOpened(filePath);
             }
         } catch (error) {
-            this.showError('打开文件失败: ' + error.message);
-        } finally {
-            this.updateStatus('就绪');
+            console.error('打开文件失败:', error);
         }
     }
 
     async openFolder() {
         try {
-            this.updateStatus('正在打开文件夹...');
-            
             const result = await ipcRenderer.invoke('open-folder-dialog');
             
             if (!result.canceled && result.filePaths.length > 0) {
                 const folderPath = result.filePaths[0];
-                this.handleFolderOpened(folderPath);
+                console.log('打开文件夹:', folderPath);
             }
         } catch (error) {
-            this.showError('打开文件夹失败: ' + error.message);
-        } finally {
-            this.updateStatus('就绪');
+            console.error('打开文件夹失败:', error);
         }
     }
 
     async handleFileOpened(filePath) {
         try {
-            // 添加到最近文件列表
-            this.addToRecentFiles(filePath);
+            await this.addToRecentFiles(filePath);
             
-            // 通知主进程创建阅读器窗口
             const result = await ipcRenderer.invoke('open-file-from-main', filePath);
             
             if (result.success) {
-                this.updateStatus(`已打开文件: ${this.getFileName(filePath)}`);
-            } else {
-                this.showError('打开文件失败: ' + result.error);
+                console.log('文件已打开:', filePath);
             }
         } catch (error) {
-            this.showError('打开文件失败: ' + error.message);
+            console.error('处理文件失败:', error);
         }
-    }
-
-    handleFolderOpened(folderPath) {
-        this.currentFolder = folderPath;
-        this.showFolderView(folderPath);
-        this.updateStatus(`已打开文件夹: ${folderPath}`);
-    }
-
-    showFolderView(folderPath) {
-        // 隐藏欢迎区域和最近文件区域
-        document.getElementById('welcomeSection').style.display = 'none';
-        document.getElementById('recentFilesSection').style.display = 'none';
-        
-        // 显示文件夹内容区域
-        const folderSection = document.getElementById('folderContentSection');
-        folderSection.style.display = 'block';
-        
-        // 更新文件夹路径标题
-        document.getElementById('folderPathTitle').textContent = `文件夹: ${folderPath}`;
-        
-        // 加载文件夹内容
-        this.loadFolderContents(folderPath);
-    }
-
-    showMainView() {
-        // 显示欢迎区域
-        document.getElementById('welcomeSection').style.display = 'block';
-        
-        // 显示最近文件区域（如果有文件）
-        if (this.recentFiles.length > 0) {
-            document.getElementById('recentFilesSection').style.display = 'block';
-        } else {
-            document.getElementById('recentFilesSection').style.display = 'none';
-        }
-        
-        // 隐藏文件夹内容区域
-        document.getElementById('folderContentSection').style.display = 'none';
-        
-        this.currentFolder = null;
-        this.updateStatus('就绪');
-    }
-
-    async loadFolderContents(folderPath) {
-        try {
-            // 这里应该调用主进程的API来获取文件夹内容
-            // 暂时使用模拟数据
-            const files = await this.getFolderFiles(folderPath);
-            this.renderFileList('folderFileList', files, 'folder');
-        } catch (error) {
-            this.showError('加载文件夹内容失败: ' + error.message);
-        }
-    }
-
-    async getFolderFiles(folderPath) {
-        // 模拟文件夹内容
-        // 实际实现中应该调用主进程的API
-        return [
-            {
-                name: 'sample.pdf',
-                path: folderPath + '/sample.pdf',
-                size: '2.3 MB',
-                date: '2024-01-15',
-                type: 'pdf'
-            },
-            {
-                name: 'document.docx',
-                path: folderPath + '/document.docx',
-                size: '1.8 MB',
-                date: '2024-01-14',
-                type: 'docx'
-            }
-        ];
     }
 
     loadRecentFiles() {
-        // 从本地存储加载最近文件
         const stored = localStorage.getItem('recentFiles');
         if (stored) {
-            this.recentFiles = JSON.parse(stored);
-            this.renderRecentFiles();
+            try {
+                this.recentFiles = JSON.parse(stored);
+                if (this.recentFiles.length > 0) {
+                    this.showFilesView();
+                    this.renderRecentFiles();
+                }
+            } catch (error) {
+                console.error('加载最近文件失败:', error);
+                this.recentFiles = [];
+            }
         }
     }
 
-    addToRecentFiles(filePath) {
+    async addToRecentFiles(filePath) {
+        const fileName = this.getFileName(filePath);
+        const fileType = this.getFileType(filePath);
+        
+        let fileSize = 'unknown';
+        try {
+            const fs = require('fs');
+            const stats = fs.statSync(filePath);
+            fileSize = this.formatFileSize(stats.size);
+        } catch (error) {
+            console.error('获取文件大小失败:', error);
+        }
+
         const fileInfo = {
             path: filePath,
-            name: this.getFileName(filePath),
+            name: fileName,
             date: new Date().toISOString(),
-            type: this.getFileType(filePath)
+            type: fileType,
+            size: fileSize
         };
 
-        // 移除已存在的相同文件
         this.recentFiles = this.recentFiles.filter(file => file.path !== filePath);
-        
-        // 添加到列表开头
         this.recentFiles.unshift(fileInfo);
         
-        // 限制最多保存20个文件
         if (this.recentFiles.length > 20) {
             this.recentFiles = this.recentFiles.slice(0, 20);
         }
 
-        // 保存到本地存储
         localStorage.setItem('recentFiles', JSON.stringify(this.recentFiles));
         
-        // 更新显示
+        this.showFilesView();
         this.renderRecentFiles();
     }
 
     renderRecentFiles() {
         if (this.recentFiles.length === 0) {
-            document.getElementById('recentFilesSection').style.display = 'none';
+            this.showEmptyState('暂无最近打开的文件');
             return;
         }
 
-        document.getElementById('recentFilesSection').style.display = 'block';
-        this.renderFileList('recentFileList', this.recentFiles, 'recent');
-    }
-
-    renderFileList(containerId, files, type) {
-        const container = document.getElementById(containerId);
-        const template = document.getElementById('fileItemTemplate');
+        const grid = document.getElementById('filesGrid');
+        const template = document.getElementById('fileCardTemplate');
         
-        // 清空容器
-        container.innerHTML = '';
+        grid.innerHTML = '';
 
-        files.forEach((file, index) => {
+        this.recentFiles.forEach((file, index) => {
             const clone = template.content.cloneNode(true);
-            const fileItem = clone.querySelector('.file-item');
+            const card = clone.querySelector('.file-card');
             
-            // 设置文件路径
-            fileItem.setAttribute('data-file-path', file.path);
-            fileItem.style.setProperty('--item-index', index);
+            card.setAttribute('data-file-path', file.path);
+            card.querySelector('.file-name-card').textContent = file.name;
+            card.querySelector('.file-date-card').textContent = this.formatDate(file.date);
+            card.querySelector('.file-size-card').textContent = file.size || '';
             
-            // 设置文件信息
-            fileItem.querySelector('.file-name').textContent = file.name;
-            fileItem.querySelector('.file-size').textContent = file.size || this.formatFileSize(file.size);
-            fileItem.querySelector('.file-date').textContent = this.formatDate(file.date);
-            
-            // 设置文件图标
-            const fileIcon = fileItem.querySelector('.file-icon svg');
-            this.setFileIcon(fileIcon, file.type || this.getFileType(file.path));
-            
-            // 设置点击事件
-            const openBtn = fileItem.querySelector('.file-actions .btn-icon:first-child');
-            const removeBtn = fileItem.querySelector('.file-actions .btn-icon:last-child');
-            
-            openBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.openFileFromList(file.path);
+            card.addEventListener('click', () => {
+                this.openFileFromCard(file.path);
             });
             
-            if (type === 'recent') {
-                removeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.removeFromRecentFiles(file.path);
-                });
-            } else {
-                removeBtn.style.display = 'none';
+            grid.appendChild(clone);
+            
+            if (file.type === 'pdf') {
+                this.generatePDFPreview(file.path, card);
             }
-            
-            // 整个文件项点击事件
-            fileItem.addEventListener('click', () => {
-                this.openFileFromList(file.path);
-            });
-            
-            container.appendChild(clone);
         });
     }
 
-    async openFileFromList(filePath) {
+    async generatePDFPreview(filePath, cardElement) {
+        if (!this.pdfLib) {
+            console.log('PDF.js未加载，无法生成预览');
+            return;
+        }
+
         try {
-            this.updateStatus('正在打开文件...');
-            await this.handleFileOpened(filePath);
+            const result = await ipcRenderer.invoke('read-file', filePath);
+            
+            if (!result.success) {
+                console.error('读取PDF失败:', result.error);
+                return;
+            }
+
+            const loadingTask = this.pdfLib.getDocument({
+                data: result.data,
+                cMapUrl: '../node_modules/pdfjs-dist/cmaps/',
+                cMapPacked: true
+            });
+            
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            
+            const canvas = cardElement.querySelector('.preview-canvas');
+            const context = canvas.getContext('2d');
+            
+            // 获取预览区域的宽度
+            const previewContainer = cardElement.querySelector('.file-preview');
+            const containerWidth = previewContainer.offsetWidth || 180;
+            
+            // 计算缩放比例
+            const viewport = page.getViewport({ scale: 1.0 });
+            const scale = containerWidth / viewport.width;
+            const scaledViewport = page.getViewport({ scale: scale });
+            
+            // 设置canvas尺寸 - 只显示上2/5部分
+            canvas.width = scaledViewport.width;
+            canvas.height = scaledViewport.height * 0.4; // 只显示上40%
+            
+            // 创建临时canvas渲染完整页面
+            const tempCanvas = document.createElement('canvas');
+            const tempContext = tempCanvas.getContext('2d');
+            tempCanvas.width = scaledViewport.width;
+            tempCanvas.height = scaledViewport.height;
+            
+            // 渲染完整PDF页面到临时canvas
+            await page.render({
+                canvasContext: tempContext,
+                viewport: scaledViewport
+            }).promise;
+            
+            // 将临时canvas的上2/5部分绘制到显示canvas
+            context.drawImage(
+                tempCanvas,
+                0, 0, scaledViewport.width, scaledViewport.height * 0.4,  // 源区域（上2/5）
+                0, 0, canvas.width, canvas.height  // 目标区域
+            );
+            
+            // 隐藏占位符
+            const placeholder = cardElement.querySelector('.preview-placeholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+            
+            console.log('PDF预览生成成功（上2/5部分）:', filePath);
         } catch (error) {
-            this.showError('打开文件失败: ' + error.message);
+            console.error('生成PDF预览失败:', error);
         }
     }
 
-    removeFromRecentFiles(filePath) {
-        this.recentFiles = this.recentFiles.filter(file => file.path !== filePath);
-        localStorage.setItem('recentFiles', JSON.stringify(this.recentFiles));
-        this.renderRecentFiles();
-    }
-
-    clearRecentFiles() {
-        this.recentFiles = [];
-        localStorage.removeItem('recentFiles');
-        this.renderRecentFiles();
-        this.updateStatus('已清空最近文件记录');
+    async openFileFromCard(filePath) {
+        try {
+            const result = await ipcRenderer.invoke('open-file-from-main', filePath);
+            if (result.success) {
+                console.log('从卡片打开文件:', filePath);
+            }
+        } catch (error) {
+            console.error('打开文件失败:', error);
+        }
     }
 
     getFileName(filePath) {
@@ -297,55 +307,41 @@ class MainApp {
         return typeMap[ext] || 'file';
     }
 
-    setFileIcon(svgElement, fileType) {
-        const iconPaths = {
-            pdf: "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z",
-            word: "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z",
-            text: "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z",
-            file: "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"
-        };
-        
-        const path = svgElement.querySelector('path');
-        if (path) {
-            path.setAttribute('d', iconPaths[fileType] || iconPaths.file);
-        }
-    }
-
     formatFileSize(bytes) {
-        if (!bytes) return '0 B';
+        if (!bytes || bytes === 0) return '0 B';
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 
     formatDate(dateString) {
         const date = new Date(dateString);
         const now = new Date();
         const diffTime = Math.abs(now - date);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         
-        if (diffDays === 1) {
+        if (diffDays === 0) {
+            return '今天';
+        } else if (diffDays === 1) {
             return '昨天';
         } else if (diffDays < 7) {
             return `${diffDays}天前`;
+        } else if (diffDays < 30) {
+            const weeks = Math.floor(diffDays / 7);
+            return `${weeks}周前`;
         } else {
-            return date.toLocaleDateString('zh-CN');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${month}/${day}`;
         }
     }
 
     updateStatus(message) {
-        document.getElementById('statusText').textContent = message;
-    }
-
-    showError(message) {
-        console.error(message);
-        this.updateStatus('错误: ' + message);
-        
-        // 可以添加更友好的错误提示
-        setTimeout(() => {
-            this.updateStatus('就绪');
-        }, 3000);
+        const statusText = document.getElementById('statusText');
+        if (statusText) {
+            statusText.textContent = message;
+        }
     }
 }
 

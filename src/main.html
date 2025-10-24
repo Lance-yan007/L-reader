@@ -72,25 +72,22 @@
                 </div>
             </div>
 
-            <!-- 最近文件区域 -->
-            <div class="recent-files-section" id="recentFilesSection" style="display: none;">
-                <div class="section-header">
-                    <h3>最近打开的文件</h3>
-                    <button class="btn btn-text" id="clearRecentBtn">清空记录</button>
-                </div>
-                <div class="file-list" id="recentFileList">
-                    <!-- 最近文件列表将在这里动态生成 -->
-                </div>
-            </div>
-
-            <!-- 文件夹内容区域 -->
-            <div class="folder-content-section" id="folderContentSection" style="display: none;">
-                <div class="section-header">
-                    <h3 id="folderPathTitle">文件夹内容</h3>
-                    <button class="btn btn-text" id="backToMainBtn">返回主界面</button>
-                </div>
-                <div class="file-list" id="folderFileList">
-                    <!-- 文件夹文件列表将在这里动态生成 -->
+            <!-- 新的文件展示区域 -->
+            <div class="files-view" id="filesView" style="display: none;">
+                <!-- 外层深灰色容器 -->
+                <div class="outer-container">
+                    <!-- 标签栏："最近"和"收藏" -->
+                    <div class="tabs-bar">
+                        <button class="tab-item active" id="recentTab">最近</button>
+                        <button class="tab-item" id="favoriteTab">收藏</button>
+                    </div>
+                    
+                    <!-- 内层浅灰色容器 -->
+                    <div class="inner-container">
+                        <div class="files-grid" id="filesGrid">
+                            <!-- 文件卡片将在这里动态生成 -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -106,32 +103,23 @@
         </footer>
     </div>
 
-    <!-- 文件项模板 -->
-    <template id="fileItemTemplate">
-        <div class="file-item" data-file-path="">
-            <div class="file-icon">
-                <svg viewBox="0 0 24 24">
-                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                </svg>
-            </div>
-            <div class="file-info">
-                <div class="file-name"></div>
-                <div class="file-meta">
-                    <span class="file-size"></span>
-                    <span class="file-date"></span>
+    <!-- 文件卡片模板 -->
+    <template id="fileCardTemplate">
+        <div class="file-card" data-file-path="">
+            <div class="file-preview">
+                <canvas class="preview-canvas"></canvas>
+                <div class="preview-placeholder">
+                    <svg viewBox="0 0 24 24" width="48" height="48">
+                        <path fill="#c0c0c0" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                    </svg>
                 </div>
             </div>
-            <div class="file-actions">
-                <button class="btn-icon" title="打开文件">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
-                    </svg>
-                </button>
-                <button class="btn-icon" title="从列表中移除">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
-                    </svg>
-                </button>
+            <div class="file-info-card">
+                <div class="file-name-card"></div>
+                <div class="file-meta-card">
+                    <span class="file-date-card"></span>
+                    <span class="file-size-card"></span>
+                </div>
             </div>
         </div>
     </template>
