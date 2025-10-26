@@ -361,7 +361,8 @@ ipcMain.handle('open-file-from-main', async (event, filePath) => {
 // 处理外部文件打开
 app.on('open-file', (event, filePath) => {
   event.preventDefault();
-  if (mainWindow) {
+  // 只有在应用完全启动后才处理文件打开
+  if (mainWindow && mainWindow.isVisible()) {
     openFile(filePath);
   }
 });

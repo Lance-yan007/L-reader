@@ -7,7 +7,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    background-color: #2c2c2e;
+    background-color: #d1d1d6;
     color: #333;
     line-height: 1.6;
     overflow: hidden;
@@ -18,7 +18,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: #2c2c2e;
+    background-color: #d1d1d6;
 }
 
 /* ========== 顶部导航栏 ========== */
@@ -103,7 +103,7 @@ body {
     flex: 1;
     padding: 24px;
     overflow-y: auto;
-    background-color: #2c2c2e;
+    background-color: #d1d1d6;
 }
 
 /* 欢迎区域 */
@@ -181,7 +181,7 @@ body {
 /* 外层深灰色容器 */
 .outer-container {
     flex: 1;
-    background-color: #3a3a3c;
+    background-color: #d1d1d6;
     border-radius: 12px;
     padding: 20px;
     display: flex;
@@ -252,7 +252,7 @@ body {
 .file-preview {
     position: relative;
     width: 100%;
-    height: 160px;
+    height: 200px;
     background: #f5f5f7;
     display: flex;
     align-items: flex-start;
@@ -349,26 +349,6 @@ body {
 .file-card:nth-child(7) { animation-delay: 0.35s; }
 .file-card:nth-child(8) { animation-delay: 0.4s; }
 
-/* 底部状态栏 */
-.footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 30px;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.status-info {
-    font-size: 14px;
-    color: #7f8c8d;
-}
-
-.app-info {
-    font-size: 12px;
-    color: #95a5a6;
-}
 
 /* 响应式设计 */
 @media (max-width: 1200px) {

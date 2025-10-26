@@ -237,18 +237,24 @@ class MainApp {
             const canvas = cardElement.querySelector('.preview-canvas');
             const context = canvas.getContext('2d');
             
-            // 获取预览区域的宽度
+            // 获取预览区域的尺寸
             const previewContainer = cardElement.querySelector('.file-preview');
             const containerWidth = previewContainer.offsetWidth || 180;
+            const containerHeight = previewContainer.offsetHeight || 200;
             
-            // 计算缩放比例
+            // 计算高分辨率缩放比例 - 提高清晰度
             const viewport = page.getViewport({ scale: 1.0 });
-            const scale = containerWidth / viewport.width;
-            const scaledViewport = page.getViewport({ scale: scale });
+            const baseScale = containerWidth / viewport.width;
+            const highDpiScale = baseScale * window.devicePixelRatio || 2; // 高DPI支持
+            const scaledViewport = page.getViewport({ scale: highDpiScale });
             
-            // 设置canvas尺寸 - 只显示上2/5部分
+            // 设置canvas尺寸 - 高分辨率
             canvas.width = scaledViewport.width;
-            canvas.height = scaledViewport.height * 0.4; // 只显示上40%
+            canvas.height = scaledViewport.height * 0.6; // 显示上60%内容，填满卡片上半部分
+            
+            // 设置canvas显示尺寸
+            canvas.style.width = containerWidth + 'px';
+            canvas.style.height = containerHeight + 'px';
             
             // 创建临时canvas渲染完整页面
             const tempCanvas = document.createElement('canvas');
@@ -262,10 +268,10 @@ class MainApp {
                 viewport: scaledViewport
             }).promise;
             
-            // 将临时canvas的上2/5部分绘制到显示canvas
+            // 将临时canvas的上60%部分绘制到显示canvas
             context.drawImage(
                 tempCanvas,
-                0, 0, scaledViewport.width, scaledViewport.height * 0.4,  // 源区域（上2/5）
+                0, 0, scaledViewport.width, scaledViewport.height * 0.6,  // 源区域（上60%）
                 0, 0, canvas.width, canvas.height  // 目标区域
             );
             
@@ -275,7 +281,7 @@ class MainApp {
                 placeholder.style.display = 'none';
             }
             
-            console.log('PDF预览生成成功（上2/5部分）:', filePath);
+            console.log('PDF预览生成成功（高分辨率上60%部分）:', filePath);
         } catch (error) {
             console.error('生成PDF预览失败:', error);
         }
