@@ -59,10 +59,10 @@ function createMainWindow() {
     mainWindow = null;
   });
 
-  // 开发模式下打开开发者工具
-  if (process.argv.includes('--dev')) {
-    mainWindow.webContents.openDevTools();
-  }
+  // 开发模式下打开开发者工具（已禁用）
+  // if (process.argv.includes('--dev')) {
+  //   mainWindow.webContents.openDevTools();
+  // }
 }
 
 // 创建阅读器窗口
@@ -103,10 +103,10 @@ function createReaderWindow(filePath) {
     readerWindow = null;
   });
 
-  // 开发模式下打开开发者工具
-  if (process.argv.includes('--dev')) {
-    readerWindow.webContents.openDevTools();
-  }
+  // 开发模式下打开开发者工具（已禁用）
+  // if (process.argv.includes('--dev')) {
+  //   readerWindow.webContents.openDevTools();
+  // }
 }
 
 // 应用准备就绪

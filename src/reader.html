@@ -58,55 +58,6 @@
 
         <!-- 主内容区域 -->
         <div class="main-content">
-            <!-- 左侧边栏 -->
-            <aside class="sidebar" id="sidebar">
-                <div class="sidebar-header">
-                    <h3>导航</h3>
-                    <button class="btn btn-icon" id="toggleSidebarBtn" title="收起侧边栏">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="sidebar-content">
-                    <!-- 导航标签页 -->
-                    <div class="sidebar-tabs">
-                        <button class="tab-btn active" data-tab="outline">大纲</button>
-                        <button class="tab-btn" data-tab="bookmarks">书签</button>
-                        <button class="tab-btn" data-tab="notes">注释</button>
-                        <button class="tab-btn" data-tab="translations">翻译</button>
-                    </div>
-
-                    <!-- 大纲面板 -->
-                    <div class="tab-panel active" id="outlinePanel">
-                        <div class="outline-list" id="outlineList">
-                            <!-- 大纲内容将在这里动态生成 -->
-                        </div>
-                    </div>
-
-                    <!-- 书签面板 -->
-                    <div class="tab-panel" id="bookmarksPanel">
-                        <div class="bookmarks-list" id="bookmarksList">
-                            <!-- 书签内容将在这里动态生成 -->
-                        </div>
-                    </div>
-
-                    <!-- 注释面板 -->
-                    <div class="tab-panel" id="notesPanel">
-                        <div class="notes-list" id="notesList">
-                            <!-- 注释内容将在这里动态生成 -->
-                        </div>
-                    </div>
-
-                    <!-- 翻译面板 -->
-                    <div class="tab-panel" id="translationsPanel">
-                        <div class="translations-list" id="translationsList">
-                            <!-- 翻译内容将在这里动态生成 -->
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
             <!-- 文档显示区域 -->
             <main class="document-area">
                 <div class="document-container" id="documentContainer">
@@ -224,6 +175,21 @@
                 <rect x="4" y="16" width="6" height="4" fill="currentColor" opacity="0.7"/>
                 <rect x="10" y="16" width="6" height="4" fill="currentColor" opacity="0.9"/>
                 <rect x="16" y="16" width="4" height="4" fill="currentColor"/>
+            </svg>
+        </button>
+        
+        <!-- 句子翻译按钮 -->
+        <button class="context-btn" id="sentenceTranslateBtn" title="翻译选中句子">
+            <svg viewBox="0 0 24 24" width="18" height="18">
+                <path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z" fill="currentColor"/>
+            </svg>
+        </button>
+        
+        <!-- 高亮按钮 -->
+        <button class="context-btn" id="highlightBtn" title="高亮选中文本">
+            <svg viewBox="0 0 24 24" width="18" height="18">
+                <rect x="3" y="8" width="18" height="8" fill="currentColor" opacity="0.3"/>
+                <rect x="3" y="8" width="18" height="8" fill="none" stroke="currentColor" stroke-width="1"/>
             </svg>
         </button>
         

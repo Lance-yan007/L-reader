@@ -91,244 +91,9 @@ body {
     overflow: hidden;
 }
 
-/* 左侧边栏 */
-.sidebar {
-    width: 300px;
-    background: #fff;
-    border-right: 1px solid #e0e0e0;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.3s ease;
-}
 
-.sidebar.collapsed {
-    width: 0;
-    overflow: hidden;
-}
 
-.sidebar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e0e0e0;
-    background: #f8f9fa;
-}
 
-.sidebar-header h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.sidebar-content {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-/* 侧边栏标签页 */
-.sidebar-tabs {
-    display: flex;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.tab-btn {
-    flex: 1;
-    padding: 12px 8px;
-    border: none;
-    background: none;
-    font-size: 14px;
-    color: #7f8c8d;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-bottom: 2px solid transparent;
-}
-
-.tab-btn:hover {
-    background: #f8f9fa;
-    color: #4A90E2;
-}
-
-.tab-btn.active {
-    color: #4A90E2;
-    border-bottom-color: #4A90E2;
-    background: #f8f9fa;
-}
-
-/* 标签面板 */
-.tab-panel {
-    flex: 1;
-    overflow-y: auto;
-    display: none;
-}
-
-.tab-panel.active {
-    display: block;
-}
-
-/* 大纲列表 */
-.outline-list {
-    padding: 16px;
-}
-
-.outline-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-bottom: 4px;
-}
-
-.outline-item:hover {
-    background: #f8f9fa;
-}
-
-.outline-item.active {
-    background: #e3f2fd;
-    color: #4A90E2;
-}
-
-.outline-level-1 { padding-left: 12px; }
-.outline-level-2 { padding-left: 24px; }
-.outline-level-3 { padding-left: 36px; }
-
-/* 书签列表 */
-.bookmarks-list {
-    padding: 16px;
-}
-
-.bookmark-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-bottom: 8px;
-    background: #f8f9fa;
-    border: 1px solid #e0e0e0;
-}
-
-.bookmark-item:hover {
-    background: #e3f2fd;
-    border-color: #4A90E2;
-}
-
-.bookmark-icon {
-    width: 32px;
-    height: 32px;
-    background: #4A90E2;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.bookmark-info {
-    flex: 1;
-}
-
-.bookmark-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: #2c3e50;
-    margin-bottom: 4px;
-}
-
-.bookmark-page {
-    font-size: 12px;
-    color: #7f8c8d;
-}
-
-/* 注释列表 */
-.notes-list {
-    padding: 16px;
-}
-
-.note-item {
-    padding: 16px;
-    border-radius: 8px;
-    background: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    margin-bottom: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.note-item:hover {
-    background: #e3f2fd;
-    border-color: #4A90E2;
-}
-
-.note-text {
-    font-size: 14px;
-    color: #2c3e50;
-    margin-bottom: 8px;
-    line-height: 1.5;
-}
-
-.note-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: #7f8c8d;
-}
-
-.note-date {
-    font-weight: 500;
-}
-
-/* 翻译列表 */
-.translations-list {
-    padding: 16px;
-}
-
-.translation-item {
-    padding: 16px;
-    border-radius: 8px;
-    background: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    margin-bottom: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.translation-item:hover {
-    background: #e3f2fd;
-    border-color: #4A90E2;
-}
-
-.translation-original {
-    font-size: 14px;
-    color: #2c3e50;
-    margin-bottom: 8px;
-    font-style: italic;
-}
-
-.translation-result {
-    font-size: 14px;
-    color: #4A90E2;
-    font-weight: 500;
-    margin-bottom: 8px;
-}
-
-.translation-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: #7f8c8d;
-}
 
 /* 文档显示区域 */
 .document-area {
@@ -337,6 +102,7 @@ body {
     display: flex;
     flex-direction: column;
     background: #fff;
+    width: 100%;
 }
 
 .document-container {
@@ -438,6 +204,7 @@ body {
     cursor: text;
     transform-origin: 0% 0%;
     user-select: text;
+    z-index: 2; /* 确保文字在高亮背景之上 */
 }
 
 /* ========== 文本选择高亮样式 ========== */
@@ -714,64 +481,200 @@ body {
     color: transparent;
 }
 
-/* 已点击的单词 - 持久高亮（默认黄色） */
+/* 已点击的单词 - 持久高亮（标准矩形样式） */
 .pdf-text-layer span.word-highlighted {
     position: relative; /* 为伪元素定位 */
-    padding: 2px 0; /* 增加上下padding让高亮框更高 */
-    box-sizing: content-box; /* padding不计入width/height */
-    isolation: isolate; /* 🎯 创建独立的层叠上下文，避免与Canvas层混合 */
+    padding: 0; /* 移除padding，让高亮完全贴合文本 */
+    box-sizing: content-box;
+    isolation: isolate; /* 创建独立的层叠上下文，避免与Canvas层混合 */
+    display: inline-block; /* 确保高亮区域精确包裹文本 */
 }
 
-/* 使用 ::before 伪元素作为背景层，让文字清晰显示在上方 */
+/* 使用 ::before 伪元素作为背景层，实现标准矩形高亮 */
 .pdf-text-layer span.word-highlighted::before {
     content: '';
     position: absolute;
-    top: 0;
+    top: -0.4px; /* 向上移动0.4px */
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--highlight-color, rgba(255, 255, 200, 0.45)); /* 🎯 更亮的黄色，较低透明度 */
-    border-radius: 4px;
-    z-index: -1; /* 放在文字下方 */
+    background: var(--highlight-color, rgba(255, 255, 200, 0.6)); /* 标准黄色高亮 */
+    border-radius: 0; /* 移除圆角，使用标准矩形 */
+    z-index: 1; /* 放在Canvas层上方，文字层下方 */
     pointer-events: none; /* 确保不阻挡鼠标事件 */
+    /* 确保高亮覆盖整个行高 */
+    min-height: 1.2em; /* 至少覆盖行高 */
+    margin-top: -0.1em; /* 轻微向上偏移以覆盖行高 */
+    margin-bottom: -0.1em; /* 轻微向下偏移以覆盖行高 */
 }
 
-/* 不同颜色的高亮选项 */
+/* 不同颜色的高亮选项 - 标准矩形样式 */
 .pdf-text-layer span.word-highlighted.color-yellow::before {
-    background: rgba(255, 255, 200, 0.45); /* 更亮的黄色 #FFFFC8 */
+    background: rgba(255, 255, 200, 0.6); /* 标准黄色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-green::before {
-    background: rgba(180, 255, 180, 0.4); /* 更亮的绿色 */
+    background: rgba(180, 255, 180, 0.6); /* 标准绿色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-blue::before {
-    background: rgba(180, 220, 255, 0.4); /* 更亮的蓝色 */
+    background: rgba(180, 220, 255, 0.6); /* 标准蓝色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-pink::before {
-    background: rgba(255, 180, 220, 0.4); /* 更亮的粉色 */
+    background: rgba(255, 180, 220, 0.6); /* 标准粉色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-orange::before {
-    background: rgba(255, 220, 180, 0.4); /* 更亮的橙色 */
+    background: rgba(255, 220, 180, 0.6); /* 标准橙色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-purple::before {
-    background: rgba(220, 180, 255, 0.4); /* 更亮的紫色 */
+    background: rgba(220, 180, 255, 0.6); /* 标准紫色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-red::before {
-    background: rgba(255, 180, 180, 0.4); /* 更亮的红色 */
+    background: rgba(255, 180, 180, 0.6); /* 标准红色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-cyan::before {
-    background: rgba(180, 240, 255, 0.4); /* 更亮的青色 */
+    background: rgba(180, 240, 255, 0.6); /* 标准青色高亮 */
+    border-radius: 0; /* 确保矩形 */
 }
 
 .pdf-text-layer span.word-highlighted.color-custom::before {
     /* 自定义颜色将通过CSS变量设置 */
     background: var(--highlight-color);
+    border-radius: 0; /* 确保矩形 */
+}
+
+/* 合并高亮样式 - 当单词被合并时隐藏单个高亮 */
+.pdf-text-layer span.merged-highlighted::before {
+    display: none; /* 隐藏单个单词的高亮，显示合并的高亮 */
+}
+
+/* 合并高亮容器样式 */
+.merged-highlight {
+    position: absolute;
+    z-index: 1; /* 放在Canvas层上方，文字层下方 */
+    pointer-events: none;
+    border-radius: 0; /* 确保矩形 */
+}
+
+/* 选择预览高亮样式 */
+.pdf-text-layer span.selection-preview {
+    position: relative;
+    padding: 0;
+    box-sizing: content-box;
+    isolation: isolate;
+    display: inline-block;
+}
+
+.pdf-text-layer span.selection-preview::before {
+    content: '';
+    position: absolute;
+    top: -0.4px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 0, 0.3); /* 半透明黄色预览 */
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 0;
+}
+
+/* 合并的选择预览高亮样式 */
+.merged-selection-highlight {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 0;
+}
+
+/* 当选择预览被合并时隐藏单个预览 */
+.pdf-text-layer span.merged-selection-preview::before {
+    display: none;
+}
+
+/* 句子翻译高亮样式 */
+.pdf-text-layer span.sentence-translated::before {
+    background: rgba(0, 150, 255, 0.4); /* 蓝色翻译高亮 */
+    border-radius: 0;
+}
+
+/* 句子翻译悬浮框样式 */
+.sentence-translation-tooltip {
+    position: fixed;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-width: 400px;
+    min-width: 300px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.translation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 8px 8px 0 0;
+}
+
+.translation-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.close-translation-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.close-translation-btn:hover {
+    background-color: #e9ecef;
+}
+
+.translation-content {
+    padding: 16px;
+}
+
+.original-text {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    font-style: italic;
+}
+
+.translation-text {
+    font-size: 16px;
+    color: #333;
+    line-height: 1.5;
+    font-weight: 500;
 }
 
 /* 下划线样式 */

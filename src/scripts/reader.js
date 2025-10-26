@@ -24,6 +24,7 @@ class ReaderApp {
         this.currentHoverWord = null; // 当前hover的单词
         this.contextMenu = null; // 右键菜单DOM元素
         this.currentContextTarget = null; // 当前右键点击的元素
+        this.currentSelection = null; // 当前文本选择对象
         
         // Gemini API配置
         this.geminiApiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
@@ -67,17 +68,6 @@ class ReaderApp {
             this.toggleFullscreen();
         });
 
-        // 侧边栏切换
-        document.getElementById('toggleSidebarBtn').addEventListener('click', () => {
-            this.toggleSidebar();
-        });
-
-        // 侧边栏标签页
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
-            });
-        });
 
         // 文本选择事件
         document.addEventListener('mouseup', (e) => {
@@ -919,9 +909,59 @@ class ReaderApp {
         
         if (text.length > 0) {
             this.selectedText = text;
+            this.currentSelection = selection; // 存储选择对象
+            
+            // 获取选中的span并存储
+            this.selectedSpans = this.getSelectedSpansFromSelection(selection);
+            
+            console.log('🔍 文本选择事件:');
+            console.log('选中文本:', text);
+            console.log('选中span数量:', this.selectedSpans.length);
+            console.log('选择范围数量:', selection.rangeCount);
+            
+            // 详细调试信息
+            for (let i = 0; i < selection.rangeCount; i++) {
+                const range = selection.getRangeAt(i);
+                console.log(`范围 ${i}:`, range.toString());
+                console.log(`范围起始:`, range.startContainer, range.startOffset);
+                console.log(`范围结束:`, range.endContainer, range.endOffset);
+            }
+            
             this.showHighlightTools();
+            // 立即显示连贯的高亮预览
+            this.showSelectionHighlight();
         } else {
             this.hideHighlightTools();
+            this.hideSelectionHighlight();
+            this.selectedSpans = null;
+        }
+    }
+    
+    /**
+     * 处理文本选择的右键菜单（重载方法）
+     * @param {Event} e - 右键事件
+     * @param {Selection} selection - 选择对象
+     */
+    handleTextSelectionContextMenu(e, selection) {
+        if (!selection || selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        const selectedText = selection.toString().trim();
+        
+        if (selectedText.length > 0) {
+            // 存储当前选择，供高亮使用
+            this.currentSelection = selection;
+            this.selectedText = selectedText;
+            
+            // 获取选中的span并存储
+            this.selectedSpans = this.getSelectedSpansFromSelection(selection);
+            
+            console.log('🔍 文本选择右键菜单:');
+            console.log('选中文本:', selectedText);
+            console.log('选中span数量:', this.selectedSpans.length);
+            
+            // 显示右键菜单
+            this.showContextMenu(e.clientX, e.clientY);
         }
     }
 
@@ -933,6 +973,44 @@ class ReaderApp {
     hideHighlightTools() {
         const tools = document.getElementById('highlightTools');
         tools.style.display = 'none';
+    }
+    
+    /**
+     * 显示选择高亮预览
+     */
+    showSelectionHighlight() {
+        if (!this.currentSelection || this.currentSelection.rangeCount === 0) return;
+        
+        const range = this.currentSelection.getRangeAt(0);
+        const spans = this.getSpansInRange(range);
+        if (spans.length === 0) return;
+        
+        // 为选中的span添加预览高亮类
+        spans.forEach(span => {
+            span.classList.add('selection-preview');
+        });
+        
+        // 合并相邻的预览高亮
+        if (spans.length > 1) {
+            this.mergeAdjacentSelectionHighlights(spans[0]);
+        }
+    }
+    
+    /**
+     * 隐藏选择高亮预览
+     */
+    hideSelectionHighlight() {
+        // 移除所有预览高亮
+        const previewSpans = document.querySelectorAll('.selection-preview');
+        previewSpans.forEach(span => {
+            span.classList.remove('selection-preview');
+        });
+        
+        // 移除合并的预览高亮
+        const mergedHighlights = document.querySelectorAll('.merged-selection-highlight');
+        mergedHighlights.forEach(highlight => {
+            highlight.remove();
+        });
     }
 
     async showTranslationModal() {
@@ -1074,22 +1152,218 @@ class ReaderApp {
         this.highlightSelectedText();
     }
 
-    highlightSelectedText() {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const span = document.createElement('span');
-            span.className = 'text-highlight';
-            span.style.backgroundColor = 'rgba(255, 235, 59, 0.6)';
+    highlightSelectedText(color = 'yellow') {
+        // 优先使用存储的选择对象，否则使用当前选择
+        const selection = this.currentSelection || window.getSelection();
+        if (selection.rangeCount === 0) return;
+        
+        const selectedText = selection.toString().trim();
+        if (!selectedText) return;
+        
+        console.log('🔍 高亮选择调试信息:');
+        console.log('选中的文本:', selectedText);
+        console.log('选择范围数量:', selection.rangeCount);
+        
+        // 先清除预览高亮
+        this.hideSelectionHighlight();
+        
+        // 使用更精确的方法获取选中的span
+        const selectedSpans = this.getSelectedSpansFromSelection(selection);
+        
+        console.log('找到的span元素数量:', selectedSpans.length);
+        
+        if (selectedSpans.length === 0) {
+            console.warn('未找到选中的span元素');
+            return;
+        }
+        
+        // 存储选中的span供复制功能使用
+        this.selectedSpans = selectedSpans;
+        
+        // 为选中的span添加高亮类和颜色
+        selectedSpans.forEach((span, index) => {
+            console.log(`高亮span ${index}: "${span.textContent}"`);
             
-            try {
-                range.surroundContents(span);
-            } catch (e) {
-                // 如果无法包围内容，则插入高亮标记
-                span.textContent = selection.toString();
-                range.deleteContents();
-                range.insertNode(span);
+            // 移除旧颜色和预览类
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            span.classList.remove('selection-preview', 'merged-selection-preview');
+            span.style.backgroundColor = '';
+            
+            // 添加高亮类
+            span.classList.add('word-highlighted');
+            span.classList.add(`color-${color}`); // 使用指定颜色
+            
+            console.log(`span ${index} 高亮类已添加:`, span.classList.toString());
+        });
+        
+        // 检查并合并相邻的高亮，形成连续矩形
+        if (selectedSpans.length > 1) {
+            console.log('合并相邻高亮...');
+            this.mergeAdjacentHighlights(selectedSpans[0]);
+        }
+        
+        console.log('✅ 高亮完成，共高亮', selectedSpans.length, '个span');
+        
+        // 注意：不清除选择，让用户可以看到高亮效果
+        // selection.removeAllRanges();
+        // this.currentSelection = null;
+    }
+    
+    /**
+     * 从Selection对象获取选中的span元素（改进版）
+     * @param {Selection} selection - 选择对象
+     * @returns {HTMLElement[]} - span元素数组
+     */
+    getSelectedSpansFromSelection(selection) {
+        const selectedSpans = [];
+        
+        // 遍历所有选择范围
+        for (let i = 0; i < selection.rangeCount; i++) {
+            const range = selection.getRangeAt(i);
+            const spans = this.getSpansInRange(range);
+            selectedSpans.push(...spans);
+        }
+        
+        // 去重并保持顺序
+        const uniqueSpans = [];
+        const seen = new Set();
+        
+        selectedSpans.forEach(span => {
+            if (!seen.has(span)) {
+                seen.add(span);
+                uniqueSpans.push(span);
             }
+        });
+        
+        // 按DOM顺序排序（确保文本顺序正确）
+        uniqueSpans.sort((a, b) => {
+            const position = a.compareDocumentPosition(b);
+            if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+                return -1; // a在b之前
+            } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
+                return 1;  // a在b之后
+            }
+            return 0; // 相同位置
+        });
+        
+        console.log('🔍 最终选中的span数量:', uniqueSpans.length);
+        uniqueSpans.forEach((span, index) => {
+            console.log(`span ${index}: "${span.textContent}" (空格: ${/\s/.test(span.textContent)})`);
+        });
+        
+        return uniqueSpans;
+    }
+
+    /**
+     * 获取选中范围内的所有span元素
+     * @param {Range} range - 选择范围
+     * @returns {HTMLElement[]} - span元素数组
+     */
+    getSpansInRange(range) {
+        const spans = [];
+        
+        // 直接遍历所有PDF文本层的span元素
+        const allSpans = document.querySelectorAll('.pdf-text-layer span');
+        console.log('🔍 页面中总span数量:', allSpans.length);
+        console.log('🔍 选择范围:', range.toString());
+        
+        allSpans.forEach((span, index) => {
+            // 检查这个span是否与选择范围相交
+            if (range.intersectsNode(span)) {
+                console.log(`span ${index} 与选择范围相交:`, span);
+                console.log(`span内容: "${span.textContent}" (空格: ${/\s/.test(span.textContent)})`);
+                spans.push(span);
+            }
+        });
+        
+        console.log('🔍 最终找到的span数量:', spans.length);
+        
+        // 按DOM顺序排序
+        spans.sort((a, b) => {
+            const position = a.compareDocumentPosition(b);
+            if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+                return -1; // a在b之前
+            } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
+                return 1;  // a在b之后
+            }
+            return 0; // 相同位置
+        });
+        
+        return spans;
+    }
+    
+    /**
+     * 获取选择范围内的所有文本节点
+     * @param {Range} range - 选择范围
+     * @returns {Text[]} - 文本节点数组
+     */
+    getTextNodesInRange(range) {
+        const textNodes = [];
+        
+        // 方法1：使用TreeWalker遍历
+        const walker = document.createTreeWalker(
+            range.commonAncestorContainer,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+        
+        let node;
+        while (node = walker.nextNode()) {
+            if (range.intersectsNode(node)) {
+                textNodes.push(node);
+            }
+        }
+        
+        // 方法2：如果TreeWalker没有找到足够的节点，使用更广泛的搜索
+        if (textNodes.length === 0) {
+            const allTextNodes = [];
+            const allSpans = document.querySelectorAll('.pdf-text-layer span');
+            
+            allSpans.forEach(span => {
+                if (range.intersectsNode(span)) {
+                    // 获取span内的文本节点
+                    const spanWalker = document.createTreeWalker(
+                        span,
+                        NodeFilter.SHOW_TEXT,
+                        null,
+                        false
+                    );
+                    
+                    let spanNode;
+                    while (spanNode = spanWalker.nextNode()) {
+                        if (range.intersectsNode(spanNode)) {
+                            allTextNodes.push(spanNode);
+                        }
+                    }
+                }
+            });
+            
+            return allTextNodes;
+        }
+        
+        return textNodes;
+    }
+    
+    /**
+     * 检查span是否在选择范围内
+     * @param {HTMLElement} span - span元素
+     * @param {Range} range - 选择范围
+     * @returns {boolean} - 是否在范围内
+     */
+    isSpanInRange(span, range) {
+        try {
+            const spanRange = document.createRange();
+            spanRange.selectNodeContents(span);
+            
+            // 检查范围是否相交
+            return range.compareBoundaryPoints(Range.START_TO_END, spanRange) > 0 &&
+                   range.compareBoundaryPoints(Range.END_TO_START, spanRange) < 0;
+        } catch (e) {
+            // 如果无法创建范围，使用文本内容检查
+            const spanText = span.textContent;
+            const selectedText = range.toString();
+            return selectedText.includes(spanText) || spanText.includes(selectedText);
         }
     }
 
@@ -1144,30 +1418,6 @@ class ReaderApp {
         });
     }
 
-    switchTab(tabName) {
-        // 更新标签按钮状态
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-
-        // 更新面板显示
-        document.querySelectorAll('.tab-panel').forEach(panel => {
-            panel.classList.remove('active');
-        });
-        document.getElementById(`${tabName}Panel`).classList.add('active');
-    }
-
-    toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        this.isSidebarCollapsed = !this.isSidebarCollapsed;
-        
-        if (this.isSidebarCollapsed) {
-            sidebar.classList.add('collapsed');
-        } else {
-            sidebar.classList.remove('collapsed');
-        }
-    }
 
     zoomIn() {
         this.zoomLevel = Math.min(this.zoomLevel + this.zoomStep, this.maxZoom);
@@ -1394,6 +1644,9 @@ class ReaderApp {
         span.classList.add('word-highlighted');
         this.highlightedWords.add(word.toLowerCase());
         
+        // 检查并合并相邻的高亮单词，形成连续矩形
+        this.mergeAdjacentHighlights(span);
+        
         // 🎯 关键改进：获取即将应用的高亮颜色（从CSS变量或默认值）
         let highlightColor = 'rgb(255, 255, 200)'; // 默认亮黄色 #FFFFC8
         
@@ -1464,12 +1717,8 @@ class ReaderApp {
      */
     handleWordLeave(e) {
         this.currentHoverWord = null;
-        // 延迟隐藏，避免闪烁
-        setTimeout(() => {
-            if (!this.currentHoverWord) {
-                this.hideWordTooltip();
-            }
-        }, 100);
+        // 立即隐藏翻译悬浮框，无延迟
+        this.hideWordTooltip();
     }
 
     /**
@@ -1598,6 +1847,76 @@ class ReaderApp {
         const translation = await this.callTranslationAPI(word);
         
         return translation;
+    }
+    
+    /**
+     * 翻译句子（调用AI API）
+     * @param {string} sentence - 要翻译的句子
+     * @returns {Promise<string>} - 翻译结果
+     */
+    async translateWithAI(sentence) {
+        console.log(`开始翻译句子: ${sentence}`);
+        
+        try {
+            // 等待限流器允许
+            await this.waitForRateLimit();
+            
+            // 记录请求时间
+            const now = Date.now();
+            this.apiRequestQueue.push(now);
+            this.lastRequestTime = now;
+            
+            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+            console.log(`📡 调用Gemini API翻译句子: ${sentence} (队列: ${this.apiRequestQueue.length}/${this.maxRequestsPerMinute})`);
+            
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `请将以下英文句子翻译成中文，保持原文的语气和风格，提供准确流畅的翻译：\n\n"${sentence}"\n\n只返回翻译结果，不要额外解释。`
+                        }]
+                    }]
+                })
+            });
+            
+            console.log(`📊 响应状态: ${response.status} ${response.statusText}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
+                
+                // 如果是429错误（配额超限），显示友好提示
+                if (response.status === 429) {
+                    throw new Error('API_RATE_LIMIT');
+                }
+                
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // 提取翻译结果
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const translation = data.candidates[0].content.parts[0].text.trim();
+                console.log(`✅ 句子翻译结果: ${translation}`);
+                return translation;
+            }
+            
+            throw new Error('API返回格式异常');
+            
+        } catch (error) {
+            console.error('句子翻译API调用失败:', error);
+            
+            if (error.message === 'API_RATE_LIMIT') {
+                throw new Error('API请求过于频繁，请稍后再试');
+            }
+            
+            throw error;
+        }
     }
 
     /**
@@ -2025,6 +2344,24 @@ class ReaderApp {
             });
         }
 
+        // 绑定句子翻译按钮
+        const sentenceTranslateBtn = document.getElementById('sentenceTranslateBtn');
+        if (sentenceTranslateBtn) {
+            sentenceTranslateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.handleContextMenuAction('translate-sentence');
+            });
+        }
+        
+        // 绑定高亮按钮
+        const highlightBtn = document.getElementById('highlightBtn');
+        if (highlightBtn) {
+            highlightBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.handleContextMenuAction('highlight-selection');
+            });
+        }
+        
         // 绑定复制文本按钮
         const copyTextBtn = document.getElementById('copyTextBtn');
         if (copyTextBtn) {
@@ -2093,7 +2430,7 @@ class ReaderApp {
                     this.showContextMenu(e.clientX, e.clientY);
                 } else if (selectedText) {
                     // 选择了文本
-                    this.handleTextSelection(e, selection);
+                    this.handleTextSelectionContextMenu(e, selection);
                 }
             }
         });
@@ -2175,13 +2512,27 @@ class ReaderApp {
      * @param {string} action - 操作类型
      */
     handleContextMenuAction(action, customColor = null) {
+        if (action === 'translate-sentence') {
+            // 翻译选中的句子
+            this.translateSelectedSentence();
+            this.hideContextMenu();
+            return;
+        }
+        
+        if (action === 'highlight-selection') {
+            // 高亮选中的文本
+            this.highlightSelectedText();
+            this.hideContextMenu();
+            return;
+        }
+        
         if (!this.currentContextTarget) return;
 
         const span = this.currentContextTarget;
 
         if (action === 'remove-highlight') {
             // 取消高亮
-            span.classList.remove('word-highlighted');
+            span.classList.remove('word-highlighted', 'merged-highlighted');
             span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
             span.style.backgroundColor = ''; // 清除自定义背景色
             
@@ -2190,31 +2541,258 @@ class ReaderApp {
             if (word) {
                 this.highlightedWords.delete(word.toLowerCase());
             }
+            
+            // 重新计算合并高亮（移除当前单词后）
+            this.recalculateMergedHighlights(span);
         } else if (action.startsWith('color-')) {
             // 更改高亮颜色
             const color = action.replace('color-', '');
             
-            // 移除旧颜色
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            span.style.backgroundColor = ''; // 清除之前的自定义背景色
-            
-            if (color === 'custom' && customColor) {
-                // 自定义颜色：使用内联样式
-                span.classList.add('color-custom');
-                // 将hex颜色转换为rgba格式，透明度0.5
-                const rgb = this.hexToRgb(customColor);
-                if (rgb) {
-                    span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
-                }
+            // 检查是否有选中的文本
+            if (this.currentSelection && this.currentSelection.rangeCount > 0) {
+                // 如果有选中的文本，高亮整个句子
+                this.highlightSelectedTextWithColor(color, customColor);
             } else {
-                // 添加新颜色
-                span.classList.add(`color-${color}`);
+                // 否则只处理单个单词
+                this.highlightSingleWordWithColor(span, color, customColor);
             }
         }
 
         // 隐藏菜单
         this.hideContextMenu();
         this.currentContextTarget = null;
+    }
+
+    /**
+     * 翻译选中的句子
+     */
+    async translateSelectedSentence() {
+        if (!this.currentSelection || this.currentSelection.rangeCount === 0) {
+            this.showError('请先选择要翻译的句子');
+            return;
+        }
+        
+        const selectedText = this.currentSelection.toString().trim();
+        if (!selectedText) {
+            this.showError('请先选择要翻译的句子');
+            return;
+        }
+        
+        try {
+            // 显示加载状态
+            this.updateStatus('正在翻译...');
+            
+            // 调用AI翻译API
+            const translation = await this.translateWithAI(selectedText);
+            
+            if (translation) {
+                // 高亮选中的句子（使用特殊的翻译高亮样式）
+                this.highlightSelectedSentenceForTranslation();
+                
+                // 显示翻译结果
+                this.showSentenceTranslation(selectedText, translation);
+                
+                // 保存翻译到本地存储
+                this.saveSentenceTranslation(selectedText, translation);
+                
+                this.updateStatus('翻译完成');
+            } else {
+                this.showError('翻译失败，请重试');
+            }
+        } catch (error) {
+            console.error('句子翻译错误:', error);
+            this.showError('翻译失败: ' + error.message);
+        }
+    }
+    
+    /**
+     * 为翻译的句子添加特殊高亮
+     */
+    highlightSelectedSentenceForTranslation() {
+        if (!this.currentSelection || this.currentSelection.rangeCount === 0) return;
+        
+        const range = this.currentSelection.getRangeAt(0);
+        const spans = this.getSpansInRange(range);
+        if (spans.length === 0) return;
+        
+        // 先清除预览高亮
+        this.hideSelectionHighlight();
+        
+        // 为选中的span添加翻译高亮类
+        spans.forEach(span => {
+            // 移除旧颜色和预览类
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            span.classList.remove('selection-preview', 'merged-selection-preview');
+            span.style.backgroundColor = '';
+            
+            // 添加翻译高亮类
+            span.classList.add('word-highlighted');
+            span.classList.add('sentence-translated');
+        });
+        
+        // 合并相邻高亮
+        if (spans.length > 1) {
+            this.mergeAdjacentHighlights(spans[0]);
+        }
+        
+        // 清除选择
+        this.currentSelection.removeAllRanges();
+        this.currentSelection = null;
+    }
+    
+    /**
+     * 显示句子翻译结果
+     * @param {string} originalText - 原文
+     * @param {string} translation - 翻译
+     */
+    showSentenceTranslation(originalText, translation) {
+        // 创建翻译悬浮框
+        const tooltip = document.createElement('div');
+        tooltip.className = 'sentence-translation-tooltip';
+        tooltip.innerHTML = `
+            <div class="translation-header">
+                <span class="translation-label">句子翻译</span>
+                <button class="close-translation-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+            <div class="translation-content">
+                <div class="original-text">${originalText}</div>
+                <div class="translation-text">${translation}</div>
+            </div>
+        `;
+        
+        // 定位到选择区域
+        const range = this.currentSelection ? this.currentSelection.getRangeAt(0) : null;
+        if (range) {
+            const rect = range.getBoundingClientRect();
+            tooltip.style.left = rect.left + 'px';
+            tooltip.style.top = (rect.bottom + 10) + 'px';
+        } else {
+            tooltip.style.left = '50%';
+            tooltip.style.top = '50%';
+            tooltip.style.transform = 'translate(-50%, -50%)';
+        }
+        
+        document.body.appendChild(tooltip);
+        
+        // 5秒后自动消失
+        setTimeout(() => {
+            if (tooltip.parentElement) {
+                tooltip.remove();
+            }
+        }, 5000);
+    }
+    
+    /**
+     * 保存句子翻译到本地存储
+     * @param {string} originalText - 原文
+     * @param {string} translation - 翻译
+     */
+    saveSentenceTranslation(originalText, translation) {
+        const translations = JSON.parse(localStorage.getItem('sentenceTranslations') || '[]');
+        translations.push({
+            original: originalText,
+            translation: translation,
+            timestamp: Date.now()
+        });
+        localStorage.setItem('sentenceTranslations', JSON.stringify(translations));
+    }
+
+    /**
+     * 用指定颜色高亮选中的文本
+     * @param {string} color - 颜色名称
+     * @param {string} customColor - 自定义颜色值
+     */
+    highlightSelectedTextWithColor(color, customColor = null) {
+        // 优先使用存储的选中span
+        let spans = this.selectedSpans;
+        
+        // 如果没有存储的span，尝试从当前选择获取
+        if (!spans || spans.length === 0) {
+            const selection = this.currentSelection || window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                spans = this.getSelectedSpansFromSelection(selection);
+            }
+        }
+        
+        if (!spans || spans.length === 0) {
+            console.warn('没有找到选中的span元素');
+            return;
+        }
+        
+        console.log('🔍 右键菜单高亮选中文本:');
+        console.log('span数量:', spans.length);
+        console.log('颜色:', color);
+        
+        // 先清除预览高亮
+        this.hideSelectionHighlight();
+        
+        // 为选中的span添加高亮类和颜色
+        spans.forEach((span, index) => {
+            console.log(`右键高亮span ${index}: "${span.textContent}"`);
+            
+            // 移除旧颜色和预览类
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            span.classList.remove('selection-preview', 'merged-selection-preview');
+            span.style.backgroundColor = '';
+            
+            // 添加高亮类
+            span.classList.add('word-highlighted');
+            
+            // 添加颜色
+            if (color === 'custom' && customColor) {
+                span.classList.add('color-custom');
+                const rgb = this.hexToRgb(customColor);
+                if (rgb) {
+                    span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+                }
+            } else {
+                span.classList.add(`color-${color}`);
+            }
+            
+            console.log(`span ${index} 右键高亮类已添加:`, span.classList.toString());
+        });
+        
+        // 合并相邻高亮
+        if (spans.length > 1) {
+            console.log('右键菜单合并相邻高亮...');
+            this.mergeAdjacentHighlights(spans[0]);
+        }
+        
+        console.log('✅ 右键菜单高亮完成，共高亮', spans.length, '个span');
+        
+        // 注意：不清除选择，让用户可以看到高亮效果
+        // if (this.currentSelection) {
+        //     this.currentSelection.removeAllRanges();
+        //     this.currentSelection = null;
+        // }
+        
+        // 清空存储的span
+        this.selectedSpans = null;
+    }
+    
+    /**
+     * 用指定颜色高亮单个单词
+     * @param {HTMLElement} span - span元素
+     * @param {string} color - 颜色名称
+     * @param {string} customColor - 自定义颜色值
+     */
+    highlightSingleWordWithColor(span, color, customColor = null) {
+        // 移除旧颜色
+        span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+        span.style.backgroundColor = ''; // 清除之前的自定义背景色
+        
+        if (color === 'custom' && customColor) {
+            // 自定义颜色：使用内联样式
+            span.classList.add('color-custom');
+            // 将hex颜色转换为rgba格式，透明度0.5
+            const rgb = this.hexToRgb(customColor);
+            if (rgb) {
+                span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+            }
+        } else {
+            // 添加新颜色
+            span.classList.add(`color-${color}`);
+        }
     }
 
     /**
@@ -2450,14 +3028,26 @@ class ReaderApp {
      * 复制文本
      */
     copyWordText() {
-        if (!this.currentContextTarget) return;
-
-        // 如果有选中的多个span，复制所有文本
         let text = '';
-        if (this.selectedSpans && this.selectedSpans.length > 0) {
-            text = this.selectedSpans.map(span => span.textContent).join('');
-        } else {
+        
+        // 优先使用当前选择
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            text = selection.toString().trim();
+            console.log('🔍 从当前选择复制文本:', text);
+        }
+        
+        // 如果没有选择，尝试使用存储的选中span
+        if (!text && this.selectedSpans && this.selectedSpans.length > 0) {
+            // 正确拼接span内容，保持原始格式
+            text = this.reconstructTextFromSpans(this.selectedSpans);
+            console.log('🔍 从存储的span复制文本:', text);
+        }
+        
+        // 如果还是没有，尝试使用右键目标
+        if (!text && this.currentContextTarget) {
             text = this.extractWord(this.currentContextTarget.textContent);
+            console.log('🔍 从右键目标复制文本:', text);
         }
         
         if (text) {
@@ -2474,10 +3064,45 @@ class ReaderApp {
                 // 降级方案
                 this.fallbackCopyText(text);
             }
+        } else {
+            console.warn('没有可复制的文本');
+            this.showToast('没有选中文本');
         }
         
         this.selectedSpans = null; // 清空选择
         this.hideContextMenu();
+    }
+    
+    /**
+     * 从span数组重构文本（保持原始格式和空格）
+     * @param {HTMLElement[]} spans - span元素数组
+     * @returns {string} - 重构的文本
+     */
+    reconstructTextFromSpans(spans) {
+        if (!spans || spans.length === 0) return '';
+        
+        // 按DOM顺序排序
+        const sortedSpans = [...spans].sort((a, b) => {
+            const position = a.compareDocumentPosition(b);
+            if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+                return -1; // a在b之前
+            } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
+                return 1;  // a在b之后
+            }
+            return 0; // 相同位置
+        });
+        
+        // 拼接所有span的内容
+        const text = sortedSpans.map(span => span.textContent).join('');
+        
+        console.log('🔍 重构文本:');
+        console.log('span数量:', sortedSpans.length);
+        console.log('重构结果:', text);
+        sortedSpans.forEach((span, index) => {
+            console.log(`  ${index}: "${span.textContent}"`);
+        });
+        
+        return text;
     }
 
     /**
@@ -2620,6 +3245,259 @@ class ReaderApp {
             this.selectedSpans = null; // 清空选择
         } else if (this.currentContextTarget) {
             callback(this.currentContextTarget);
+        }
+    }
+
+    /**
+     * 合并相邻的选择预览高亮
+     * @param {HTMLElement} span - 起始span元素
+     */
+    mergeAdjacentSelectionHighlights(span) {
+        if (!span || !span.classList.contains('selection-preview')) return;
+
+        const parent = span.parentElement;
+        if (!parent) return;
+
+        const previewSpans = Array.from(parent.querySelectorAll('span.selection-preview'));
+        if (previewSpans.length < 2) return;
+
+        previewSpans.sort((a, b) => {
+            const rectA = a.getBoundingClientRect();
+            const rectB = b.getBoundingClientRect();
+            if (Math.abs(rectA.top - rectB.top) > 5) {
+                return rectA.top - rectB.top;
+            }
+            return rectA.left - rectB.left;
+        });
+
+        const groups = [];
+        let currentGroup = [previewSpans[0]];
+
+        for (let i = 1; i < previewSpans.length; i++) {
+            const prev = previewSpans[i - 1];
+            const curr = previewSpans[i];
+            
+            if (this.areAdjacent(prev, curr)) {
+                currentGroup.push(curr);
+            } else {
+                groups.push(currentGroup);
+                currentGroup = [curr];
+            }
+        }
+        groups.push(currentGroup);
+
+        groups.forEach(group => {
+            if (group.length > 1) {
+                this.createMergedSelectionHighlight(group);
+            }
+        });
+    }
+    
+    /**
+     * 创建合并的选择预览高亮
+     * @param {HTMLElement[]} spans - 要合并的span元素数组
+     */
+    createMergedSelectionHighlight(spans) {
+        if (spans.length < 2) return;
+
+        const firstSpan = spans[0];
+        const lastSpan = spans[spans.length - 1];
+        
+        const firstRect = firstSpan.getBoundingClientRect();
+        const lastRect = lastSpan.getBoundingClientRect();
+        
+        const containerRect = firstSpan.parentElement.getBoundingClientRect();
+        
+        const left = firstRect.left - containerRect.left;
+        const top = firstRect.top - containerRect.top;
+        const width = lastRect.right - firstRect.left;
+        const height = Math.max(firstRect.height, lastRect.height);
+        
+        const mergedHighlight = document.createElement('div');
+        mergedHighlight.className = 'merged-selection-highlight';
+        mergedHighlight.style.cssText = `
+            position: absolute;
+            left: ${left}px;
+            top: ${top}px;
+            width: ${width}px;
+            height: ${height}px;
+            background-color: rgba(255, 255, 0, 0.3);
+            pointer-events: none;
+            z-index: 1;
+        `;
+        
+        firstSpan.parentElement.appendChild(mergedHighlight);
+        
+        // 为合并的span添加标记类
+        spans.forEach(span => {
+            span.classList.add('merged-selection-preview');
+        });
+    }
+
+    /**
+     * 合并相邻的高亮单词，形成连续矩形高亮
+     * @param {HTMLElement} span - 当前高亮的span元素
+     */
+    mergeAdjacentHighlights(span) {
+        if (!span || !span.classList.contains('word-highlighted')) return;
+
+        // 获取当前span的父容器
+        const parent = span.parentElement;
+        if (!parent) return;
+
+        // 获取所有高亮的span元素
+        const highlightedSpans = Array.from(parent.querySelectorAll('span.word-highlighted'));
+        if (highlightedSpans.length < 2) return;
+
+        // 按位置排序
+        highlightedSpans.sort((a, b) => {
+            const rectA = a.getBoundingClientRect();
+            const rectB = b.getBoundingClientRect();
+            
+            // 先按行排序，再按列排序
+            if (Math.abs(rectA.top - rectB.top) > 5) {
+                return rectA.top - rectB.top;
+            }
+            return rectA.left - rectB.left;
+        });
+
+        // 查找连续的相邻高亮
+        const groups = [];
+        let currentGroup = [highlightedSpans[0]];
+
+        for (let i = 1; i < highlightedSpans.length; i++) {
+            const prev = highlightedSpans[i - 1];
+            const curr = highlightedSpans[i];
+            
+            if (this.areAdjacent(prev, curr)) {
+                currentGroup.push(curr);
+            } else {
+                groups.push(currentGroup);
+                currentGroup = [curr];
+            }
+        }
+        groups.push(currentGroup);
+
+        // 为每个连续组创建合并的高亮
+        groups.forEach(group => {
+            if (group.length > 1) {
+                this.createMergedHighlight(group);
+            }
+        });
+    }
+
+    /**
+     * 检查两个span是否相邻
+     * @param {HTMLElement} span1 - 第一个span
+     * @param {HTMLElement} span2 - 第二个span
+     * @returns {boolean} 是否相邻
+     */
+    areAdjacent(span1, span2) {
+        const rect1 = span1.getBoundingClientRect();
+        const rect2 = span2.getBoundingClientRect();
+        
+        // 检查是否在同一行（垂直位置相近）
+        const verticalDiff = Math.abs(rect1.top - rect2.top);
+        if (verticalDiff > 5) return false;
+        
+        // 检查是否水平相邻（右边界接近左边界）
+        const horizontalDiff = Math.abs(rect1.right - rect2.left);
+        return horizontalDiff <= 10; // 允许10px的间距
+    }
+
+    /**
+     * 为连续的span组创建合并的高亮
+     * @param {HTMLElement[]} spans - 连续的span数组
+     */
+    createMergedHighlight(spans) {
+        if (spans.length < 2) return;
+
+        // 计算合并后的边界
+        const rects = spans.map(span => span.getBoundingClientRect());
+        const minLeft = Math.min(...rects.map(r => r.left));
+        const maxRight = Math.max(...rects.map(r => r.right));
+        const minTop = Math.min(...rects.map(r => r.top));
+        const maxBottom = Math.max(...rects.map(r => r.bottom));
+
+        // 创建合并高亮的容器
+        const mergedHighlight = document.createElement('div');
+        mergedHighlight.className = 'merged-highlight';
+        mergedHighlight.style.cssText = `
+            position: absolute;
+            left: ${minLeft}px;
+            top: ${minTop}px;
+            width: ${maxRight - minLeft}px;
+            height: ${maxBottom - minTop}px;
+            background: var(--highlight-color, rgba(255, 255, 200, 0.6));
+            z-index: -1;
+            pointer-events: none;
+        `;
+
+        // 插入到第一个span的父容器中
+        const parent = spans[0].parentElement;
+        parent.appendChild(mergedHighlight);
+
+        // 为每个span添加合并标记
+        spans.forEach(span => {
+            span.classList.add('merged-highlighted');
+        });
+    }
+
+    /**
+     * 重新计算合并高亮（当移除某个高亮单词后）
+     * @param {HTMLElement} removedSpan - 被移除的span元素
+     */
+    recalculateMergedHighlights(removedSpan) {
+        // 清除所有现有的合并高亮
+        const parent = removedSpan.parentElement;
+        if (parent) {
+            const existingMerged = parent.querySelectorAll('.merged-highlight');
+            existingMerged.forEach(el => el.remove());
+        }
+
+        // 清除所有合并标记
+        const allSpans = document.querySelectorAll('span.merged-highlighted');
+        allSpans.forEach(span => {
+            span.classList.remove('merged-highlighted');
+        });
+
+        // 重新计算所有高亮单词的合并
+        const highlightedSpans = Array.from(document.querySelectorAll('span.word-highlighted'));
+        if (highlightedSpans.length > 1) {
+            // 按位置排序
+            highlightedSpans.sort((a, b) => {
+                const rectA = a.getBoundingClientRect();
+                const rectB = b.getBoundingClientRect();
+                
+                if (Math.abs(rectA.top - rectB.top) > 5) {
+                    return rectA.top - rectB.top;
+                }
+                return rectA.left - rectB.left;
+            });
+
+            // 重新分组
+            const groups = [];
+            let currentGroup = [highlightedSpans[0]];
+
+            for (let i = 1; i < highlightedSpans.length; i++) {
+                const prev = highlightedSpans[i - 1];
+                const curr = highlightedSpans[i];
+                
+                if (this.areAdjacent(prev, curr)) {
+                    currentGroup.push(curr);
+                } else {
+                    groups.push(currentGroup);
+                    currentGroup = [curr];
+                }
+            }
+            groups.push(currentGroup);
+
+            // 为每个连续组创建合并的高亮
+            groups.forEach(group => {
+                if (group.length > 1) {
+                    this.createMergedHighlight(group);
+                }
+            });
         }
     }
 }
