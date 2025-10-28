@@ -2294,6 +2294,7 @@ class ReaderApp {
      * 初始化右键菜单
      */
     initContextMenu() {
+        console.log('🔍 初始化右键菜单');
         this.contextMenu = document.getElementById('contextMenu');
         this.colorPickerPanel = document.getElementById('colorPickerPanel');
         this.opacitySliderPanel = document.getElementById('opacitySliderPanel');
@@ -2301,16 +2302,24 @@ class ReaderApp {
         this.currentColorFill = this.currentColorCircle?.querySelector('.current-color-fill');
         this.currentOpacity = 0.5; // 默认透明度50%
         
+        console.log('🔍 右键菜单元素查找结果:');
+        console.log('- contextMenu:', this.contextMenu);
+        console.log('- colorPickerPanel:', this.colorPickerPanel);
+        console.log('- opacitySliderPanel:', this.opacitySliderPanel);
+        console.log('- currentColorCircle:', this.currentColorCircle);
+        console.log('- currentColorFill:', this.currentColorFill);
+        
         if (!this.contextMenu) {
-            console.error('右键菜单元素未找到');
+            console.error('❌ 右键菜单元素未找到');
             return;
         }
 
-        // 绑定当前颜色圆形点击事件 - 切换调色板
+        // 绑定当前颜色圆形点击事件 - 直接应用当前颜色
         if (this.currentColorCircle) {
             this.currentColorCircle.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.toggleColorPicker();
+                console.log('🔍 点击了当前颜色框');
+                this.applyCurrentColorFromBox();
             });
         }
 
@@ -2414,9 +2423,11 @@ class ReaderApp {
 
         // 全局右键菜单处理
         document.addEventListener('contextmenu', (e) => {
+            console.log('🔍 右键菜单事件触发');
             const pdfTextLayer = e.target.closest('.pdf-text-layer');
             
             if (pdfTextLayer) {
+                console.log('🔍 在PDF文本层内右键');
                 e.preventDefault(); // 始终阻止默认右键菜单
                 
                 // 检查是否点击了单词span或选择了文本
@@ -2424,14 +2435,26 @@ class ReaderApp {
                 const selection = window.getSelection();
                 const selectedText = selection.toString().trim();
                 
-                if (span && span.textContent.trim()) {
-                    // 点击了单词
+                console.log('🔍 右键菜单检查:');
+                console.log('- span:', span);
+                console.log('- span内容:', span?.textContent);
+                console.log('- 选中文本:', selectedText);
+                console.log('- 选择范围数量:', selection.rangeCount);
+                
+                if (selectedText) {
+                    // 优先处理选中的文本（多单词选择）
+                    console.log('🔍 选择了文本，显示右键菜单');
+                    this.handleTextSelectionContextMenu(e, selection);
+                } else if (span && span.textContent.trim()) {
+                    // 点击了单词（单个单词）
+                    console.log('🔍 点击了单词，显示右键菜单');
                     this.currentContextTarget = span;
                     this.showContextMenu(e.clientX, e.clientY);
-                } else if (selectedText) {
-                    // 选择了文本
-                    this.handleTextSelectionContextMenu(e, selection);
+                } else {
+                    console.log('🔍 没有选中文本也没有点击单词');
                 }
+            } else {
+                console.log('🔍 不在PDF文本层内，不处理右键菜单');
             }
         });
     }
@@ -2457,7 +2480,12 @@ class ReaderApp {
      * @param {number} y - Y坐标
      */
     showContextMenu(x, y) {
-        if (!this.contextMenu) return;
+        console.log('🔍 showContextMenu 被调用');
+        console.log('🔍 this.contextMenu:', this.contextMenu);
+        if (!this.contextMenu) {
+            console.error('❌ 右键菜单元素未找到，无法显示菜单');
+            return;
+        }
 
         // 更新当前颜色显示（从CSS变量或伪元素读取）
         if (this.currentContextTarget && this.currentColorFill) {
@@ -2478,6 +2506,7 @@ class ReaderApp {
 
         // 显示菜单
         this.contextMenu.style.display = 'flex';
+        console.log('🔍 右键菜单已显示');
 
         // 获取菜单尺寸
         const rect = this.contextMenu.getBoundingClientRect();
@@ -2505,6 +2534,71 @@ class ReaderApp {
         if (this.contextMenu) {
             this.contextMenu.style.display = 'none';
         }
+    }
+
+    /**
+     * 应用当前颜色框的颜色
+     */
+    applyCurrentColorFromBox() {
+        console.log('🔍 应用当前颜色框颜色');
+        
+        if (!this.currentColorFill) {
+            console.error('❌ 当前颜色填充元素未找到');
+            return;
+        }
+        
+        // 获取当前颜色
+        const currentColor = this.currentColorFill.style.background || 
+                           window.getComputedStyle(this.currentColorFill).backgroundColor;
+        
+        console.log('🔍 当前颜色:', currentColor);
+        
+        if (!currentColor || currentColor === 'rgba(0, 0, 0, 0)' || currentColor === 'transparent') {
+            console.log('🔍 使用默认颜色');
+            this.highlightSelectedTextWithColor('yellow');
+        } else {
+            // 转换颜色格式
+            const hexColor = this.rgbToHex(currentColor);
+            console.log('🔍 转换后的十六进制颜色:', hexColor);
+            this.highlightSelectedTextWithColor('custom', hexColor);
+        }
+        
+        // 隐藏菜单
+        this.hideContextMenu();
+    }
+
+    /**
+     * 将RGB颜色转换为十六进制
+     * @param {string} rgb - RGB颜色字符串
+     * @returns {string} - 十六进制颜色字符串
+     */
+    rgbToHex(rgb) {
+        if (!rgb) return '#FFFFC8';
+        
+        // 处理rgba格式
+        const rgbaMatch = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+        if (rgbaMatch) {
+            const r = parseInt(rgbaMatch[1]);
+            const g = parseInt(rgbaMatch[2]);
+            const b = parseInt(rgbaMatch[3]);
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        }
+        
+        // 处理rgb格式
+        const rgbMatch = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (rgbMatch) {
+            const r = parseInt(rgbMatch[1]);
+            const g = parseInt(rgbMatch[2]);
+            const b = parseInt(rgbMatch[3]);
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        }
+        
+        // 如果已经是十六进制格式，直接返回
+        if (rgb.startsWith('#')) {
+            return rgb;
+        }
+        
+        return '#FFFFC8'; // 默认颜色
     }
 
     /**
@@ -2548,11 +2642,23 @@ class ReaderApp {
             // 更改高亮颜色
             const color = action.replace('color-', '');
             
-            // 检查是否有选中的文本
-            if (this.currentSelection && this.currentSelection.rangeCount > 0) {
-                // 如果有选中的文本，高亮整个句子
+            console.log('🔍 右键菜单颜色高亮:');
+            console.log('- 颜色:', color);
+            console.log('- currentSelection:', this.currentSelection);
+            console.log('- selectedSpans:', this.selectedSpans);
+            console.log('- selectedSpans长度:', this.selectedSpans?.length);
+            
+            // 优先使用存储的选中spans（多单词选择）
+            if (this.selectedSpans && this.selectedSpans.length > 0) {
+                console.log('🔍 使用存储的selectedSpans进行高亮');
+                this.highlightSelectedTextWithColor(color, customColor);
+            } else if (this.currentSelection && this.currentSelection.rangeCount > 0) {
+                console.log('🔍 使用currentSelection进行高亮');
+                // 重新获取选中的spans
+                this.selectedSpans = this.getSelectedSpansFromSelection(this.currentSelection);
                 this.highlightSelectedTextWithColor(color, customColor);
             } else {
+                console.log('🔍 使用单个单词高亮');
                 // 否则只处理单个单词
                 this.highlightSingleWordWithColor(span, color, customColor);
             }
