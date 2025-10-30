@@ -8,93 +8,87 @@
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- 顶部导航栏 -->
-        <header class="header">
-            <div class="header-left">
-                <h1 class="app-title">NPDF Reader</h1>
-                <span class="app-subtitle">智能英文阅读器</span>
+    <div class="app-shell">
+        <div class="window-chrome">
+            <div class="window-buttons">
+                <span class="window-dot window-dot-red"></span>
+                <span class="window-dot window-dot-yellow"></span>
+                <span class="window-dot window-dot-green"></span>
             </div>
-            <div class="header-right">
-                <button class="btn btn-primary" id="openFileBtn">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                    </svg>
-                    打开文件
-                </button>
-                <button class="btn btn-secondary" id="openFolderBtn">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" />
-                    </svg>
-                    打开文件夹
-                </button>
-            </div>
-        </header>
+            <div class="window-title">NPDF Reader</div>
+            <button class="window-control" id="collapseSidebarBtn" aria-label="切换侧边栏">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 4h14v16H5V4zm2 2v12h6V6H7zm8 0v12h2V6h-2z" />
+                </svg>
+            </button>
+        </div>
 
-        <!-- 主内容区域 -->
-        <main class="main-content">
-            <!-- 欢迎区域 -->
-            <div class="welcome-section" id="welcomeSection">
-                <div class="welcome-content">
-                    <div class="welcome-icon">
-                        <svg viewBox="0 0 24 24" width="80" height="80">
-                            <path fill="#4A90E2" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+        <div class="app-layout">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-inner">
+                    <div class="sidebar-search">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5 1.5-1.5-5-5zm-5 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z" />
                         </svg>
+                        <input type="search" id="librarySearchInput" placeholder="搜索" autocomplete="off">
                     </div>
-                    <h2>欢迎使用 NPDF Reader</h2>
-                    <p>专为中国留学生设计的智能英文阅读器</p>
-                    <div class="feature-list">
-                        <div class="feature-item">
-                            <svg class="feature-icon" viewBox="0 0 24 24">
-                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
-                            </svg>
-                            <span>支持PDF、Word等多种格式</span>
-                        </div>
-                        <div class="feature-item">
-                            <svg class="feature-icon" viewBox="0 0 24 24">
-                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
-                            </svg>
-                            <span>智能AI翻译功能</span>
-                        </div>
-                        <div class="feature-item">
-                            <svg class="feature-icon" viewBox="0 0 24 24">
-                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
-                            </svg>
-                            <span>荧光笔和批注功能</span>
-                        </div>
-                        <div class="feature-item">
-                            <svg class="feature-icon" viewBox="0 0 24 24">
-                                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
-                            </svg>
-                            <span>自动生成翻译记录</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- 新的文件展示区域 -->
-            <div class="files-view" id="filesView" style="display: none;">
-                <!-- 外层深灰色容器 -->
-                <div class="outer-container">
-                    <!-- 标签栏："最近"和"收藏" -->
-                    <div class="tabs-bar">
-                        <button class="tab-item active" id="recentTab">最近</button>
-                        <button class="tab-item" id="favoriteTab">收藏</button>
-                    </div>
-                    
-                    <!-- 内层浅灰色容器 -->
-                    <div class="inner-container">
-                        <div class="files-grid" id="filesGrid">
-                            <!-- 文件卡片将在这里动态生成 -->
-                        </div>
-                    </div>
+                    <nav class="sidebar-nav">
+                        <button class="nav-item active" id="homeNavBtn" type="button">
+                            <span class="nav-icon">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 4l8 7h-3v9h-4v-5H11v5H7v-9H4z" />
+                                </svg>
+                            </span>
+                            <span class="nav-label">主页</span>
+                        </button>
+                    </nav>
                 </div>
-            </div>
-        </main>
+            </aside>
 
+            <div class="sidebar-hover-zone" id="sidebarHoverZone"></div>
+
+            <main class="content-area">
+                <header class="content-header">
+                    <div class="content-header-text">
+                        <h1>我的图书</h1>
+                        <p>最近打开的文档会出现在这里。</p>
+                    </div>
+                    <div class="content-actions">
+                        <button class="action-btn action-btn-primary" id="openFileBtn" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                            </svg>
+                            打开文件
+                        </button>
+                        <button class="action-btn action-btn-secondary" id="openFolderBtn" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" />
+                            </svg>
+                            打开文件夹
+                        </button>
+                    </div>
+                </header>
+
+                <section class="welcome-section" id="welcomeSection">
+                    <div class="welcome-card">
+                        <div class="welcome-icon">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                            </svg>
+                        </div>
+                        <h2>欢迎使用 NPDF Reader</h2>
+                        <p>开启阅读旅程，支持 PDF、Word 等格式，点选即可开始学习。</p>
+                    </div>
+                </section>
+
+                <section class="files-view" id="filesView" style="display: none;">
+                    <div class="files-grid" id="filesGrid"></div>
+                </section>
+            </main>
+        </div>
     </div>
 
-    <!-- 文件卡片模板 -->
     <template id="fileCardTemplate">
         <div class="file-card" data-file-path="">
             <div class="file-preview">

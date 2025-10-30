@@ -29,12 +29,13 @@ class MainApp {
     }
 
     bindEvents() {
-        // 打开文件按钮
-        document.getElementById('openFileBtn').addEventListener('click', () => {
-            this.openFile();
-        });
+        const openFileBtn = document.getElementById('openFileBtn');
+        if (openFileBtn) {
+            openFileBtn.addEventListener('click', () => {
+                this.openFile();
+            });
+        }
 
-        // 打开文件夹按钮
         const openFolderBtn = document.getElementById('openFolderBtn');
         if (openFolderBtn) {
             openFolderBtn.addEventListener('click', () => {
@@ -42,29 +43,56 @@ class MainApp {
             });
         }
 
-        // 标签切换
-        document.getElementById('recentTab').addEventListener('click', () => {
-            this.switchTab('recent');
-        });
+        const homeNavBtn = document.getElementById('homeNavBtn');
+        if (homeNavBtn) {
+            homeNavBtn.addEventListener('click', () => {
+                if (this.recentFiles.length > 0) {
+                    this.showFilesView();
+                    this.renderRecentFiles();
+                } else {
+                    this.showWelcomeView();
+                }
+            });
+        }
 
-        document.getElementById('favoriteTab').addEventListener('click', () => {
-            this.switchTab('favorite');
-        });
+        this.initSidebarInteractions();
     }
 
-    switchTab(tabName) {
-        // 更新标签状态
-        document.querySelectorAll('.tab-item').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        if (tabName === 'recent') {
-            document.getElementById('recentTab').classList.add('active');
-            this.renderRecentFiles();
-        } else if (tabName === 'favorite') {
-            document.getElementById('favoriteTab').classList.add('active');
-            this.showEmptyState('暂无收藏文件');
+    initSidebarInteractions() {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) {
+            return;
         }
+
+        const collapseBtn = document.getElementById('collapseSidebarBtn');
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', () => {
+                document.body.classList.toggle('sidebar-collapsed');
+                document.body.classList.remove('sidebar-hovering');
+            });
+        }
+
+        const hoverZone = document.getElementById('sidebarHoverZone');
+
+        const enableHoverState = () => {
+            if (document.body.classList.contains('sidebar-collapsed')) {
+                document.body.classList.add('sidebar-hovering');
+            }
+        };
+
+        const disableHoverState = () => {
+            if (document.body.classList.contains('sidebar-collapsed')) {
+                document.body.classList.remove('sidebar-hovering');
+            }
+        };
+
+        if (hoverZone) {
+            hoverZone.addEventListener('mouseenter', enableHoverState);
+            hoverZone.addEventListener('mouseleave', disableHoverState);
+        }
+
+        sidebar.addEventListener('mouseenter', enableHoverState);
+        sidebar.addEventListener('mouseleave', disableHoverState);
     }
 
     showWelcomeView() {
