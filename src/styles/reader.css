@@ -225,6 +225,17 @@ body {
     color: transparent;
 }
 
+/* 确保高亮后的文本不再显示选择样式 */
+.pdf-text-layer span.word-highlighted::selection {
+    background: transparent !important;
+    color: transparent !important;
+}
+
+.pdf-text-layer span.word-highlighted::-moz-selection {
+    background: transparent !important;
+    color: transparent !important;
+}
+
 /* 文本高亮标记 */
 .text-highlight {
     background: rgba(255, 235, 59, 0.6);

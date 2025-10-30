@@ -344,6 +344,11 @@ class ReaderApp {
             // 清空容器
             container.innerHTML = '';
             
+            // 🔧 确保清理所有旧的文本层
+            const oldTextLayers = document.querySelectorAll('.pdf-text-layer');
+            oldTextLayers.forEach(layer => layer.remove());
+            console.log('🧹 清理了', oldTextLayers.length, '个旧的文本层');
+            
             // 创建包装div
             const wrapper = document.createElement('div');
             wrapper.className = 'pdf-wrapper';
@@ -1180,21 +1185,37 @@ class ReaderApp {
         // 存储选中的span供复制功能使用
         this.selectedSpans = selectedSpans;
         
+        const highlightId = this.generateHighlightId();
+
         // 为选中的span添加高亮类和颜色
         selectedSpans.forEach((span, index) => {
             console.log(`高亮span ${index}: "${span.textContent}"`);
-            
-            // 移除旧颜色和预览类
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+
+            // 移除旧颜色及预览
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink',
+                                  'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
             span.classList.remove('selection-preview', 'merged-selection-preview');
+            span.classList.remove('merged-highlighted');
             span.style.backgroundColor = '';
-            
+            span.style.removeProperty('--highlight-color');
+
             // 添加高亮类
             span.classList.add('word-highlighted');
             span.classList.add(`color-${color}`); // 使用指定颜色
-            
+            span.dataset.highlightId = highlightId;
+
+            const word = this.extractWord(span.textContent);
+            if (word) {
+                this.highlightedWords.add(word.toLowerCase());
+            }
+
             console.log(`span ${index} 高亮类已添加:`, span.classList.toString());
         });
+        
+        // 🔧 关键修复：清除文本选择状态，避免::selection样式与高亮冲突
+        if (selection.rangeCount > 0) {
+            selection.removeAllRanges();
+        }
         
         // 检查并合并相邻的高亮，形成连续矩形
         if (selectedSpans.length > 1) {
@@ -1207,6 +1228,19 @@ class ReaderApp {
         // 注意：不清除选择，让用户可以看到高亮效果
         // selection.removeAllRanges();
         // this.currentSelection = null;
+    }
+
+    generateHighlightId() {
+        return `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    collectHighlightGroup(span) {
+        if (!span) return [];
+        const highlightId = span.dataset.highlightId;
+        if (highlightId) {
+            return Array.from(document.querySelectorAll(`.pdf-text-layer span[data-highlight-id="${highlightId}"]`));
+        }
+        return [span];
     }
     
     /**
@@ -1267,11 +1301,21 @@ class ReaderApp {
         console.log('🔍 页面中总span数量:', allSpans.length);
         console.log('🔍 选择范围:', range.toString());
         
+        // 🔍 调试：检查是否有重复的文本层
+        const textLayers = document.querySelectorAll('.pdf-text-layer');
+        console.log('🔍 文本层数量:', textLayers.length);
+        textLayers.forEach((layer, index) => {
+            const layerSpans = layer.querySelectorAll('span');
+            console.log(`文本层 ${index} 包含 ${layerSpans.length} 个span`);
+        });
+        
         allSpans.forEach((span, index) => {
             // 检查这个span是否与选择范围相交
             if (range.intersectsNode(span)) {
                 console.log(`span ${index} 与选择范围相交:`, span);
                 console.log(`span内容: "${span.textContent}" (空格: ${/\s/.test(span.textContent)})`);
+                console.log(`span位置: left=${span.style.left}, top=${span.style.top}`);
+                console.log(`span父容器:`, span.parentElement.className);
                 spans.push(span);
             }
         });
@@ -2363,11 +2407,20 @@ class ReaderApp {
         }
         
         // 绑定高亮按钮
-        const highlightBtn = document.getElementById('highlightBtn');
-        if (highlightBtn) {
-            highlightBtn.addEventListener('click', (e) => {
+        const contextHighlightBtn = document.getElementById('contextHighlightBtn');
+        if (contextHighlightBtn) {
+            contextHighlightBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.handleContextMenuAction('highlight-selection');
+            });
+        }
+
+        // 绑定删除高亮按钮
+        const removeHighlightBtn = document.getElementById('removeHighlightBtn');
+        if (removeHighlightBtn) {
+            removeHighlightBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.handleContextMenuAction('remove-highlight');
             });
         }
         
@@ -2625,19 +2678,24 @@ class ReaderApp {
         const span = this.currentContextTarget;
 
         if (action === 'remove-highlight') {
-            // 取消高亮
-            span.classList.remove('word-highlighted', 'merged-highlighted');
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            span.style.backgroundColor = ''; // 清除自定义背景色
-            
-            // 从集合中移除
-            const word = this.extractWord(span.textContent);
-            if (word) {
-                this.highlightedWords.delete(word.toLowerCase());
+            const spansToRemoveSet = new Set();
+            this.applyToSelectedSpans((targetSpan) => {
+                this.collectHighlightGroup(targetSpan).forEach(spanEl => spansToRemoveSet.add(spanEl));
+            });
+
+            const spansToRemove = Array.from(spansToRemoveSet);
+
+            spansToRemove.forEach(spanEl => this.removeHighlightFromSpan(spanEl));
+
+            if (spansToRemove.length > 0) {
+                this.recalculateMergedHighlights(spansToRemove[0]);
             }
-            
-            // 重新计算合并高亮（移除当前单词后）
-            this.recalculateMergedHighlights(span);
+
+            this.hideContextMenu();
+            this.hideColorPicker();
+            this.hideOpacitySlider();
+            this.currentContextTarget = null;
+            return;
         } else if (action.startsWith('color-')) {
             // 更改高亮颜色
             const color = action.replace('color-', '');
@@ -2832,29 +2890,42 @@ class ReaderApp {
         // 先清除预览高亮
         this.hideSelectionHighlight();
         
+        const highlightId = this.generateHighlightId();
+
         // 为选中的span添加高亮类和颜色
         spans.forEach((span, index) => {
             console.log(`右键高亮span ${index}: "${span.textContent}"`);
-            
+
             // 移除旧颜色和预览类
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink',
+                                  'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
             span.classList.remove('selection-preview', 'merged-selection-preview');
+            span.classList.remove('merged-highlighted');
             span.style.backgroundColor = '';
-            
+            span.style.removeProperty('--highlight-color');
+
             // 添加高亮类
             span.classList.add('word-highlighted');
-            
+
             // 添加颜色
             if (color === 'custom' && customColor) {
                 span.classList.add('color-custom');
                 const rgb = this.hexToRgb(customColor);
+                const opacity = this.currentOpacity || 0.5;
                 if (rgb) {
-                    span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+                    span.style.setProperty('--highlight-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
                 }
             } else {
                 span.classList.add(`color-${color}`);
             }
-            
+
+             span.dataset.highlightId = highlightId;
+
+            const word = this.extractWord(span.textContent);
+            if (word) {
+                this.highlightedWords.add(word.toLowerCase());
+            }
+
             console.log(`span ${index} 右键高亮类已添加:`, span.classList.toString());
         });
         
@@ -2875,6 +2946,54 @@ class ReaderApp {
         // 清空存储的span
         this.selectedSpans = null;
     }
+
+    /**
+     * 获取span当前高亮颜色（用于合并高亮）
+     * @param {HTMLElement} span
+     * @returns {string} rgba颜色值
+     */
+    getSpanHighlightColor(span) {
+        if (!span) return 'rgba(255, 255, 200, 0.6)';
+
+        // 优先从CSS变量获取
+        const varColor = span.style.getPropertyValue('--highlight-color');
+        if (varColor) {
+            return varColor;
+        }
+
+        // 从::before伪元素的计算样式获取
+        const pseudoColor = window.getComputedStyle(span, '::before').backgroundColor;
+        if (pseudoColor && pseudoColor !== 'rgba(0, 0, 0, 0)' && pseudoColor !== 'transparent') {
+            return pseudoColor;
+        }
+
+        // 退化到span本身背景色
+        const inlineColor = span.style.backgroundColor;
+        if (inlineColor) {
+            return inlineColor;
+        }
+
+        return 'rgba(255, 255, 200, 0.6)';
+    }
+
+    /**
+     * 移除span上的高亮相关样式
+     * @param {HTMLElement} span
+     */
+    removeHighlightFromSpan(span) {
+        span.classList.remove('word-highlighted', 'merged-highlighted');
+        span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink',
+                              'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
+        span.classList.remove('selection-preview', 'merged-selection-preview');
+        span.style.backgroundColor = '';
+        span.style.removeProperty('--highlight-color');
+        delete span.dataset.highlightId;
+
+        const word = this.extractWord(span.textContent);
+        if (word) {
+            this.highlightedWords.delete(word.toLowerCase());
+        }
+    }
     
     /**
      * 用指定颜色高亮单个单词
@@ -2883,21 +3002,27 @@ class ReaderApp {
      * @param {string} customColor - 自定义颜色值
      */
     highlightSingleWordWithColor(span, color, customColor = null) {
-        // 移除旧颜色
-        span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-        span.style.backgroundColor = ''; // 清除之前的自定义背景色
-        
+        this.removeHighlightFromSpan(span);
+        span.classList.add('word-highlighted');
+
+        span.dataset.highlightId = this.generateHighlightId();
+
         if (color === 'custom' && customColor) {
-            // 自定义颜色：使用内联样式
             span.classList.add('color-custom');
-            // 将hex颜色转换为rgba格式，透明度0.5
             const rgb = this.hexToRgb(customColor);
+            const opacity = this.currentOpacity || 0.5;
             if (rgb) {
-                span.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+                span.style.setProperty('--highlight-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
             }
-        } else {
-            // 添加新颜色
-            span.classList.add(`color-${color}`);
+            } else {
+                span.classList.add(`color-${color}`);
+            }
+
+            span.dataset.highlightId = highlightId;
+
+            const word = this.extractWord(span.textContent);
+        if (word) {
+            this.highlightedWords.add(word.toLowerCase());
         }
     }
 
@@ -3047,9 +3172,12 @@ class ReaderApp {
     applyOpacityToCurrentTarget() {
         if (!this.currentContextTarget) return;
 
-        // 应用到所有选中的span
+        const spansToUpdate = new Set();
         this.applyToSelectedSpans((span) => {
-            // 从CSS变量或计算样式获取背景色
+            this.collectHighlightGroup(span).forEach(spanEl => spansToUpdate.add(spanEl));
+        });
+
+        spansToUpdate.forEach((span) => {
             let bgColor = span.style.getPropertyValue('--highlight-color') || 
                          window.getComputedStyle(span, '::before').backgroundColor;
             
@@ -3059,11 +3187,13 @@ class ReaderApp {
                 const g = match[2];
                 const b = match[3];
                 
-                // 如果是自定义颜色，使用CSS变量
+                if (!span.dataset.highlightId) {
+                    span.dataset.highlightId = this.generateHighlightId();
+                }
+
                 if (span.classList.contains('color-custom')) {
                     span.style.setProperty('--highlight-color', `rgba(${r}, ${g}, ${b}, ${this.currentOpacity})`);
                 } else {
-                    // 预设颜色也转为自定义颜色并使用CSS变量
                     span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
                                         'color-orange', 'color-purple', 'color-red', 'color-cyan');
                     span.classList.add('color-custom');
@@ -3071,6 +3201,11 @@ class ReaderApp {
                 }
             }
         });
+
+        if (spansToUpdate.size > 0) {
+            const [firstSpan] = spansToUpdate;
+            this.recalculateMergedHighlights(firstSpan);
+        }
     }
 
     /**
@@ -3084,22 +3219,30 @@ class ReaderApp {
         const opacity = this.currentOpacity || 0.5;
         
         // 应用到所有选中的span
+        const spansToApply = [];
         this.applyToSelectedSpans((span) => {
-            // 移除所有预设颜色类
+            spansToApply.push(span);
+        });
+
+        if (spansToApply.length === 0) return;
+
+        const highlightId = spansToApply[0].dataset.highlightId || this.generateHighlightId();
+
+        spansToApply.forEach((span) => {
             span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
                                 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            
-            // 应用自定义颜色和透明度
+
             span.classList.add('word-highlighted', 'color-custom');
-            // 使用CSS变量设置颜色，让::before伪元素读取
             span.style.setProperty('--highlight-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
-            
-            // 记录到集合中
+            span.dataset.highlightId = highlightId;
+
             const word = this.extractWord(span.textContent);
             if (word) {
                 this.highlightedWords.add(word.toLowerCase());
             }
         });
+
+        this.recalculateMergedHighlights(spansToApply[0]);
         
         // 更新当前颜色圆形显示
         if (this.currentColorFill) {
@@ -3114,14 +3257,16 @@ class ReaderApp {
         if (!this.currentContextTarget) return;
 
         const hasUnderline = this.currentContextTarget.classList.contains('word-underlined');
-        
-        // 应用到所有选中的span
+
+        const spansToToggle = new Set();
         this.applyToSelectedSpans((span) => {
+            this.collectHighlightGroup(span).forEach(spanEl => spansToToggle.add(spanEl));
+        });
+
+        spansToToggle.forEach((span) => {
             if (hasUnderline) {
-                // 移除下划线
                 span.classList.remove('word-underlined');
             } else {
-                // 添加下划线
                 span.classList.add('word-underlined');
             }
         });
@@ -3270,29 +3415,26 @@ class ReaderApp {
      * 删除所有标记（高亮和下划线）
      */
     clearAllMarks() {
-        if (!this.currentContextTarget) return;
+        const spansToRemoveSet = new Set();
 
-        // 应用到所有选中的span
         this.applyToSelectedSpans((span) => {
-            // 移除高亮
-            span.classList.remove('word-highlighted');
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
-                                'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            // 清除CSS变量
-            span.style.removeProperty('--highlight-color');
-            
-            // 移除下划线
-            span.classList.remove('word-underlined');
-            
-            // 从集合中移除
-            const word = this.extractWord(span.textContent);
-            if (word) {
-                this.highlightedWords.delete(word.toLowerCase());
-            }
+            this.collectHighlightGroup(span).forEach(spanEl => spansToRemoveSet.add(spanEl));
         });
-        
+
+        const spansToRemove = Array.from(spansToRemoveSet);
+
+        spansToRemove.forEach(spanEl => {
+            this.removeHighlightFromSpan(spanEl);
+            spanEl.classList.remove('word-underlined');
+        });
+
+        if (spansToRemove.length > 0) {
+            this.recalculateMergedHighlights(spansToRemove[0]);
+        }
+
         this.hideContextMenu();
         this.hideColorPicker();
+        this.currentContextTarget = null;
     }
 
     /**
@@ -3455,6 +3597,13 @@ class ReaderApp {
         const highlightedSpans = Array.from(parent.querySelectorAll('span.word-highlighted'));
         if (highlightedSpans.length < 2) return;
 
+        // 清除现有的合并高亮，避免残留
+        const existingMerged = parent.querySelectorAll('.merged-highlight');
+        existingMerged.forEach(el => el.remove());
+
+        const previouslyMerged = parent.querySelectorAll('span.merged-highlighted');
+        previouslyMerged.forEach(el => el.classList.remove('merged-highlighted'));
+
         // 按位置排序
         highlightedSpans.sort((a, b) => {
             const rectA = a.getBoundingClientRect();
@@ -3525,22 +3674,30 @@ class ReaderApp {
         const minTop = Math.min(...rects.map(r => r.top));
         const maxBottom = Math.max(...rects.map(r => r.bottom));
 
+        const parent = spans[0].parentElement;
+        if (!parent) return;
+
+        const parentRect = parent.getBoundingClientRect();
+        const left = minLeft - parentRect.left;
+        const top = minTop - parentRect.top;
+        const width = Math.max(1, maxRight - minLeft);
+        const height = Math.max(1, maxBottom - minTop);
+        const background = this.getSpanHighlightColor(spans[0]);
+
         // 创建合并高亮的容器
         const mergedHighlight = document.createElement('div');
         mergedHighlight.className = 'merged-highlight';
         mergedHighlight.style.cssText = `
             position: absolute;
-            left: ${minLeft}px;
-            top: ${minTop}px;
-            width: ${maxRight - minLeft}px;
-            height: ${maxBottom - minTop}px;
-            background: var(--highlight-color, rgba(255, 255, 200, 0.6));
-            z-index: -1;
+            left: ${left}px;
+            top: ${top}px;
+            width: ${width}px;
+            height: ${height}px;
+            background: ${background};
+            z-index: 1;
             pointer-events: none;
         `;
 
-        // 插入到第一个span的父容器中
-        const parent = spans[0].parentElement;
         parent.appendChild(mergedHighlight);
 
         // 为每个span添加合并标记
