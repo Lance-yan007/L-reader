@@ -267,22 +267,36 @@ class MainApp {
             
             // 获取预览区域的尺寸
             const previewContainer = cardElement.querySelector('.file-preview');
-            const containerWidth = previewContainer.offsetWidth || 180;
-            const containerHeight = previewContainer.offsetHeight || 200;
+            const previewStyles = window.getComputedStyle(previewContainer);
+            const paddingLeft = parseFloat(previewStyles.paddingLeft) || 0;
+            const paddingRight = parseFloat(previewStyles.paddingRight) || 0;
+            const paddingTop = parseFloat(previewStyles.paddingTop) || 0;
+            const paddingBottom = parseFloat(previewStyles.paddingBottom) || 0;
+            const rawWidth = previewContainer.clientWidth - paddingLeft - paddingRight;
+            const rawHeight = previewContainer.clientHeight - paddingTop - paddingBottom;
+            const containerWidth = rawWidth > 0 ? rawWidth : 180;
+            const containerHeight = rawHeight > 0 ? rawHeight : 200;
             
             // 计算高分辨率缩放比例 - 提高清晰度
             const viewport = page.getViewport({ scale: 1.0 });
-            const baseScale = containerWidth / viewport.width;
-            const highDpiScale = baseScale * window.devicePixelRatio || 2; // 高DPI支持
+            const previewHeightPortion = 0.35;
+            const previewWidthPortion = 0.6;
+
+            const deviceRatio = window.devicePixelRatio || 1;
+            const baseScale = containerWidth / (viewport.width * previewWidthPortion);
+            const oversample = 2; // 超采样提升清晰度
+            const highDpiScale = Math.max(baseScale * deviceRatio * oversample, baseScale * deviceRatio);
             const scaledViewport = page.getViewport({ scale: highDpiScale });
             
-            // 设置canvas尺寸 - 高分辨率
-            canvas.width = scaledViewport.width;
-            canvas.height = scaledViewport.height * 0.6; // 显示上60%内容，填满卡片上半部分
+            // 设置canvas尺寸 - 高分辨率，只截取左上区域
+            canvas.width = scaledViewport.width * previewWidthPortion;
+            canvas.height = scaledViewport.height * previewHeightPortion;
             
-            // 设置canvas显示尺寸
-            canvas.style.width = containerWidth + 'px';
-            canvas.style.height = containerHeight + 'px';
+            // 设置canvas显示尺寸，保持宽高比
+            const displayWidth = containerWidth;
+            const displayHeight = displayWidth * (canvas.height / canvas.width);
+            canvas.style.width = displayWidth + 'px';
+            canvas.style.height = displayHeight + 'px';
             
             // 创建临时canvas渲染完整页面
             const tempCanvas = document.createElement('canvas');
@@ -296,10 +310,10 @@ class MainApp {
                 viewport: scaledViewport
             }).promise;
             
-            // 将临时canvas的上60%部分绘制到显示canvas
+            // 将临时canvas的左上部分绘制到显示canvas
             context.drawImage(
                 tempCanvas,
-                0, 0, scaledViewport.width, scaledViewport.height * 0.6,  // 源区域（上60%）
+                0, 0, scaledViewport.width * previewWidthPortion, scaledViewport.height * previewHeightPortion,  // 源区域（左上区域）
                 0, 0, canvas.width, canvas.height  // 目标区域
             );
             
@@ -309,7 +323,7 @@ class MainApp {
                 placeholder.style.display = 'none';
             }
             
-            console.log('PDF预览生成成功（高分辨率上60%部分）:', filePath);
+            console.log('PDF预览生成成功（截取左上区域）:', filePath);
         } catch (error) {
             console.error('生成PDF预览失败:', error);
         }
