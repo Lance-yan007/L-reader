@@ -54,6 +54,20 @@ function createMainWindow() {
     mainWindow.show();
   });
 
+  const emitWindowState = () => {
+    if (!mainWindow) return;
+    const isMaximized = mainWindow.isMaximized() || mainWindow.isFullScreen();
+    mainWindow.webContents.send('window-state-changed', { maximized: isMaximized });
+  };
+
+  mainWindow.on('maximize', emitWindowState);
+  mainWindow.on('unmaximize', emitWindowState);
+  mainWindow.on('enter-full-screen', emitWindowState);
+  mainWindow.on('leave-full-screen', emitWindowState);
+  mainWindow.on('resize', emitWindowState);
+
+  mainWindow.webContents.on('did-finish-load', emitWindowState);
+
   // 窗口关闭时
   mainWindow.on('closed', () => {
     mainWindow = null;

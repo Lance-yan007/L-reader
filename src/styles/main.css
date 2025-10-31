@@ -68,6 +68,19 @@ body {
     justify-content: flex-end;
 }
 
+body.window-maximized .window-chrome {
+    grid-template-columns: 120px 1fr 180px;
+    padding: 6px 18px 4px;
+}
+
+body.window-maximized .window-chrome-left {
+    padding-left: 0;
+}
+
+body.window-maximized .window-toggle {
+    margin-top: 0;
+}
+
 .window-toggle {
     display: inline-flex;
     align-items: center;

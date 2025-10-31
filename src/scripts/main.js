@@ -4,6 +4,7 @@ class MainApp {
     constructor() {
         this.recentFiles = [];
         this.pdfLib = null;
+        this.handleWindowResize = this.handleWindowResize.bind(this);
         this.init();
     }
 
@@ -11,6 +12,7 @@ class MainApp {
         await this.loadPDFJS();
         this.bindEvents();
         this.loadRecentFiles();
+        this.setupWindowStateListener();
     }
 
     async loadPDFJS() {
@@ -113,6 +115,32 @@ class MainApp {
         sidebar.addEventListener('mouseleave', disableHoverState);
 
         updateSidebarState();
+    }
+
+    setupWindowStateListener() {
+        window.addEventListener('resize', this.handleWindowResize);
+        this.handleWindowResize();
+
+        ipcRenderer.on('window-state-changed', (_event, state) => {
+            if (state && typeof state.maximized === 'boolean') {
+                this.applyWindowMaximizedState(state.maximized);
+            }
+        });
+    }
+
+    handleWindowResize() {
+        const tolerance = 12;
+        const isWidthMax = window.outerWidth >= (window.screen.availWidth - tolerance);
+        const isHeightMax = window.outerHeight >= (window.screen.availHeight - tolerance);
+        const isMaximized = isWidthMax && isHeightMax;
+        this.applyWindowMaximizedState(isMaximized);
+    }
+
+    applyWindowMaximizedState(isMaximized) {
+        document.body.classList.toggle('window-maximized', isMaximized);
+        if (!isMaximized) {
+            document.body.classList.remove('sidebar-hovering');
+        }
     }
 
     showWelcomeView() {
