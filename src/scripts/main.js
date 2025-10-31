@@ -65,10 +65,28 @@ class MainApp {
         }
 
         const collapseBtn = document.getElementById('collapseSidebarBtn');
+        const updateSidebarState = () => {
+            const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+            if (collapseBtn) {
+                collapseBtn.classList.toggle('is-collapsed', isCollapsed);
+                collapseBtn.setAttribute('aria-pressed', String(isCollapsed));
+            }
+            if (!isCollapsed) {
+                document.body.classList.remove('sidebar-hovering');
+            }
+        };
+
         if (collapseBtn) {
             collapseBtn.addEventListener('click', () => {
-                document.body.classList.toggle('sidebar-collapsed');
-                document.body.classList.remove('sidebar-hovering');
+                const willCollapse = !document.body.classList.contains('sidebar-collapsed');
+                if (willCollapse) {
+                    document.body.classList.add('sidebar-collapsed');
+                    document.body.classList.remove('sidebar-hovering');
+                } else {
+                    document.body.classList.remove('sidebar-collapsed');
+                    document.body.classList.remove('sidebar-hovering');
+                }
+                updateSidebarState();
             });
         }
 
@@ -93,6 +111,8 @@ class MainApp {
 
         sidebar.addEventListener('mouseenter', enableHoverState);
         sidebar.addEventListener('mouseleave', disableHoverState);
+
+        updateSidebarState();
     }
 
     showWelcomeView() {

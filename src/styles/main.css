@@ -41,38 +41,62 @@ body {
     background: var(--app-background);
 }
 
+
 .window-chrome {
-    display: flex;
+    display: grid;
+    grid-template-columns: 258px 1fr 180px;
     align-items: center;
-    gap: 16px;
-    padding: 16px 22px;
+    padding: 10px 18px 6px;
     background: linear-gradient(180deg, #f7f7fb 0%, #f1f2f6 100%);
     border-bottom: 1px solid var(--sidebar-border);
 }
 
-.window-buttons {
+.window-chrome-left,
+.window-chrome-right {
     display: flex;
+    align-items: center;
     gap: 8px;
 }
 
-.window-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    display: inline-block;
-    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.1);
+.window-chrome-left {
+    justify-content: flex-start;
+    padding-left: 52px;
 }
 
-.window-dot-red {
-    background: #ff5f57;
+.window-chrome-right {
+    min-width: 120px;
+    justify-content: flex-end;
 }
 
-.window-dot-yellow {
-    background: #febb2e;
+.window-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: transparent;
+    border: none;
+    color: var(--secondary-text);
+    cursor: pointer;
+    margin-top: -4px;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-.window-dot-green {
-    background: #28c840;
+.window-toggle svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.window-toggle:hover {
+    background: transparent;
+    color: var(--primary-text);
+}
+
+.window-toggle.is-collapsed {
+    background: transparent;
+    color: var(--action-primary);
 }
 
 .window-title {
@@ -110,9 +134,11 @@ body {
 
 .app-layout {
     position: relative;
-    display: flex;
+    display: grid;
+    grid-template-columns: 260px 1fr;
     flex: 1;
     overflow: hidden;
+    transition: grid-template-columns 0.3s ease;
 }
 
 .sidebar {
@@ -236,7 +262,15 @@ body.sidebar-collapsed .sidebar-hover-zone {
 }
 
 body.sidebar-collapsed .sidebar {
-    transform: translateX(calc(-100% + 30px));
+    transform: translateX(-100%);
+}
+
+body.sidebar-collapsed .sidebar::after {
+    display: none;
+}
+
+body.sidebar-collapsed .app-layout {
+    grid-template-columns: 0 1fr;
 }
 
 body.sidebar-collapsed.sidebar-hovering .sidebar {

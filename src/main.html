@@ -10,17 +10,15 @@
 <body>
     <div class="app-shell">
         <div class="window-chrome">
-            <div class="window-buttons">
-                <span class="window-dot window-dot-red"></span>
-                <span class="window-dot window-dot-yellow"></span>
-                <span class="window-dot window-dot-green"></span>
+            <div class="window-chrome-left">
+                <button class="window-toggle" id="collapseSidebarBtn" type="button" aria-label="切换左侧导航">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 4h10v16H4V4zm12 0h4v16h-4V4z" />
+                    </svg>
+                </button>
             </div>
             <div class="window-title">NPDF Reader</div>
-            <button class="window-control" id="collapseSidebarBtn" aria-label="切换侧边栏">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 4h14v16H5V4zm2 2v12h6V6H7zm8 0v12h2V6h-2z" />
-                </svg>
-            </button>
+            <div class="window-chrome-right"></div>
         </div>
 
         <div class="app-layout">
