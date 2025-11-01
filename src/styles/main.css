@@ -55,7 +55,7 @@ body {
 .window-chrome-right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0;
 }
 
 .window-chrome-left {
@@ -100,6 +100,28 @@ body.window-maximized .window-toggle {
     width: 16px;
     height: 16px;
     fill: currentColor;
+}
+
+
+.window-home-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    margin-top: -4px;
+    margin-left: 2px;
+    border-radius: 7px;
+    color: var(--secondary-text);
+}
+
+.window-home-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+body.sidebar-collapsed .window-home-icon {
+    color: var(--action-primary);
 }
 
 .window-toggle:hover {
