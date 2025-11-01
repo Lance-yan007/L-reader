@@ -44,9 +44,9 @@ body {
 
 .window-chrome {
     display: grid;
-    grid-template-columns: 180px 1fr 160px;
+    grid-template-columns: 120px 1fr 160px;
     align-items: center;
-    padding: 8px 18px;
+    padding: 10px 18px 6px;
     gap: 12px;
     background: linear-gradient(180deg, #f7f7fb 0%, #f1f2f6 100%);
     border-bottom: 1px solid var(--sidebar-border);
@@ -63,7 +63,7 @@ body {
 
 .window-chrome-left {
     justify-content: flex-start;
-    padding-left: 24px;
+    padding-left: 18px;
 }
 
 .window-chrome-right {
@@ -72,12 +72,12 @@ body {
 }
 
 body.window-maximized .window-chrome {
-    grid-template-columns: 140px 1fr 160px;
-    padding: 6px 18px;
+    grid-template-columns: 90px 1fr 160px;
+    padding: 6px 18px 4px;
 }
 
 body.window-maximized .window-chrome-left {
-    padding-left: 8px;
+    padding-left: 6px;
 }
 
 body.window-maximized .sidebar-toggle {
@@ -180,6 +180,25 @@ body.window-maximized .sidebar-toggle {
     color: var(--primary-text);
     border-color: rgba(118, 118, 128, 0.18);
     box-shadow: 0 8px 18px rgba(28, 28, 30, 0.12);
+}
+
+.tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+}
+
+.tab-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.tab-icon-only {
+    gap: 0;
+    padding: 6px 12px;
 }
 
 .tab-label {

@@ -63,6 +63,8 @@ class MainApp {
             id: this.homeTabId,
             type: 'home',
             title: '主页',
+            icon: 'home',
+            displayLabel: false,
             closable: false,
             panelElement: this.homeView
         };
@@ -88,14 +90,34 @@ class MainApp {
         button.setAttribute('id', tab.id);
         button.dataset.tabId = tab.id;
 
+        const titleText = tab.title || '未命名';
+        button.setAttribute('title', titleText);
+
         if (tab.panelElement && tab.panelElement.id) {
             button.setAttribute('aria-controls', tab.panelElement.id);
         }
 
-        const label = document.createElement('span');
-        label.className = 'tab-label';
-        label.textContent = tab.title || '未命名';
-        button.appendChild(label);
+        if (tab.icon) {
+            const iconMarkup = this.getTabIconMarkup(tab.icon);
+            if (iconMarkup) {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'tab-icon';
+                iconSpan.innerHTML = iconMarkup;
+                button.appendChild(iconSpan);
+            }
+        }
+
+        const shouldShowLabel = tab.displayLabel !== false;
+
+        if (shouldShowLabel) {
+            const label = document.createElement('span');
+            label.className = 'tab-label';
+            label.textContent = titleText;
+            button.appendChild(label);
+        } else {
+            button.classList.add('tab-icon-only');
+            button.setAttribute('aria-label', titleText);
+        }
 
         if (tab.closable) {
             const closeBtn = document.createElement('button');
@@ -115,6 +137,15 @@ class MainApp {
         });
 
         return button;
+    }
+
+    getTabIconMarkup(name) {
+        switch (name) {
+            case 'home':
+                return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.5h-5V21H5a1 1 0 0 1-1-1v-9.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+            default:
+                return '';
+        }
     }
 
     renderTabStrip() {
