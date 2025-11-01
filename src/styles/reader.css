@@ -517,65 +517,53 @@ body.embedded-reader .toolbar {
 .pdf-text-layer span.word-highlighted::before {
     content: '';
     position: absolute;
-    top: -0.4px; /* 向上移动0.4px */
+    top: -0.2px;
     left: 0;
     right: 0;
-    bottom: 0;
-    background: var(--highlight-color, rgba(255, 255, 200, 0.6)); /* 标准黄色高亮 */
-    border-radius: 0; /* 移除圆角，使用标准矩形 */
+    bottom: -0.2px;
+    background: var(--highlight-color, rgba(255, 235, 130, 0.5));
+    border-radius: 2px;
     z-index: 1; /* 放在Canvas层上方，文字层下方 */
     pointer-events: none; /* 确保不阻挡鼠标事件 */
-    /* 确保高亮覆盖整个行高 */
-    min-height: 1.2em; /* 至少覆盖行高 */
-    margin-top: -0.1em; /* 轻微向上偏移以覆盖行高 */
-    margin-bottom: -0.1em; /* 轻微向下偏移以覆盖行高 */
+    mix-blend-mode: multiply;
 }
 
 /* 不同颜色的高亮选项 - 标准矩形样式 */
 .pdf-text-layer span.word-highlighted.color-yellow::before {
-    background: rgba(255, 255, 200, 0.6); /* 标准黄色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(255, 235, 130, 0.5);
 }
 
 .pdf-text-layer span.word-highlighted.color-green::before {
-    background: rgba(180, 255, 180, 0.6); /* 标准绿色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(182, 255, 196, 0.45);
 }
 
 .pdf-text-layer span.word-highlighted.color-blue::before {
-    background: rgba(180, 220, 255, 0.6); /* 标准蓝色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(173, 214, 255, 0.45);
 }
 
 .pdf-text-layer span.word-highlighted.color-pink::before {
-    background: rgba(255, 180, 220, 0.6); /* 标准粉色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(255, 185, 226, 0.45);
 }
 
 .pdf-text-layer span.word-highlighted.color-orange::before {
-    background: rgba(255, 220, 180, 0.6); /* 标准橙色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(255, 222, 184, 0.48);
 }
 
 .pdf-text-layer span.word-highlighted.color-purple::before {
-    background: rgba(220, 180, 255, 0.6); /* 标准紫色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(224, 191, 255, 0.48);
 }
 
 .pdf-text-layer span.word-highlighted.color-red::before {
-    background: rgba(255, 180, 180, 0.6); /* 标准红色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(255, 190, 190, 0.48);
 }
 
 .pdf-text-layer span.word-highlighted.color-cyan::before {
-    background: rgba(180, 240, 255, 0.6); /* 标准青色高亮 */
-    border-radius: 0; /* 确保矩形 */
+    background: rgba(188, 240, 255, 0.45);
 }
 
 .pdf-text-layer span.word-highlighted.color-custom::before {
     /* 自定义颜色将通过CSS变量设置 */
     background: var(--highlight-color);
-    border-radius: 0; /* 确保矩形 */
 }
 
 /* 合并高亮样式 - 当单词被合并时隐藏单个高亮 */
@@ -588,7 +576,8 @@ body.embedded-reader .toolbar {
     position: absolute;
     z-index: 1; /* 放在Canvas层上方，文字层下方 */
     pointer-events: none;
-    border-radius: 0; /* 确保矩形 */
+    border-radius: 2px;
+    mix-blend-mode: multiply;
 }
 
 /* 选择预览高亮样式 */
@@ -603,14 +592,24 @@ body.embedded-reader .toolbar {
 .pdf-text-layer span.selection-preview::before {
     content: '';
     position: absolute;
-    top: -0.4px;
+    top: -0.2px;
     left: 0;
     right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 0, 0.3); /* 半透明黄色预览 */
+    bottom: -0.2px;
+    background: rgba(255, 235, 130, 0.4);
     z-index: 1;
     pointer-events: none;
-    border-radius: 0;
+    border-radius: 2px;
+    mix-blend-mode: multiply;
+}
+
+.selection-overlay {
+    position: absolute;
+    background: rgba(74, 144, 226, 0.35);
+    border-radius: 2px;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    z-index: 2;
 }
 
 /* 合并的选择预览高亮样式 */
@@ -618,7 +617,9 @@ body.embedded-reader .toolbar {
     position: absolute;
     z-index: 1;
     pointer-events: none;
-    border-radius: 0;
+    border-radius: 2px;
+    background: rgba(255, 235, 130, 0.4);
+    mix-blend-mode: multiply;
 }
 
 /* 当选择预览被合并时隐藏单个预览 */
