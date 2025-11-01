@@ -16,7 +16,6 @@ class ReaderApp {
         this.translations = [];
         this.isSidebarCollapsed = false;
         this.isEmbedded = false;
-        this.selectionOverlays = [];
         
         // 点词翻译相关状态
         this.wordTranslateMode = false; // 是否开启点词翻译模式
@@ -998,40 +997,18 @@ class ReaderApp {
         if (!this.currentSelection || this.currentSelection.rangeCount === 0) return;
         
         const range = this.currentSelection.getRangeAt(0);
-        const textLayer = this.getClosestTextLayer(range.commonAncestorContainer);
-        if (!textLayer) {
-            return;
+        const spans = this.getSpansInRange(range);
+        if (spans.length === 0) return;
+        
+        // 为选中的span添加预览高亮类
+        spans.forEach(span => {
+            span.classList.add('selection-preview');
+        });
+        
+        // 合并相邻的预览高亮
+        if (spans.length > 1) {
+            this.mergeAdjacentSelectionHighlights(spans[0]);
         }
-
-        this.hideSelectionHighlight();
-
-        const overlays = [];
-
-        const createOverlayForRect = (rect) => {
-            if (!rect || rect.width === 0 || rect.height === 0) {
-                return;
-            }
-
-            const overlay = document.createElement('div');
-            overlay.className = 'selection-overlay';
-            const normalized = this.normalizeRectForTextLayer(rect, textLayer);
-            overlay.style.left = `${normalized.left}px`;
-            overlay.style.top = `${normalized.top}px`;
-            overlay.style.width = `${normalized.width}px`;
-            overlay.style.height = `${normalized.height}px`;
-            textLayer.appendChild(overlay);
-            overlays.push(overlay);
-        };
-
-        for (let i = 0; i < this.currentSelection.rangeCount; i++) {
-            const currentRange = this.currentSelection.getRangeAt(i);
-            const rects = currentRange.getClientRects();
-            for (const rect of rects) {
-                createOverlayForRect(rect);
-            }
-        }
-
-        this.selectionOverlays = overlays;
     }
     
     /**
@@ -1049,37 +1026,6 @@ class ReaderApp {
         mergedHighlights.forEach(highlight => {
             highlight.remove();
         });
-
-        if (Array.isArray(this.selectionOverlays) && this.selectionOverlays.length > 0) {
-            this.selectionOverlays.forEach(overlay => overlay.remove());
-            this.selectionOverlays = [];
-        }
-    }
-
-    normalizeRectForTextLayer(rect, textLayer) {
-        const containerRect = textLayer.getBoundingClientRect();
-        const imageLayer = textLayer.previousElementSibling;
-
-        let scaleX = 1;
-        let scaleY = 1;
-
-        if (imageLayer && imageLayer.naturalWidth && imageLayer.naturalHeight) {
-            const renderedWidth = imageLayer.getBoundingClientRect().width;
-            const renderedHeight = imageLayer.getBoundingClientRect().height;
-
-            scaleX = renderedWidth / imageLayer.naturalWidth;
-            scaleY = renderedHeight / imageLayer.naturalHeight;
-        }
-
-        const textLayerWidth = textLayer.getBoundingClientRect().width;
-        const textLayerHeight = textLayer.getBoundingClientRect().height;
-
-        const left = (rect.left - containerRect.left) / scaleX;
-        const top = (rect.top - containerRect.top) / scaleY;
-        const width = rect.width / scaleX;
-        const height = rect.height / scaleY;
-
-        return { left, top, width, height };
     }
 
     async showTranslationModal() {
