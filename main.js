@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // 保持对窗口对象的全局引用
 let mainWindow;
-let readerWindow;
+const pendingOpenFiles = [];
 
 // 应用配置
 const APP_CONFIG = {
@@ -40,7 +40,8 @@ function createMainWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      enableRemoteModule: true
+      enableRemoteModule: true,
+      webviewTag: true
     },
     titleBarStyle: 'hiddenInset',
     show: false
@@ -52,6 +53,7 @@ function createMainWindow() {
   // 窗口准备好后显示
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    flushPendingOpenFiles();
   });
 
   const emitWindowState = () => {
@@ -60,13 +62,27 @@ function createMainWindow() {
     mainWindow.webContents.send('window-state-changed', { maximized: isMaximized });
   };
 
+  const flushPendingOpenFiles = () => {
+    if (!mainWindow || mainWindow.webContents.isDestroyed() || pendingOpenFiles.length === 0) {
+      return;
+    }
+
+    const files = pendingOpenFiles.splice(0);
+    files.forEach(filePath => {
+      mainWindow.webContents.send('open-document-tab', filePath);
+    });
+  };
+
   mainWindow.on('maximize', emitWindowState);
   mainWindow.on('unmaximize', emitWindowState);
   mainWindow.on('enter-full-screen', emitWindowState);
   mainWindow.on('leave-full-screen', emitWindowState);
   mainWindow.on('resize', emitWindowState);
 
-  mainWindow.webContents.on('did-finish-load', emitWindowState);
+  mainWindow.webContents.on('did-finish-load', () => {
+    emitWindowState();
+    flushPendingOpenFiles();
+  });
 
   // 窗口关闭时
   mainWindow.on('closed', () => {
@@ -76,50 +92,6 @@ function createMainWindow() {
   // 开发模式下打开开发者工具（已禁用）
   // if (process.argv.includes('--dev')) {
   //   mainWindow.webContents.openDevTools();
-  // }
-}
-
-// 创建阅读器窗口
-function createReaderWindow(filePath) {
-  if (readerWindow) {
-    readerWindow.focus();
-    return;
-  }
-
-  readerWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1000,
-    minHeight: 700,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true
-    },
-    titleBarStyle: 'hiddenInset',
-    show: false
-  });
-
-  // 加载阅读器界面
-  readerWindow.loadFile('src/reader.html');
-
-  // 传递文件路径到渲染进程
-  readerWindow.webContents.once('did-finish-load', () => {
-    console.log('发送文件路径到阅读器窗口:', filePath);
-    readerWindow.webContents.send('file-opened', filePath);
-  });
-
-  readerWindow.once('ready-to-show', () => {
-    readerWindow.show();
-  });
-
-  readerWindow.on('closed', () => {
-    readerWindow = null;
-  });
-
-  // 开发模式下打开开发者工具（已禁用）
-  // if (process.argv.includes('--dev')) {
-  //   readerWindow.webContents.openDevTools();
   // }
 }
 
@@ -266,18 +238,22 @@ function openFile(filePath) {
     return;
   }
 
-  // 获取文件信息
-  const stats = fs.statSync(filePath);
-  const fileInfo = {
-    path: filePath,
-    name: path.basename(filePath),
-    size: stats.size,
-    modified: stats.mtime,
-    type: path.extname(filePath).toLowerCase()
-  };
+  const resolvedPath = path.resolve(filePath);
 
-  // 创建阅读器窗口
-  createReaderWindow(filePath);
+  if (!mainWindow || mainWindow.webContents.isDestroyed() || mainWindow.webContents.isLoading()) {
+    if (!pendingOpenFiles.includes(resolvedPath)) {
+      pendingOpenFiles.push(resolvedPath);
+    }
+    return;
+  }
+
+  mainWindow.webContents.send('open-document-tab', resolvedPath);
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.focus();
 }
 
 // IPC 事件处理

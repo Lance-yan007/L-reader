@@ -1,14 +1,25 @@
 const { ipcRenderer } = require('electron');
+const path = require('path');
 
 class MainApp {
     constructor() {
         this.recentFiles = [];
         this.pdfLib = null;
+        this.homeTabId = 'tab-home';
+        this.tabs = [];
+        this.activeTabId = null;
+        this.tabLookupByPath = new Map();
+        this.tabStrip = null;
+        this.tabAddButton = null;
+        this.homeView = null;
+        this.documentPanels = null;
         this.handleWindowResize = this.handleWindowResize.bind(this);
         this.init();
     }
 
     async init() {
+        this.cacheDom();
+        this.setupTabSystem();
         await this.loadPDFJS();
         this.bindEvents();
         this.loadRecentFiles();
@@ -27,6 +38,270 @@ class MainApp {
             console.log('PDF.js加载成功');
         } catch (error) {
             console.error('加载PDF.js失败:', error);
+        }
+    }
+
+    cacheDom() {
+        this.tabStrip = document.getElementById('tabStrip');
+        this.tabAddButton = document.getElementById('tabAddButton');
+        this.homeView = document.getElementById('homeView');
+        this.documentPanels = document.getElementById('documentPanels');
+    }
+
+    setupTabSystem() {
+        if (!this.tabStrip || !this.homeView) {
+            return;
+        }
+
+        this.homeView.dataset.tabId = this.homeTabId;
+        if (!this.homeView.getAttribute('role')) {
+            this.homeView.setAttribute('role', 'tabpanel');
+        }
+        this.homeView.setAttribute('aria-labelledby', this.homeTabId);
+
+        const homeTab = {
+            id: this.homeTabId,
+            type: 'home',
+            title: '主页',
+            closable: false,
+            panelElement: this.homeView
+        };
+
+        this.tabs = [homeTab];
+        this.activeTabId = this.homeTabId;
+
+        this.renderTabStrip();
+        this.updateTabStates();
+
+        if (this.tabAddButton) {
+            this.tabAddButton.addEventListener('click', () => {
+                this.openFile();
+            });
+        }
+    }
+
+    createTabButton(tab) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tab-item';
+        button.setAttribute('role', 'tab');
+        button.setAttribute('id', tab.id);
+        button.dataset.tabId = tab.id;
+
+        if (tab.panelElement && tab.panelElement.id) {
+            button.setAttribute('aria-controls', tab.panelElement.id);
+        }
+
+        const label = document.createElement('span');
+        label.className = 'tab-label';
+        label.textContent = tab.title || '未命名';
+        button.appendChild(label);
+
+        if (tab.closable) {
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'tab-close';
+            closeBtn.setAttribute('aria-label', '关闭标签');
+            closeBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L12 13.41l-4.89 4.89-1.41-1.41L10.59 12 5.7 7.11 7.11 5.7 12 10.59l4.89-4.89z" /></svg>';
+            closeBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.closeTab(tab.id);
+            });
+            button.appendChild(closeBtn);
+        }
+
+        button.addEventListener('click', () => {
+            this.setActiveTab(tab.id);
+        });
+
+        return button;
+    }
+
+    renderTabStrip() {
+        if (!this.tabStrip) {
+            return;
+        }
+
+        this.tabStrip.innerHTML = '';
+        this.tabs.forEach(tab => {
+            tab.buttonElement = this.createTabButton(tab);
+            this.tabStrip.appendChild(tab.buttonElement);
+        });
+    }
+
+    updateTabStates() {
+        this.tabs.forEach(tab => {
+            const isActive = tab.id === this.activeTabId;
+            if (tab.buttonElement) {
+                tab.buttonElement.classList.toggle('is-active', isActive);
+                tab.buttonElement.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                tab.buttonElement.setAttribute('tabindex', isActive ? '0' : '-1');
+            }
+            if (tab.panelElement) {
+                tab.panelElement.classList.toggle('is-active', isActive);
+            }
+        });
+
+        if (this.tabStrip) {
+            this.tabStrip.setAttribute('aria-activedescendant', this.activeTabId || '');
+        }
+    }
+
+    ensureActiveTabVisible() {
+        if (!this.tabStrip) {
+            return;
+        }
+
+        const activeTab = this.tabs.find(tab => tab.id === this.activeTabId);
+        if (!activeTab || !activeTab.buttonElement) {
+            return;
+        }
+
+        const tabRect = activeTab.buttonElement.getBoundingClientRect();
+        const stripRect = this.tabStrip.getBoundingClientRect();
+
+        if (tabRect.left < stripRect.left) {
+            this.tabStrip.scrollBy({ left: tabRect.left - stripRect.left - 12, behavior: 'smooth' });
+        } else if (tabRect.right > stripRect.right) {
+            this.tabStrip.scrollBy({ left: tabRect.right - stripRect.right + 12, behavior: 'smooth' });
+        }
+    }
+
+    setActiveTab(tabId) {
+        const targetTab = this.tabs.find(tab => tab.id === tabId);
+        if (!targetTab) {
+            return;
+        }
+
+        this.activeTabId = tabId;
+        this.updateTabStates();
+        this.ensureActiveTabVisible();
+
+        if (targetTab.type === 'document' && targetTab.webview) {
+            try {
+                targetTab.webview.focus();
+            } catch (error) {
+                console.warn('无法聚焦文档标签:', error);
+            }
+        }
+    }
+
+    openDocumentTab(filePath) {
+        if (!filePath || !this.documentPanels) {
+            return;
+        }
+
+        const normalizedPath = path.resolve(filePath);
+        const existingTabId = this.tabLookupByPath.get(normalizedPath);
+        if (existingTabId) {
+            this.setActiveTab(existingTabId);
+            return;
+        }
+
+        const tabId = `tab-doc-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
+        const panel = document.createElement('div');
+        panel.className = 'tab-panel document-panel';
+        panel.id = `${tabId}-panel`;
+        panel.dataset.tabId = tabId;
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', tabId);
+
+        const webview = document.createElement('webview');
+        webview.className = 'document-frame';
+        webview.setAttribute('src', 'reader.html');
+        webview.setAttribute('nodeintegration', '');
+        webview.setAttribute('webpreferences', 'contextIsolation=false');
+
+        panel.appendChild(webview);
+        this.documentPanels.appendChild(panel);
+
+        const newTab = {
+            id: tabId,
+            type: 'document',
+            title: this.getFileName(filePath),
+            filePath: normalizedPath,
+            closable: true,
+            panelElement: panel,
+            webview
+        };
+
+        this.tabs.push(newTab);
+        this.tabLookupByPath.set(normalizedPath, tabId);
+
+        this.attachWebviewEvents(newTab, normalizedPath);
+        this.renderTabStrip();
+        this.setActiveTab(tabId);
+    }
+
+    attachWebviewEvents(tab, filePath) {
+        if (!tab.webview) {
+            return;
+        }
+
+        const sendFileToReader = () => {
+            try {
+                tab.webview.send('set-embed-mode', { embedded: true });
+                tab.webview.send('file-opened', filePath);
+            } catch (error) {
+                console.error('向阅读器标签发送文件失败:', error);
+            }
+        };
+
+        tab.webview.addEventListener('did-finish-load', sendFileToReader);
+
+        tab.webview.addEventListener('ipc-message', (event) => {
+            if (!event || !event.channel) {
+                return;
+            }
+
+            if (event.channel === 'close-tab-request') {
+                this.closeTab(tab.id);
+            } else if (event.channel === 'update-tab-title' && event.args && event.args[0]) {
+                const newTitle = event.args[0].title;
+                if (newTitle && tab.title !== newTitle) {
+                    tab.title = newTitle;
+                    this.renderTabStrip();
+                    this.updateTabStates();
+                }
+            }
+        });
+    }
+
+    closeTab(tabId) {
+        const tabIndex = this.tabs.findIndex(tab => tab.id === tabId);
+        if (tabIndex === -1) {
+            return;
+        }
+
+        const tab = this.tabs[tabIndex];
+        if (!tab.closable) {
+            return;
+        }
+
+        if (tab.panelElement && tab.panelElement.parentNode) {
+            tab.panelElement.parentNode.removeChild(tab.panelElement);
+        }
+
+        if (tab.filePath) {
+            this.tabLookupByPath.delete(tab.filePath);
+        }
+
+        const isActive = this.activeTabId === tabId;
+        this.tabs.splice(tabIndex, 1);
+
+        let nextActiveId = this.activeTabId;
+        if (isActive) {
+            const fallback = this.tabs[tabIndex] || this.tabs[tabIndex - 1] || this.tabs.find(t => t.id === this.homeTabId);
+            nextActiveId = fallback ? fallback.id : null;
+        }
+
+        this.renderTabStrip();
+
+        if (nextActiveId) {
+            this.setActiveTab(nextActiveId);
+        } else {
+            this.activeTabId = null;
+            this.updateTabStates();
         }
     }
 
@@ -54,8 +329,24 @@ class MainApp {
                 } else {
                     this.showWelcomeView();
                 }
+                this.setActiveTab(this.homeTabId);
             });
         }
+
+        if (this.tabStrip) {
+            this.tabStrip.addEventListener('wheel', (event) => {
+                if (event.deltaY !== 0) {
+                    event.preventDefault();
+                    this.tabStrip.scrollBy({ left: event.deltaY, behavior: 'auto' });
+                }
+            }, { passive: false });
+        }
+
+        ipcRenderer.on('open-document-tab', (_event, filePath) => {
+            if (filePath) {
+                this.handleFileOpened(filePath);
+            }
+        });
 
         this.initSidebarInteractions();
     }
@@ -194,12 +485,7 @@ class MainApp {
     async handleFileOpened(filePath) {
         try {
             await this.addToRecentFiles(filePath);
-            
-            const result = await ipcRenderer.invoke('open-file-from-main', filePath);
-            
-            if (result.success) {
-                console.log('文件已打开:', filePath);
-            }
+            this.openDocumentTab(filePath);
         } catch (error) {
             console.error('处理文件失败:', error);
         }
@@ -379,10 +665,9 @@ class MainApp {
 
     async openFileFromCard(filePath) {
         try {
-            const result = await ipcRenderer.invoke('open-file-from-main', filePath);
-            if (result.success) {
-                console.log('从卡片打开文件:', filePath);
-            }
+            await this.addToRecentFiles(filePath);
+            this.openDocumentTab(filePath);
+            console.log('从卡片打开文件:', filePath);
         } catch (error) {
             console.error('打开文件失败:', error);
         }

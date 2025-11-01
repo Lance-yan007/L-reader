@@ -15,6 +15,7 @@ class ReaderApp {
         this.notes = [];
         this.translations = [];
         this.isSidebarCollapsed = false;
+        this.isEmbedded = false;
         
         // 点词翻译相关状态
         this.wordTranslateMode = false; // 是否开启点词翻译模式
@@ -50,9 +51,12 @@ class ReaderApp {
 
     bindEvents() {
         // 返回主界面
-        document.getElementById('backToMainBtn').addEventListener('click', () => {
-            this.goBackToMain();
-        });
+        const backBtn = document.getElementById('backToMainBtn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                this.goBackToMain();
+            });
+        }
 
         // 缩放控制
         document.getElementById('zoomInBtn').addEventListener('click', () => {
@@ -119,6 +123,12 @@ class ReaderApp {
         });
 
         // IPC事件监听
+        ipcRenderer.on('set-embed-mode', (_event, payload = {}) => {
+            if (payload && payload.embedded) {
+                this.enableEmbeddedMode();
+            }
+        });
+
         ipcRenderer.on('file-opened', (event, filePath) => {
             console.log('阅读器窗口接收到文件路径:', filePath);
             this.loadFile(filePath);
@@ -1507,9 +1517,31 @@ class ReaderApp {
         }
     }
 
+    enableEmbeddedMode() {
+        if (this.isEmbedded) {
+            return;
+        }
+
+        this.isEmbedded = true;
+        document.body.classList.add('embedded-reader');
+
+        const backBtn = document.getElementById('backToMainBtn');
+        if (backBtn) {
+            backBtn.setAttribute('title', '关闭标签页');
+        }
+    }
+
     goBackToMain() {
-        // 这里应该返回到主窗口
-        // 实际实现中可能需要关闭当前窗口或切换到主窗口
+        if (this.isEmbedded) {
+            try {
+                ipcRenderer.sendToHost('close-tab-request', { filePath: this.currentFile });
+            } catch (error) {
+                console.warn('发送关闭标签请求失败:', error);
+            }
+            return;
+        }
+
+        // 独立窗口模式下关闭窗口
         window.close();
     }
 
@@ -1542,7 +1574,18 @@ class ReaderApp {
     }
 
     updateFileName(name) {
-        document.getElementById('currentFileName').textContent = name;
+        const nameElement = document.getElementById('currentFileName');
+        if (nameElement) {
+            nameElement.textContent = name;
+        }
+
+        if (this.isEmbedded) {
+            try {
+                ipcRenderer.sendToHost('update-tab-title', { title: name });
+            } catch (error) {
+                console.warn('更新标签标题失败:', error);
+            }
+        }
     }
 
     updatePageInfo() {

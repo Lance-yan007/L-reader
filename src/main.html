@@ -11,24 +11,34 @@
     <div class="app-shell">
         <div class="window-chrome">
             <div class="window-chrome-left">
-                <button class="window-toggle" id="collapseSidebarBtn" type="button" aria-label="切换左侧导航">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 4h10v16H4V4zm12 0h4v16h-4V4z" />
-                    </svg>
-                </button>
-                <span class="window-home-icon" aria-hidden="true">
+                <span class="window-logo" aria-hidden="true">
                     <svg viewBox="0 0 24 24">
                         <path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.5h-5V21H5a1 1 0 0 1-1-1v-9.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                 </span>
             </div>
-            <div class="window-title">NPDF Reader</div>
+            <div class="window-tabbar">
+                <div class="tab-strip" id="tabStrip" role="tablist" aria-label="文档标签"></div>
+                <button class="tab-add-btn" id="tabAddButton" type="button" aria-label="新建标签">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6z" />
+                    </svg>
+                </button>
+            </div>
             <div class="window-chrome-right"></div>
         </div>
 
         <div class="app-layout">
             <aside class="sidebar" id="sidebar">
                 <div class="sidebar-inner">
+                    <div class="sidebar-header">
+                        <button class="sidebar-toggle" id="collapseSidebarBtn" type="button" aria-label="折叠左侧导航">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M4 4h10v16H4V4zm12 0h4v16h-4V4z" />
+                            </svg>
+                        </button>
+                        <span class="sidebar-title">NPDF</span>
+                    </div>
                     <div class="sidebar-search">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5 1.5-1.5-5-5zm-5 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z" />
@@ -52,42 +62,45 @@
             <div class="sidebar-hover-zone" id="sidebarHoverZone"></div>
 
             <main class="content-area">
-                <header class="content-header">
-                    <div class="content-header-text">
-                        <h1>我的图书</h1>
-                        <p>最近打开的文档会出现在这里。</p>
-                    </div>
-                    <div class="content-actions">
-                        <button class="action-btn action-btn-primary" id="openFileBtn" type="button">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                    </svg>
-                    打开文件
-                </button>
-                        <button class="action-btn action-btn-secondary" id="openFolderBtn" type="button">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" />
-                    </svg>
-                    打开文件夹
-                </button>
-            </div>
-        </header>
-
-                <section class="welcome-section" id="welcomeSection">
-                    <div class="welcome-card">
-                    <div class="welcome-icon">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                            </svg>
+                <div id="homeView" class="tab-panel is-active" role="tabpanel" aria-labelledby="tab-home">
+                    <header class="content-header">
+                        <div class="content-header-text">
+                            <h1>我的图书</h1>
+                            <p>最近打开的文档会出现在这里。</p>
                         </div>
-                        <h2>欢迎使用 NPDF Reader</h2>
-                        <p>开启阅读旅程，支持 PDF、Word 等格式，点选即可开始学习。</p>
-                    </div>
-                </section>
+                        <div class="content-actions">
+                            <button class="action-btn action-btn-primary" id="openFileBtn" type="button">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                                </svg>
+                                打开文件
+                            </button>
+                            <button class="action-btn action-btn-secondary" id="openFolderBtn" type="button">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" />
+                                </svg>
+                                打开文件夹
+                            </button>
+                        </div>
+                    </header>
 
-                <section class="files-view" id="filesView" style="display: none;">
-                    <div class="files-grid" id="filesGrid"></div>
-                </section>
+                    <section class="welcome-section" id="welcomeSection">
+                        <div class="welcome-card">
+                            <div class="welcome-icon">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                                </svg>
+                            </div>
+                            <h2>欢迎使用 NPDF Reader</h2>
+                            <p>开启阅读旅程，支持 PDF、Word 等格式，点选即可开始学习。</p>
+                        </div>
+                    </section>
+
+                    <section class="files-view" id="filesView" style="display: none;">
+                        <div class="files-grid" id="filesGrid"></div>
+                    </section>
+                </div>
+                <div id="documentPanels" class="tab-panels" aria-live="polite"></div>
             </main>
             </div>
     </div>
