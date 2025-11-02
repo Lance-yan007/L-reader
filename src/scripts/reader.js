@@ -1290,9 +1290,9 @@ class ReaderApp {
             highlightDiv.dataset.highlightId = highlightId;
             highlightDiv.style.position = 'absolute';
             highlightDiv.style.left = minLeft + 'px';
-            highlightDiv.style.top = (line.top - 3) + 'px'; // 上方增加3px
+            highlightDiv.style.top = (line.top - 5.1) + 'px'; // 上方增加5.1px（再往上移0.3px）
             highlightDiv.style.width = (maxRight - minLeft) + 'px';
-            highlightDiv.style.height = (line.bottom - line.top + 6) + 'px'; // 上下各3px
+            highlightDiv.style.height = (line.bottom - line.top + 4.3) + 'px'; // 上部5.1px，下部-0.8px（再减少0.7px）
             highlightDiv.style.backgroundColor = bgColor;
             highlightDiv.style.borderRadius = '4px'; // 圆角
             highlightDiv.style.pointerEvents = 'none';
@@ -1300,6 +1300,89 @@ class ReaderApp {
             
             textLayer.appendChild(highlightDiv);
         });
+    }
+
+    /**
+     * 创建统一的下划线层（连贯的下划线，不是单个单词）
+     * @param {HTMLElement[]} spans - span元素数组
+     * @param {string} underlineId - 下划线ID
+     */
+    createUnifiedUnderline(spans, underlineId) {
+        if (spans.length === 0) return;
+        
+        console.log('🔍 创建统一下划线，spans数量:', spans.length, 'underlineId:', underlineId);
+        
+        // 获取文本层容器
+        const textLayer = spans[0].closest('.pdf-text-layer');
+        if (!textLayer) {
+            console.error('❌ 找不到 textLayer');
+            return;
+        }
+        
+        // 按行分组spans
+        const lines = [];
+        let currentLine = null;
+        
+        spans.forEach(span => {
+            const computedStyle = window.getComputedStyle(span);
+            let left = parseFloat(computedStyle.left) || 0;
+            let top = parseFloat(computedStyle.top) || 0;
+            const width = span.offsetWidth;
+            const height = span.offsetHeight;
+            
+            // 如果是新的一行
+            if (!currentLine || Math.abs(top - currentLine.top) > 2) {
+                currentLine = {
+                    top: top,
+                    bottom: top + height,
+                    spans: []
+                };
+                lines.push(currentLine);
+            }
+            
+            currentLine.spans.push({
+                left: left,
+                right: left + width,
+                top: top,
+                bottom: top + height
+            });
+            
+            currentLine.top = Math.min(currentLine.top, top);
+            currentLine.bottom = Math.max(currentLine.bottom, top + height);
+        });
+        
+        console.log('🔍 分组后的行数:', lines.length);
+        
+        // 为每一行创建一个连续的下划线
+        lines.forEach((line, index) => {
+            const minLeft = Math.min(...line.spans.map(s => s.left));
+            const maxRight = Math.max(...line.spans.map(s => s.right));
+            const maxBottom = Math.max(...line.spans.map(s => s.bottom));
+            
+            const underlineDiv = document.createElement('div');
+            underlineDiv.className = 'unified-underline';
+            underlineDiv.dataset.underlineId = underlineId;
+            underlineDiv.style.position = 'absolute';
+            underlineDiv.style.left = minLeft + 'px';
+            underlineDiv.style.top = maxBottom + 'px'; // 往上移1px（从+1改为+0）
+            underlineDiv.style.width = (maxRight - minLeft) + 'px';
+            underlineDiv.style.height = '2px'; // 下划线高度2px
+            underlineDiv.style.backgroundColor = '#333'; // 黑色下划线
+            underlineDiv.style.pointerEvents = 'none';
+            underlineDiv.style.zIndex = '10'; // 高z-index确保在高亮之上
+            
+            console.log(`✅ 创建下划线 ${index + 1}:`, {
+                left: minLeft,
+                top: maxBottom,
+                width: maxRight - minLeft,
+                height: 2,
+                backgroundColor: '#333'
+            });
+            
+            textLayer.appendChild(underlineDiv);
+        });
+        
+        console.log('✅ 下划线创建完成');
     }
 
     collectHighlightGroup(span) {
@@ -3568,22 +3651,65 @@ class ReaderApp {
      * 切换下划线
      */
     toggleUnderline() {
-        if (!this.currentContextTarget) return;
-
-        const hasUnderline = this.currentContextTarget.classList.contains('word-underlined');
-
+        console.log('🔍 切换下划线');
+        
+        // 获取要操作的spans
         const spansToToggle = new Set();
-        this.applyToSelectedSpans((span) => {
-            this.collectHighlightGroup(span).forEach(spanEl => spansToToggle.add(spanEl));
-        });
+        
+        // 优先使用选中的spans（文本选择）
+        if (this.selectedSpans && this.selectedSpans.length > 0) {
+            console.log('🔍 使用selectedSpans:', this.selectedSpans.length);
+            this.selectedSpans.forEach(span => {
+                this.collectHighlightGroup(span).forEach(spanEl => spansToToggle.add(spanEl));
+            });
+        }
+        // 否则使用右键目标（单个单词）
+        else if (this.currentContextTarget) {
+            console.log('🔍 使用currentContextTarget');
+            this.applyToSelectedSpans((span) => {
+                this.collectHighlightGroup(span).forEach(spanEl => spansToToggle.add(spanEl));
+            });
+        } else {
+            console.log('❌ 没有可操作的spans');
+            return;
+        }
 
-        spansToToggle.forEach((span) => {
-            if (hasUnderline) {
+        if (spansToToggle.size === 0) {
+            console.log('❌ spansToToggle为空');
+            return;
+        }
+
+        // 检查是否已有下划线（检查第一个span）
+        const firstSpan = Array.from(spansToToggle)[0];
+        const hasUnderline = firstSpan.classList.contains('word-underlined');
+        
+        console.log('🔍 hasUnderline:', hasUnderline, 'spans数量:', spansToToggle.size);
+
+        if (hasUnderline) {
+            // 删除下划线
+            spansToToggle.forEach((span) => {
                 span.classList.remove('word-underlined');
-            } else {
+                // 删除对应的统一下划线层
+                const underlineId = span.dataset.underlineId;
+                if (underlineId) {
+                    const underlineDivs = document.querySelectorAll(`.unified-underline[data-underline-id="${underlineId}"]`);
+                    underlineDivs.forEach(div => div.remove());
+                    delete span.dataset.underlineId;
+                }
+            });
+        } else {
+            // 添加下划线 - 使用统一下划线层
+            const underlineId = this.generateHighlightId(); // 复用ID生成方法
+            const spansArray = Array.from(spansToToggle);
+            
+            spansArray.forEach((span) => {
                 span.classList.add('word-underlined');
-            }
-        });
+                span.dataset.underlineId = underlineId;
+            });
+            
+            // 创建统一的下划线层
+            this.createUnifiedUnderline(spansArray, underlineId);
+        }
         
         this.hideContextMenu();
         this.hideColorPicker();
@@ -3740,6 +3866,14 @@ class ReaderApp {
         spansToRemove.forEach(spanEl => {
             this.removeHighlightFromSpan(spanEl);
             spanEl.classList.remove('word-underlined');
+            
+            // 删除统一下划线层
+            const underlineId = spanEl.dataset.underlineId;
+            if (underlineId) {
+                const underlineDivs = document.querySelectorAll(`.unified-underline[data-underline-id="${underlineId}"]`);
+                underlineDivs.forEach(div => div.remove());
+                delete spanEl.dataset.underlineId;
+            }
         });
 
         if (spansToRemove.length > 0) {

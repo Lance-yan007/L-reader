@@ -218,9 +218,9 @@ body.embedded-reader .toolbar {
     user-select: text;
     z-index: 2; /* 确保文字在高亮背景之上 */
     
-    /* 🎯 使用统一背景层，span本身不需要padding */
-    padding: 0;
-    margin: 0;
+    /* 🎯 添加padding让选择高亮连贯，负margin抵消位置偏移 */
+    padding: 4px 2px; /* 上下4px，左右2px完全填补单词间隙 */
+    margin: -4px -2px; /* 负margin保持原始位置 */
     box-sizing: content-box;
 }
 
@@ -636,19 +636,14 @@ body.embedded-reader .toolbar {
     font-weight: 500;
 }
 
-/* 下划线样式 */
-.pdf-text-layer span.word-underlined {
-    text-decoration: underline;
-    text-decoration-color: #333;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 3px;
-}
+/* 下划线样式 - 使用统一下划线层 */
+/* word-underlined class 仅用于标记，实际下划线由 .unified-underline 渲染 */
 
-.pdf-text-layer span.word-highlighted.word-underlined {
-    text-decoration: underline;
-    text-decoration-color: rgba(0, 0, 0, 0.6);
-    text-decoration-thickness: 2px;
-    text-underline-offset: 3px;
+/* 统一下划线层 - 连贯的下划线 */
+.unified-underline {
+    position: absolute;
+    pointer-events: none;
+    z-index: 3;
 }
 
 /* 点词翻译悬浮框 */
