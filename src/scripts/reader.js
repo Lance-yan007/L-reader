@@ -1777,24 +1777,18 @@ class ReaderApp {
         
         console.log(`点击单词: "${word}"`);
         
-        // 添加高亮
-        span.classList.add('word-highlighted');
+        // 🎯 使用统一背景层逻辑高亮单词
+        const highlightId = this.generateHighlightId();
+        span.dataset.highlightId = highlightId;
+        span.dataset.highlightColor = 'yellow';
         this.highlightedWords.add(word.toLowerCase());
         
-        // 检查并合并相邻的高亮单词，形成连续矩形
-        this.mergeAdjacentHighlights(span);
+        // 创建统一的高亮背景层（上下3px、圆角）
+        const bgColor = 'rgba(255, 255, 200, 0.6)'; // 黄色
+        this.createUnifiedHighlight([span], bgColor, highlightId);
         
-        // 🎯 关键改进：获取即将应用的高亮颜色（从CSS变量或默认值）
-        let highlightColor = 'rgb(255, 255, 200)'; // 默认亮黄色 #FFFFC8
-        
-        // 如果已经有自定义颜色（通过CSS变量设置），直接使用
-        const cssVarColor = span.style.getPropertyValue('--highlight-color');
-        if (cssVarColor) {
-            highlightColor = cssVarColor;
-        } else {
-            // 否则使用默认的亮黄色
-            highlightColor = 'rgb(255, 255, 200)';
-        }
+        // 用于悬浮框的颜色
+        let highlightColor = 'rgb(255, 255, 200)';
         
         // 如果已有翻译，直接显示；否则获取翻译
         if (this.wordTranslationMap.has(word.toLowerCase())) {

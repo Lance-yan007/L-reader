@@ -502,11 +502,11 @@ body.embedded-reader .toolbar {
     transition: background-color 0.15s ease;
 }
 
-/* hover效果 */
-.pdf-text-layer.word-translate-mode span:hover {
+/* hover效果 - 已移除，不再显示默认高亮 */
+/* .pdf-text-layer.word-translate-mode span:hover {
     background: rgba(74, 144, 226, 0.15);
     color: transparent;
-}
+} */
 
 /* ========== 高亮样式（使用浏览器原生 backgroundColor）========== */
 /* 🎯 现在直接通过 JavaScript 设置 span.style.backgroundColor */
