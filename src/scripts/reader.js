@@ -1234,36 +1234,42 @@ class ReaderApp {
         const textLayer = spans[0].closest('.pdf-text-layer');
         if (!textLayer) return;
         
-        const layerRect = textLayer.getBoundingClientRect();
-        
-        // 获取所有 span 的位置信息，按行分组
+        // 🎯 使用 offsetLeft/offsetTop 而不是 getBoundingClientRect
+        // 这样在缩放时定位更准确
         const lines = [];
         let currentLine = null;
         
         spans.forEach(span => {
-            const rect = span.getBoundingClientRect();
-            const top = rect.top;
+            // 获取 span 的样式信息
+            const computedStyle = window.getComputedStyle(span);
+            const transform = computedStyle.transform;
+            
+            // 解析 transform 矩阵获取实际位置
+            let left = parseFloat(computedStyle.left) || 0;
+            let top = parseFloat(computedStyle.top) || 0;
+            const width = span.offsetWidth;
+            const height = span.offsetHeight;
             
             // 如果是新的一行（top 值变化超过阈值）
             if (!currentLine || Math.abs(top - currentLine.top) > 2) {
                 currentLine = {
                     top: top,
-                    bottom: rect.bottom,
+                    bottom: top + height,
                     spans: []
                 };
                 lines.push(currentLine);
             }
             
             currentLine.spans.push({
-                left: rect.left,
-                right: rect.right,
-                top: rect.top,
-                bottom: rect.bottom
+                left: left,
+                right: left + width,
+                top: top,
+                bottom: top + height
             });
             
             // 更新行的边界
-            currentLine.top = Math.min(currentLine.top, rect.top);
-            currentLine.bottom = Math.max(currentLine.bottom, rect.bottom);
+            currentLine.top = Math.min(currentLine.top, top);
+            currentLine.bottom = Math.max(currentLine.bottom, top + height);
         });
         
         // 为每一行创建一个连续的高亮背景
@@ -1275,8 +1281,8 @@ class ReaderApp {
             highlightDiv.className = 'unified-highlight';
             highlightDiv.dataset.highlightId = highlightId;
             highlightDiv.style.position = 'absolute';
-            highlightDiv.style.left = (minLeft - layerRect.left) + 'px';
-            highlightDiv.style.top = (line.top - layerRect.top - 3) + 'px'; // 上方增加3px
+            highlightDiv.style.left = minLeft + 'px';
+            highlightDiv.style.top = (line.top - 3) + 'px'; // 上方增加3px
             highlightDiv.style.width = (maxRight - minLeft) + 'px';
             highlightDiv.style.height = (line.bottom - line.top + 6) + 'px'; // 上下各3px
             highlightDiv.style.backgroundColor = bgColor;
