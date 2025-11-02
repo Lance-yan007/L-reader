@@ -2712,6 +2712,9 @@ class ReaderApp {
         // 使用默认颜色进行高亮
         this.highlightSelectedTextWithColor('custom', this.defaultHighlightColor);
         
+        // 清空当前上下文目标，避免下次判断错误
+        this.currentContextTarget = null;
+        
         // 隐藏菜单
         this.hideContextMenu();
     }
@@ -3399,6 +3402,9 @@ class ReaderApp {
         if (this.currentColorFill) {
             this.currentColorFill.style.background = color;
         }
+        
+        // 清空当前上下文目标，避免下次判断错误
+        this.currentContextTarget = null;
         
         console.log('🔍 更新默认高亮颜色为:', color);
     }
