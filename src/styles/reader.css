@@ -217,6 +217,11 @@ body.embedded-reader .toolbar {
     transform-origin: 0% 0%;
     user-select: text;
     z-index: 2; /* 确保文字在高亮背景之上 */
+    
+    /* 🎯 使用统一背景层，span本身不需要padding */
+    padding: 0;
+    margin: 0;
+    box-sizing: content-box;
 }
 
 /* ========== 文本选择高亮样式 ========== */
@@ -503,79 +508,9 @@ body.embedded-reader .toolbar {
     color: transparent;
 }
 
-/* 已点击的单词 - 持久高亮（标准矩形样式） */
-.pdf-text-layer span.word-highlighted {
-    position: relative; /* 为伪元素定位 */
-    padding: 0; /* 移除padding，让高亮完全贴合文本 */
-    box-sizing: content-box;
-    isolation: isolate; /* 创建独立的层叠上下文，避免与Canvas层混合 */
-    display: inline-block; /* 确保高亮区域精确包裹文本 */
-}
-
-/* 使用 ::before 伪元素作为背景层，实现标准矩形高亮 */
-.pdf-text-layer span.word-highlighted::before {
-    content: '';
-    position: absolute;
-    top: -0.4px; /* 向上移动0.4px */
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--highlight-color, rgba(255, 255, 200, 0.6)); /* 标准黄色高亮 */
-    border-radius: 0; /* 移除圆角，使用标准矩形 */
-    z-index: 1; /* 放在Canvas层上方，文字层下方 */
-    pointer-events: none; /* 确保不阻挡鼠标事件 */
-    /* 确保高亮覆盖整个行高 */
-    min-height: 1.2em; /* 至少覆盖行高 */
-    margin-top: -0.1em; /* 轻微向上偏移以覆盖行高 */
-    margin-bottom: -0.1em; /* 轻微向下偏移以覆盖行高 */
-}
-
-/* 不同颜色的高亮选项 - 标准矩形样式 */
-.pdf-text-layer span.word-highlighted.color-yellow::before {
-    background: rgba(255, 255, 200, 0.6); /* 标准黄色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-green::before {
-    background: rgba(180, 255, 180, 0.6); /* 标准绿色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-blue::before {
-    background: rgba(180, 220, 255, 0.6); /* 标准蓝色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-pink::before {
-    background: rgba(255, 180, 220, 0.6); /* 标准粉色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-orange::before {
-    background: rgba(255, 220, 180, 0.6); /* 标准橙色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-purple::before {
-    background: rgba(220, 180, 255, 0.6); /* 标准紫色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-red::before {
-    background: rgba(255, 180, 180, 0.6); /* 标准红色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-cyan::before {
-    background: rgba(180, 240, 255, 0.6); /* 标准青色高亮 */
-    border-radius: 0; /* 确保矩形 */
-}
-
-.pdf-text-layer span.word-highlighted.color-custom::before {
-    /* 自定义颜色将通过CSS变量设置 */
-    background: var(--highlight-color);
-    border-radius: 0; /* 确保矩形 */
-}
+/* ========== 高亮样式（使用浏览器原生 backgroundColor）========== */
+/* 🎯 现在直接通过 JavaScript 设置 span.style.backgroundColor */
+/* 不再使用 CSS 类和伪元素，和浏览器 ::selection 机制完全一致 */
 
 /* 合并高亮样式 - 当单词被合并时隐藏单个高亮 */
 .pdf-text-layer span.merged-highlighted::before {

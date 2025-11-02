@@ -1196,9 +1196,8 @@ class ReaderApp {
         
         const bgColor = colorMap[color] || colorMap['yellow'];
         
-        // 直接设置背景色，不用复杂的类和伪元素
+        // 标记选中的 span
         selectedSpans.forEach(span => {
-            span.style.backgroundColor = bgColor;
             span.dataset.highlightId = highlightId;
             span.dataset.highlightColor = color;
             
@@ -1208,15 +1207,85 @@ class ReaderApp {
             }
         });
         
+        // 🎯 创建统一的高亮背景层（像 ::selection 那样连续）
+        this.createUnifiedHighlight(selectedSpans, bgColor, highlightId);
+        
         // 清除选择状态
         selection.removeAllRanges();
         this.currentSelection = null;
         
-        console.log('✅ 高亮完成（使用原生背景色）');
+        console.log('✅ 高亮完成（统一背景层）');
     }
 
     generateHighlightId() {
         return `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+    
+    /**
+     * 创建统一的高亮背景层（像 ::selection 那样连续）
+     * @param {HTMLElement[]} spans - 选中的span元素数组
+     * @param {string} bgColor - 背景颜色
+     * @param {string} highlightId - 高亮ID
+     */
+    createUnifiedHighlight(spans, bgColor, highlightId) {
+        if (spans.length === 0) return;
+        
+        // 获取文本层容器
+        const textLayer = spans[0].closest('.pdf-text-layer');
+        if (!textLayer) return;
+        
+        const layerRect = textLayer.getBoundingClientRect();
+        
+        // 获取所有 span 的位置信息，按行分组
+        const lines = [];
+        let currentLine = null;
+        
+        spans.forEach(span => {
+            const rect = span.getBoundingClientRect();
+            const top = rect.top;
+            
+            // 如果是新的一行（top 值变化超过阈值）
+            if (!currentLine || Math.abs(top - currentLine.top) > 2) {
+                currentLine = {
+                    top: top,
+                    bottom: rect.bottom,
+                    spans: []
+                };
+                lines.push(currentLine);
+            }
+            
+            currentLine.spans.push({
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom
+            });
+            
+            // 更新行的边界
+            currentLine.top = Math.min(currentLine.top, rect.top);
+            currentLine.bottom = Math.max(currentLine.bottom, rect.bottom);
+        });
+        
+        // 为每一行创建一个连续的高亮背景
+        lines.forEach((line, index) => {
+            const minLeft = Math.min(...line.spans.map(s => s.left));
+            const maxRight = Math.max(...line.spans.map(s => s.right));
+            
+            const highlightDiv = document.createElement('div');
+            highlightDiv.className = 'unified-highlight';
+            highlightDiv.dataset.highlightId = highlightId;
+            highlightDiv.style.position = 'absolute';
+            highlightDiv.style.left = (minLeft - layerRect.left) + 'px';
+            highlightDiv.style.top = (line.top - layerRect.top - 3) + 'px'; // 上方增加3px
+            highlightDiv.style.width = (maxRight - minLeft) + 'px';
+            highlightDiv.style.height = (line.bottom - line.top + 6) + 'px'; // 上下各3px
+            highlightDiv.style.backgroundColor = bgColor;
+            highlightDiv.style.borderRadius = '4px'; // 圆角
+            highlightDiv.style.pointerEvents = 'none';
+            highlightDiv.style.zIndex = '1'; // 在文字下方
+            
+            textLayer.appendChild(highlightDiv);
+        });
     }
 
     collectHighlightGroup(span) {
@@ -2984,14 +3053,22 @@ class ReaderApp {
      * @param {HTMLElement} span
      */
     removeHighlightFromSpan(span) {
-        // 🎯 简化：直接移除背景色
-        span.style.backgroundColor = '';
+        // 获取 highlightId
+        const highlightId = span.dataset.highlightId;
+        
+        // 移除标记
         delete span.dataset.highlightId;
         delete span.dataset.highlightColor;
 
         const word = this.extractWord(span.textContent);
         if (word) {
             this.highlightedWords.delete(word.toLowerCase());
+        }
+        
+        // 🎯 删除对应的统一高亮背景层
+        if (highlightId) {
+            const highlights = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+            highlights.forEach(h => h.remove());
         }
     }
     
