@@ -2995,9 +2995,8 @@ class ReaderApp {
             bgColor = colorMap[color] || colorMap['yellow'];
         }
         
-        // 直接设置背景色
+        // 标记选中的 span
         spans.forEach(span => {
-            span.style.backgroundColor = bgColor;
             span.dataset.highlightId = highlightId;
             span.dataset.highlightColor = color;
             
@@ -3006,6 +3005,9 @@ class ReaderApp {
                 this.highlightedWords.add(word.toLowerCase());
             }
         });
+        
+        // 🎯 创建统一的高亮背景层（像 ::selection 那样连续）
+        this.createUnifiedHighlight(spans, bgColor, highlightId);
         
         // 清除选择状态
         const selection = this.currentSelection || window.getSelection();
@@ -3016,7 +3018,7 @@ class ReaderApp {
         this.currentSelection = null;
         this.selectedSpans = null;
         
-        console.log('✅ 高亮完成');
+        console.log('✅ 高亮完成（统一背景层）');
     }
 
     /**
@@ -3100,14 +3102,17 @@ class ReaderApp {
             bgColor = colorMap[color] || colorMap['yellow'];
         }
         
-        span.style.backgroundColor = bgColor;
-        span.dataset.highlightId = this.generateHighlightId();
+        const highlightId = this.generateHighlightId();
+        span.dataset.highlightId = highlightId;
         span.dataset.highlightColor = color;
 
         const word = this.extractWord(span.textContent);
         if (word) {
             this.highlightedWords.add(word.toLowerCase());
         }
+        
+        // 🎯 创建统一的高亮背景层
+        this.createUnifiedHighlight([span], bgColor, highlightId);
     }
 
     /**
