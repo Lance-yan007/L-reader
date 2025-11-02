@@ -20,6 +20,7 @@ class ReaderApp {
         // 点词翻译相关状态
         this.wordTranslateMode = false; // 是否开启点词翻译模式
         this.wordTranslationMap = new Map(); // 单词翻译映射表 word -> {translation, positions}
+        this.sentenceTranslationMap = new Map(); // 句子翻译映射表 highlightId -> translation
         this.highlightedWords = new Set(); // 已高亮的单词集合
         this.wordTooltip = null; // 悬浮框DOM元素
         this.currentHoverWord = null; // 当前hover的单词
@@ -606,6 +607,10 @@ class ReaderApp {
                         display: inline-block;
                         vertical-align: baseline;
                     `;
+                    
+                    // 🎯 绑定hover事件，用于显示翻译（不论是否在翻译模式）
+                    wordSpan.addEventListener('mouseenter', this.handleWordHover.bind(this));
+                    wordSpan.addEventListener('mouseleave', this.handleWordLeave.bind(this));
                     
                     textLayerDiv.appendChild(wordSpan);
                     wordCount++;
@@ -1783,25 +1788,17 @@ class ReaderApp {
         // 🎯 使用统一背景层逻辑高亮单词
         const highlightId = this.generateHighlightId();
         span.dataset.highlightId = highlightId;
-        span.dataset.highlightColor = 'yellow';
+        span.dataset.highlightColor = 'custom';
         this.highlightedWords.add(word.toLowerCase());
         
-        // 创建统一的高亮背景层（上下3px、圆角）
-        const bgColor = 'rgba(255, 255, 200, 0.6)'; // 黄色
+        // 创建统一的高亮背景层（上下3px、圆角）- 使用默认紫色
+        const rgb = this.hexToRgb(this.defaultHighlightColor);
+        const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
         this.createUnifiedHighlight([span], bgColor, highlightId);
         
-        // 用于悬浮框的颜色
-        let highlightColor = 'rgb(255, 255, 200)';
-        
-        // 如果已有翻译，直接显示；否则获取翻译
-        if (this.wordTranslationMap.has(word.toLowerCase())) {
-            const data = this.wordTranslationMap.get(word.toLowerCase());
-            this.showWordTooltip(word, data.translation, span, highlightColor, false);
-        } else {
-            // 先显示"翻译中"状态（使用预知的高亮颜色）
-            this.showWordTooltip(word, '翻译中...', span, highlightColor, true);
-            
-            // 获取翻译
+        // 如果已有翻译，不需要再次翻译；否则获取翻译
+        if (!this.wordTranslationMap.has(word.toLowerCase())) {
+            // 获取翻译（不显示悬浮框，只保存翻译）
             try {
                 const translation = await this.translateWord(word);
                 this.wordTranslationMap.set(word.toLowerCase(), {
@@ -1809,14 +1806,19 @@ class ReaderApp {
                     translation: translation,
                     clickCount: 1
                 });
-                
-                // 更新为真实翻译
-                this.showWordTooltip(word, translation, span, highlightColor, false);
             } catch (error) {
                 console.error('翻译失败:', error);
-                this.showWordTooltip(word, '翻译失败', span, highlightColor, false);
+                // 保存失败信息
+                this.wordTranslationMap.set(word.toLowerCase(), {
+                    word: word,
+                    translation: '翻译失败',
+                    clickCount: 1
+                });
             }
         }
+        
+        // 🎯 不在点击时显示悬浮框，只在hover时显示
+        // 翻译会在用户hover到高亮区域时自动显示
     }
 
     /**
@@ -1832,17 +1834,35 @@ class ReaderApp {
         
         this.currentHoverWord = word;
         
-        // 如果已点击过（有高亮），显示翻译（不论翻译模式是否开启）
-        if (span.classList.contains('word-highlighted') && 
-            this.wordTranslationMap.has(word.toLowerCase())) {
-            const data = this.wordTranslationMap.get(word.toLowerCase());
+        // 检查是否有高亮ID（包括点词翻译和句子翻译）
+        const highlightId = span.dataset.highlightId;
+        
+        if (highlightId) {
+            // 从统一高亮层读取颜色
+            const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+            let highlightColor = this.defaultHighlightColor;
             
-            // 获取当前的高亮颜色（从CSS变量或伪元素）
-            let highlightColor = span.style.getPropertyValue('--highlight-color') || 
-                               window.getComputedStyle(span, '::before').backgroundColor || 
-                               'rgb(255, 255, 200)';
+            if (highlightDiv) {
+                const bgColor = highlightDiv.style.backgroundColor;
+                // 将rgba转换为rgb
+                const rgbaMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                if (rgbaMatch) {
+                    highlightColor = `rgb(${rgbaMatch[1]}, ${rgbaMatch[2]}, ${rgbaMatch[3]})`;
+                }
+            }
             
-            this.showWordTooltip(word, data.translation, span, highlightColor, false);
+            // 检查是否有单词翻译
+            if (this.wordTranslationMap.has(word.toLowerCase())) {
+                const data = this.wordTranslationMap.get(word.toLowerCase());
+                // 🎯 使用高亮区域中心位置显示
+                this.showWordTooltipAtHighlightCenter(word, data.translation, highlightId, highlightColor);
+            }
+            // 检查是否有句子翻译（存储在sentenceTranslations中）
+            else if (this.sentenceTranslationMap && this.sentenceTranslationMap.has(highlightId)) {
+                const translation = this.sentenceTranslationMap.get(highlightId);
+                // 🎯 使用高亮区域中心位置显示
+                this.showWordTooltipAtHighlightCenter(word, translation, highlightId, highlightColor);
+            }
         }
     }
 
@@ -1953,6 +1973,97 @@ class ReaderApp {
         // 边界检查 - 上下
         if (top < 5) {
             top = spanRect.bottom + margin; // 如果上方空间不够，显示在下方
+        }
+        
+        this.wordTooltip.style.left = left + 'px';
+        this.wordTooltip.style.top = top + 'px';
+    }
+
+    /**
+     * 在高亮区域中心上方显示翻译悬浮框
+     * @param {string} word - 单词
+     * @param {string} translation - 翻译
+     * @param {string} highlightId - 高亮ID
+     * @param {string} highlightColor - 高亮颜色
+     */
+    showWordTooltipAtHighlightCenter(word, translation, highlightId, highlightColor) {
+        if (!this.wordTooltip) return;
+        
+        // 更新内容
+        document.getElementById('tooltipWord').textContent = word;
+        document.getElementById('tooltipTranslation').textContent = translation;
+        
+        // 设置样式
+        this.wordTooltip.classList.remove('loading');
+        this.wordTooltip.style.minWidth = '';
+        this.wordTooltip.style.maxWidth = '300px';
+        
+        // 设置颜色
+        let bgColor = highlightColor;
+        const rgbaMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (rgbaMatch) {
+            const r = rgbaMatch[1];
+            const g = rgbaMatch[2];
+            const b = rgbaMatch[3];
+            bgColor = `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        this.wordTooltip.style.background = bgColor;
+        
+        // 更新箭头颜色
+        const style = document.createElement('style');
+        style.textContent = `.word-tooltip::after { border-top-color: ${bgColor}; }`;
+        const oldStyle = document.querySelector('style[data-tooltip-arrow]');
+        if (oldStyle) oldStyle.remove();
+        style.setAttribute('data-tooltip-arrow', 'true');
+        document.head.appendChild(style);
+        
+        // 显示悬浮框
+        this.wordTooltip.style.display = 'block';
+        
+        // 🎯 计算整个高亮区域的边界
+        // 获取所有相同highlightId的unified-highlight div
+        const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+        
+        if (highlightDivs.length === 0) return;
+        
+        // 计算所有高亮div的总边界
+        let minLeft = Infinity;
+        let maxRight = -Infinity;
+        let minTop = Infinity;
+        let maxBottom = -Infinity;
+        
+        highlightDivs.forEach(div => {
+            const rect = div.getBoundingClientRect();
+            minLeft = Math.min(minLeft, rect.left);
+            maxRight = Math.max(maxRight, rect.right);
+            minTop = Math.min(minTop, rect.top);
+            maxBottom = Math.max(maxBottom, rect.bottom);
+        });
+        
+        // 计算高亮区域的中心点
+        const centerX = (minLeft + maxRight) / 2;
+        const topY = minTop;
+        
+        // 获取悬浮框尺寸
+        const tooltipRect = this.wordTooltip.getBoundingClientRect();
+        
+        // 计算悬浮框位置：水平居中，垂直在高亮区域上方
+        const margin = 12;
+        let left = centerX - (tooltipRect.width / 2);
+        let top = topY - tooltipRect.height - margin;
+        
+        // 边界检查 - 左右
+        if (left < 5) {
+            left = 5;
+        }
+        if (left + tooltipRect.width > window.innerWidth - 5) {
+            left = window.innerWidth - tooltipRect.width - 5;
+        }
+        
+        // 边界检查 - 上下
+        if (top < 5) {
+            top = maxBottom + margin; // 如果上方空间不够，显示在下方
         }
         
         this.wordTooltip.style.left = left + 'px';
@@ -2880,16 +2991,21 @@ class ReaderApp {
             const translation = await this.translateWithAI(selectedText);
             
             if (translation) {
-                // 高亮选中的句子（使用特殊的翻译高亮样式）
-                this.highlightSelectedSentenceForTranslation();
+                // 高亮选中的句子（使用特殊的翻译高亮样式），返回highlightId
+                const highlightId = this.highlightSelectedSentenceForTranslation();
                 
-                // 显示翻译结果
-                this.showSentenceTranslation(selectedText, translation);
+                // 保存翻译到Map中（用于hover显示）
+                if (highlightId) {
+                    this.sentenceTranslationMap.set(highlightId, translation);
+                }
+                
+                // 🎯 不在翻译完成时显示悬浮框，只在hover时显示
+                // 翻译会在用户hover到高亮区域时自动显示
                 
                 // 保存翻译到本地存储
                 this.saveSentenceTranslation(selectedText, translation);
                 
-                this.updateStatus('翻译完成');
+                this.updateStatus('翻译完成 - 将光标移到高亮区域查看翻译');
             } else {
                 this.showError('翻译失败，请重试');
             }
@@ -2901,37 +3017,43 @@ class ReaderApp {
     
     /**
      * 为翻译的句子添加特殊高亮
+     * @returns {string} highlightId - 高亮ID
      */
     highlightSelectedSentenceForTranslation() {
-        if (!this.currentSelection || this.currentSelection.rangeCount === 0) return;
+        if (!this.currentSelection || this.currentSelection.rangeCount === 0) return null;
         
         const range = this.currentSelection.getRangeAt(0);
         const spans = this.getSpansInRange(range);
-        if (spans.length === 0) return;
+        if (spans.length === 0) return null;
         
         // 先清除预览高亮
         this.hideSelectionHighlight();
         
-        // 为选中的span添加翻译高亮类
+        // 🎯 使用统一背景层逻辑高亮句子 - 使用默认紫色
+        const highlightId = this.generateHighlightId();
+        const rgb = this.hexToRgb(this.defaultHighlightColor);
+        const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
+        
+        // 标记选中的 span
         spans.forEach(span => {
-            // 移除旧颜色和预览类
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            span.classList.remove('selection-preview', 'merged-selection-preview');
-            span.style.backgroundColor = '';
+            span.dataset.highlightId = highlightId;
+            span.dataset.highlightColor = 'custom';
             
-            // 添加翻译高亮类
-            span.classList.add('word-highlighted');
-            span.classList.add('sentence-translated');
+            const word = this.extractWord(span.textContent);
+            if (word) {
+                this.highlightedWords.add(word.toLowerCase());
+            }
         });
         
-        // 合并相邻高亮
-        if (spans.length > 1) {
-            this.mergeAdjacentHighlights(spans[0]);
-        }
+        // 🎯 创建统一的高亮背景层（上下3px、圆角）
+        this.createUnifiedHighlight(spans, bgColor, highlightId);
         
         // 清除选择
         this.currentSelection.removeAllRanges();
         this.currentSelection = null;
+        
+        // 返回highlightId供保存翻译使用
+        return highlightId;
     }
     
     /**
@@ -2940,33 +3062,66 @@ class ReaderApp {
      * @param {string} translation - 翻译
      */
     showSentenceTranslation(originalText, translation) {
-        // 创建翻译悬浮框
+        // 🎯 使用和点词翻译相同的样式
+        // 创建翻译悬浮框（使用word-tooltip样式）
         const tooltip = document.createElement('div');
-        tooltip.className = 'sentence-translation-tooltip';
+        tooltip.className = 'word-tooltip sentence-tooltip';
         tooltip.innerHTML = `
-            <div class="translation-header">
-                <span class="translation-label">句子翻译</span>
-                <button class="close-translation-btn" onclick="this.parentElement.parentElement.remove()">×</button>
-            </div>
-            <div class="translation-content">
-                <div class="original-text">${originalText}</div>
-                <div class="translation-text">${translation}</div>
+            <div class="word-tooltip-content">
+                <div class="word-tooltip-translation">${translation}</div>
             </div>
         `;
         
-        // 定位到选择区域
-        const range = this.currentSelection ? this.currentSelection.getRangeAt(0) : null;
-        if (range) {
+        // 设置背景颜色为默认紫色（和句子高亮颜色一致）
+        const rgb = this.hexToRgb(this.defaultHighlightColor);
+        const bgColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        tooltip.style.background = bgColor;
+        
+        // 更新箭头颜色
+        const style = document.createElement('style');
+        style.textContent = `.sentence-tooltip::after { border-top-color: ${bgColor}; }`;
+        const oldStyle = document.querySelector('style[data-sentence-tooltip-arrow]');
+        if (oldStyle) oldStyle.remove();
+        style.setAttribute('data-sentence-tooltip-arrow', 'true');
+        document.head.appendChild(style);
+        
+        // 定位到选择区域的中心
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
-            tooltip.style.left = rect.left + 'px';
-            tooltip.style.top = (rect.bottom + 10) + 'px';
+            
+            // 显示悬浮框以获取其尺寸
+            tooltip.style.display = 'block';
+            tooltip.style.visibility = 'hidden';
+            document.body.appendChild(tooltip);
+            
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            // 计算位置（居中显示在选中文本上方）
+            let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+            let top = rect.top - tooltipRect.height - 10;
+            
+            // 确保不超出屏幕
+            if (left < 10) left = 10;
+            if (left + tooltipRect.width > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipRect.width - 10;
+            }
+            if (top < 10) {
+                // 如果上方空间不够，显示在下方
+                top = rect.bottom + 10;
+            }
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            tooltip.style.visibility = 'visible';
         } else {
+            // 如果没有选择，显示在屏幕中央
+            document.body.appendChild(tooltip);
             tooltip.style.left = '50%';
             tooltip.style.top = '50%';
             tooltip.style.transform = 'translate(-50%, -50%)';
         }
-        
-        document.body.appendChild(tooltip);
         
         // 5秒后自动消失
         setTimeout(() => {
