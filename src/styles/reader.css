@@ -223,29 +223,28 @@ body.embedded-reader .toolbar {
 
 /* 全局文本选择样式 */
 ::selection {
-    background: rgba(74, 144, 226, 0.3);
+    background: rgba(74, 144, 226, 0.35);
 }
 
 /* PDF文本层的选择样式 - 蓝色半透明高亮 */
+/* 🎯 这是用户左键选择文本时看到的默认高亮效果 */
 .pdf-text-layer ::selection {
-    background: rgba(74, 144, 226, 0.3); /* 蓝色半透明 */
-    color: transparent;
+    background: rgba(74, 144, 226, 0.35); /* 蓝色半透明 */
+    color: inherit; /* 保持文本颜色可见 */
 }
 
 .pdf-text-layer ::-moz-selection {
-    background: rgba(74, 144, 226, 0.3); /* Firefox浏览器 */
-    color: transparent;
+    background: rgba(74, 144, 226, 0.35); /* Firefox浏览器 */
+    color: inherit;
 }
 
-/* 确保高亮后的文本不再显示选择样式 */
+/* 确保已高亮的文本不再显示选择样式 */
 .pdf-text-layer span.word-highlighted::selection {
     background: transparent !important;
-    color: transparent !important;
 }
 
 .pdf-text-layer span.word-highlighted::-moz-selection {
     background: transparent !important;
-    color: transparent !important;
 }
 
 /* 文本高亮标记 */
@@ -591,7 +590,8 @@ body.embedded-reader .toolbar {
     border-radius: 0; /* 确保矩形 */
 }
 
-/* 选择预览高亮样式 */
+/* 选择预览高亮样式（已弃用 - 现在直接使用浏览器的 ::selection 样式） */
+/* 保留这些样式以备将来使用 */
 .pdf-text-layer span.selection-preview {
     position: relative;
     padding: 0;

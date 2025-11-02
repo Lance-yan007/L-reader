@@ -943,11 +943,10 @@ class ReaderApp {
             }
             
             this.showHighlightTools();
-            // 立即显示连贯的高亮预览
-            this.showSelectionHighlight();
+            // 🎯 不再添加额外的预览高亮层，直接使用浏览器的 ::selection 样式
+            // 这样用户看到的就是默认的蓝色选择高亮，右键点击后会转换为自定义高亮
         } else {
             this.hideHighlightTools();
-            this.hideSelectionHighlight();
             this.selectedSpans = null;
         }
     }
@@ -1175,69 +1174,45 @@ class ReaderApp {
         const selectedText = selection.toString().trim();
         if (!selectedText) return;
         
-        console.log('🔍 高亮选择调试信息:');
-        console.log('选中的文本:', selectedText);
-        console.log('选择范围数量:', selection.rangeCount);
+        console.log('🎯 使用浏览器原生选择机制高亮');
         
-        // 先清除预览高亮
-        this.hideSelectionHighlight();
-        
-        // 使用更精确的方法获取选中的span
+        // 获取选中的span
         const selectedSpans = this.getSelectedSpansFromSelection(selection);
-        
-        console.log('找到的span元素数量:', selectedSpans.length);
-        
-        if (selectedSpans.length === 0) {
-            console.warn('未找到选中的span元素');
-            return;
-        }
-        
-        // 存储选中的span供复制功能使用
-        this.selectedSpans = selectedSpans;
+        if (selectedSpans.length === 0) return;
         
         const highlightId = this.generateHighlightId();
-
-        // 为选中的span添加高亮类和颜色
-        selectedSpans.forEach((span, index) => {
-            console.log(`高亮span ${index}: "${span.textContent}"`);
-
-            // 移除旧颜色及预览
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink',
-                                  'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            span.classList.remove('selection-preview', 'merged-selection-preview');
-            span.classList.remove('merged-highlighted');
-            span.style.backgroundColor = '';
-            span.style.removeProperty('--highlight-color');
-
-            // 添加高亮类
-            span.classList.add('word-highlighted');
-            span.classList.add(`color-${color}`); // 使用指定颜色
+        
+        // 🎯 新方案：直接用背景色，让浏览器处理渲染
+        const colorMap = {
+            'yellow': 'rgba(255, 255, 200, 0.6)',
+            'green': 'rgba(180, 255, 180, 0.6)',
+            'blue': 'rgba(180, 220, 255, 0.6)',
+            'pink': 'rgba(255, 180, 220, 0.6)',
+            'orange': 'rgba(255, 220, 180, 0.6)',
+            'purple': 'rgba(220, 180, 255, 0.6)',
+            'red': 'rgba(255, 180, 180, 0.6)',
+            'cyan': 'rgba(180, 240, 255, 0.6)'
+        };
+        
+        const bgColor = colorMap[color] || colorMap['yellow'];
+        
+        // 直接设置背景色，不用复杂的类和伪元素
+        selectedSpans.forEach(span => {
+            span.style.backgroundColor = bgColor;
             span.dataset.highlightId = highlightId;
-
+            span.dataset.highlightColor = color;
+            
             const word = this.extractWord(span.textContent);
             if (word) {
                 this.highlightedWords.add(word.toLowerCase());
             }
-
-            console.log(`span ${index} 高亮类已添加:`, span.classList.toString());
         });
         
-        // 🔧 关键修复：清除文本选择状态，避免::selection样式与高亮冲突
-        if (selection.rangeCount > 0) {
-            selection.removeAllRanges();
-        }
+        // 清除选择状态
+        selection.removeAllRanges();
+        this.currentSelection = null;
         
-        // 检查并合并相邻的高亮，形成连续矩形
-        if (selectedSpans.length > 1) {
-            console.log('合并相邻高亮...');
-            this.mergeAdjacentHighlights(selectedSpans[0]);
-        }
-        
-        console.log('✅ 高亮完成，共高亮', selectedSpans.length, '个span');
-        
-        // 注意：不清除选择，让用户可以看到高亮效果
-        // selection.removeAllRanges();
-        // this.currentSelection = null;
+        console.log('✅ 高亮完成（使用原生背景色）');
     }
 
     generateHighlightId() {
@@ -2926,68 +2901,53 @@ class ReaderApp {
             return;
         }
         
-        console.log('🔍 右键菜单高亮选中文本:');
-        console.log('span数量:', spans.length);
-        console.log('颜色:', color);
-        
-        // 先清除预览高亮
-        this.hideSelectionHighlight();
+        console.log('🎯 使用原生背景色高亮');
         
         const highlightId = this.generateHighlightId();
-
-        // 为选中的span添加高亮类和颜色
-        spans.forEach((span, index) => {
-            console.log(`右键高亮span ${index}: "${span.textContent}"`);
-
-            // 移除旧颜色和预览类
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink',
-                                  'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-            span.classList.remove('selection-preview', 'merged-selection-preview');
-            span.classList.remove('merged-highlighted');
-            span.style.backgroundColor = '';
-            span.style.removeProperty('--highlight-color');
-
-            // 添加高亮类
-            span.classList.add('word-highlighted');
-
-            // 添加颜色
-            if (color === 'custom' && customColor) {
-                span.classList.add('color-custom');
-                const rgb = this.hexToRgb(customColor);
-                const opacity = this.currentOpacity || 0.5;
-                if (rgb) {
-                    span.style.setProperty('--highlight-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
-                }
-            } else {
-                span.classList.add(`color-${color}`);
-            }
-
-             span.dataset.highlightId = highlightId;
-
+        
+        // 颜色映射
+        const colorMap = {
+            'yellow': 'rgba(255, 255, 200, 0.6)',
+            'green': 'rgba(180, 255, 180, 0.6)',
+            'blue': 'rgba(180, 220, 255, 0.6)',
+            'pink': 'rgba(255, 180, 220, 0.6)',
+            'orange': 'rgba(255, 220, 180, 0.6)',
+            'purple': 'rgba(220, 180, 255, 0.6)',
+            'red': 'rgba(255, 180, 180, 0.6)',
+            'cyan': 'rgba(180, 240, 255, 0.6)'
+        };
+        
+        let bgColor;
+        if (color === 'custom' && customColor) {
+            const rgb = this.hexToRgb(customColor);
+            const opacity = this.currentOpacity || 0.5;
+            bgColor = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})` : colorMap['yellow'];
+        } else {
+            bgColor = colorMap[color] || colorMap['yellow'];
+        }
+        
+        // 直接设置背景色
+        spans.forEach(span => {
+            span.style.backgroundColor = bgColor;
+            span.dataset.highlightId = highlightId;
+            span.dataset.highlightColor = color;
+            
             const word = this.extractWord(span.textContent);
             if (word) {
                 this.highlightedWords.add(word.toLowerCase());
             }
-
-            console.log(`span ${index} 右键高亮类已添加:`, span.classList.toString());
         });
         
-        // 合并相邻高亮
-        if (spans.length > 1) {
-            console.log('右键菜单合并相邻高亮...');
-            this.mergeAdjacentHighlights(spans[0]);
+        // 清除选择状态
+        const selection = this.currentSelection || window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            selection.removeAllRanges();
         }
         
-        console.log('✅ 右键菜单高亮完成，共高亮', spans.length, '个span');
-        
-        // 注意：不清除选择，让用户可以看到高亮效果
-        // if (this.currentSelection) {
-        //     this.currentSelection.removeAllRanges();
-        //     this.currentSelection = null;
-        // }
-        
-        // 清空存储的span
+        this.currentSelection = null;
         this.selectedSpans = null;
+        
+        console.log('✅ 高亮完成');
     }
 
     /**
@@ -3024,13 +2984,10 @@ class ReaderApp {
      * @param {HTMLElement} span
      */
     removeHighlightFromSpan(span) {
-        span.classList.remove('word-highlighted', 'merged-highlighted');
-        span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink',
-                              'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-        span.classList.remove('selection-preview', 'merged-selection-preview');
+        // 🎯 简化：直接移除背景色
         span.style.backgroundColor = '';
-        span.style.removeProperty('--highlight-color');
         delete span.dataset.highlightId;
+        delete span.dataset.highlightColor;
 
         const word = this.extractWord(span.textContent);
         if (word) {
@@ -3045,25 +3002,32 @@ class ReaderApp {
      * @param {string} customColor - 自定义颜色值
      */
     highlightSingleWordWithColor(span, color, customColor = null) {
-        this.removeHighlightFromSpan(span);
-        span.classList.add('word-highlighted');
-
-        span.dataset.highlightId = this.generateHighlightId();
-
+        // 🎯 简化：直接设置背景色
+        const colorMap = {
+            'yellow': 'rgba(255, 255, 200, 0.6)',
+            'green': 'rgba(180, 255, 180, 0.6)',
+            'blue': 'rgba(180, 220, 255, 0.6)',
+            'pink': 'rgba(255, 180, 220, 0.6)',
+            'orange': 'rgba(255, 220, 180, 0.6)',
+            'purple': 'rgba(220, 180, 255, 0.6)',
+            'red': 'rgba(255, 180, 180, 0.6)',
+            'cyan': 'rgba(180, 240, 255, 0.6)'
+        };
+        
+        let bgColor;
         if (color === 'custom' && customColor) {
-            span.classList.add('color-custom');
             const rgb = this.hexToRgb(customColor);
             const opacity = this.currentOpacity || 0.5;
-            if (rgb) {
-                span.style.setProperty('--highlight-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
-            }
-            } else {
-                span.classList.add(`color-${color}`);
-            }
+            bgColor = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})` : colorMap['yellow'];
+        } else {
+            bgColor = colorMap[color] || colorMap['yellow'];
+        }
+        
+        span.style.backgroundColor = bgColor;
+        span.dataset.highlightId = this.generateHighlightId();
+        span.dataset.highlightColor = color;
 
-            span.dataset.highlightId = highlightId;
-
-            const word = this.extractWord(span.textContent);
+        const word = this.extractWord(span.textContent);
         if (word) {
             this.highlightedWords.add(word.toLowerCase());
         }
