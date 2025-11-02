@@ -27,6 +27,9 @@ class ReaderApp {
         this.currentContextTarget = null; // 当前右键点击的元素
         this.currentSelection = null; // 当前文本选择对象
         
+        // 默认高亮颜色（紫色）- 会随着用户选择颜色而更新
+        this.defaultHighlightColor = '#CDBBEB';
+        
         // Gemini API配置
         this.geminiApiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
         // 使用Gemini 2.0 Flash模型 - 快速且稳定
@@ -2445,12 +2448,17 @@ class ReaderApp {
             return;
         }
 
-        // 绑定当前颜色圆形点击事件 - 直接应用当前颜色
+        // 初始化颜色圆形为默认颜色（紫色）
+        if (this.currentColorFill) {
+            this.currentColorFill.style.background = this.defaultHighlightColor;
+        }
+
+        // 绑定当前颜色圆形点击事件
         if (this.currentColorCircle) {
             this.currentColorCircle.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('🔍 点击了当前颜色框');
-                this.applyCurrentColorFromBox();
+                console.log('🔍 点击了颜色按钮');
+                this.handleColorButtonClick();
             });
         }
 
@@ -2493,23 +2501,6 @@ class ReaderApp {
             });
         }
         
-        // 绑定高亮按钮
-        const contextHighlightBtn = document.getElementById('contextHighlightBtn');
-        if (contextHighlightBtn) {
-            contextHighlightBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.handleContextMenuAction('highlight-selection');
-            });
-        }
-
-        // 绑定删除高亮按钮
-        const removeHighlightBtn = document.getElementById('removeHighlightBtn');
-        if (removeHighlightBtn) {
-            removeHighlightBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.handleContextMenuAction('remove-highlight');
-            });
-        }
         
         // 绑定复制文本按钮
         const copyTextBtn = document.getElementById('copyTextBtn');
@@ -2627,20 +2618,27 @@ class ReaderApp {
             return;
         }
 
-        // 更新当前颜色显示（从CSS变量或伪元素读取）
-        if (this.currentContextTarget && this.currentColorFill) {
-            // 优先从CSS变量读取
-            let currentBgColor = this.currentContextTarget.style.getPropertyValue('--highlight-color');
-            
-            // 如果没有CSS变量，从::before伪元素读取
-            if (!currentBgColor) {
-                currentBgColor = window.getComputedStyle(this.currentContextTarget, '::before').backgroundColor;
-            }
-            
-            if (currentBgColor && currentBgColor !== 'rgba(0, 0, 0, 0)' && currentBgColor !== 'transparent') {
-                this.currentColorFill.style.background = currentBgColor;
+        // 更新当前颜色显示
+        if (this.currentColorFill) {
+            if (this.currentContextTarget && this.currentContextTarget.dataset.highlightId) {
+                // 如果是已有高亮，读取高亮的实际颜色
+                const highlightId = this.currentContextTarget.dataset.highlightId;
+                const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+                
+                if (highlightDiv) {
+                    const bgColor = highlightDiv.style.backgroundColor;
+                    console.log('🔍 读取到的高亮颜色:', bgColor);
+                    if (bgColor) {
+                        this.currentColorFill.style.background = bgColor;
+                    } else {
+                        this.currentColorFill.style.background = this.defaultHighlightColor;
+                    }
+                } else {
+                    this.currentColorFill.style.background = this.defaultHighlightColor;
+                }
             } else {
-                this.currentColorFill.style.background = '#FFFFC8'; // 默认亮黄色
+                // 没有高亮，显示默认颜色
+                this.currentColorFill.style.background = this.defaultHighlightColor;
             }
         }
 
@@ -2677,7 +2675,49 @@ class ReaderApp {
     }
 
     /**
-     * 应用当前颜色框的颜色
+     * 处理颜色按钮点击
+     */
+    handleColorButtonClick() {
+        console.log('🔍 处理颜色按钮点击');
+        
+        // 判断是否有选中的文本或者点击的是已有高亮
+        const hasSelection = this.selectedSpans && this.selectedSpans.length > 0;
+        const hasHighlight = this.currentContextTarget && 
+                           this.currentContextTarget.dataset.highlightId;
+        
+        console.log('🔍 hasSelection:', hasSelection);
+        console.log('🔍 hasHighlight:', hasHighlight);
+        
+        if (hasHighlight) {
+            // 已有高亮：显示颜色选择框
+            console.log('🔍 已有高亮，显示颜色选择框');
+            this.toggleColorPicker();
+        } else if (hasSelection || this.selectedText) {
+            // 选择了文字但没有高亮：直接用默认颜色高亮
+            console.log('🔍 选择了文字，使用默认颜色高亮:', this.defaultHighlightColor);
+            this.applyDefaultColorHighlight();
+        } else {
+            // 其他情况：显示颜色选择框
+            console.log('🔍 显示颜色选择框');
+            this.toggleColorPicker();
+        }
+    }
+
+    /**
+     * 应用默认颜色高亮
+     */
+    applyDefaultColorHighlight() {
+        console.log('🔍 应用默认颜色高亮:', this.defaultHighlightColor);
+        
+        // 使用默认颜色进行高亮
+        this.highlightSelectedTextWithColor('custom', this.defaultHighlightColor);
+        
+        // 隐藏菜单
+        this.hideContextMenu();
+    }
+
+    /**
+     * 应用当前颜色框的颜色（保留用于兼容）
      */
     applyCurrentColorFromBox() {
         console.log('🔍 应用当前颜色框颜色');
@@ -3304,39 +3344,63 @@ class ReaderApp {
     applyHighlightColor(color) {
         if (!this.currentContextTarget) return;
 
+        console.log('🔍 应用高亮颜色:', color);
+
         const rgb = this.hexToRgb(color);
         const opacity = this.currentOpacity || 0.5;
+        const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
         
-        // 应用到所有选中的span
-        const spansToApply = [];
-        this.applyToSelectedSpans((span) => {
-            spansToApply.push(span);
-        });
-
-        if (spansToApply.length === 0) return;
-
-        const highlightId = spansToApply[0].dataset.highlightId || this.generateHighlightId();
-
-        spansToApply.forEach((span) => {
-            span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
-                                'color-orange', 'color-purple', 'color-red', 'color-cyan', 'color-custom');
-
-            span.classList.add('word-highlighted', 'color-custom');
-            span.style.setProperty('--highlight-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
-            span.dataset.highlightId = highlightId;
-
-            const word = this.extractWord(span.textContent);
-            if (word) {
-                this.highlightedWords.add(word.toLowerCase());
-            }
-        });
-
-        this.recalculateMergedHighlights(spansToApply[0]);
+        // 检查当前目标是否已有高亮
+        const highlightId = this.currentContextTarget.dataset.highlightId;
         
-        // 更新当前颜色圆形显示
+        if (highlightId) {
+            // 已有高亮：直接改变颜色
+            console.log('🔍 改变已有高亮的颜色:', highlightId);
+            
+            // 找到所有相同highlightId的unified-highlight div
+            const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+            highlightDivs.forEach(div => {
+                div.style.backgroundColor = bgColor;
+            });
+            
+            // 找到所有相同highlightId的span（用于后续操作）
+            const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
+            spans.forEach(span => {
+                span.dataset.highlightColor = 'custom';
+            });
+        } else {
+            // 没有高亮：应用到选中的span
+            console.log('🔍 应用新高亮');
+            const spansToApply = [];
+            this.applyToSelectedSpans((span) => {
+                spansToApply.push(span);
+            });
+
+            if (spansToApply.length === 0) return;
+
+            const newHighlightId = this.generateHighlightId();
+
+            spansToApply.forEach((span) => {
+                span.dataset.highlightId = newHighlightId;
+                span.dataset.highlightColor = 'custom';
+
+                const word = this.extractWord(span.textContent);
+                if (word) {
+                    this.highlightedWords.add(word.toLowerCase());
+                }
+            });
+
+            // 创建统一高亮背景层
+            this.createUnifiedHighlight(spansToApply, bgColor, newHighlightId);
+        }
+        
+        // 更新默认颜色和颜色圆形显示
+        this.defaultHighlightColor = color;
         if (this.currentColorFill) {
             this.currentColorFill.style.background = color;
         }
+        
+        console.log('🔍 更新默认高亮颜色为:', color);
     }
 
     /**
