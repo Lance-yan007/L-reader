@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { PDFDocument, rgb, degrees } = require('pdf-lib');
 
 // 保持对窗口对象的全局引用
 let mainWindow;
@@ -12,7 +13,8 @@ const APP_CONFIG = {
   version: '1.0.0',
   userDataPath: path.join(__dirname, 'user-data'),
   documentsPath: path.join(__dirname, 'user-data', 'documents'),
-  translationsPath: path.join(__dirname, 'user-data', 'translations')
+  translationsPath: path.join(__dirname, 'user-data', 'translations'),
+  annotationsPath: path.join(__dirname, 'user-data', 'annotations')
 };
 
 // 确保用户数据目录存在
@@ -20,7 +22,8 @@ function ensureUserDataDirectories() {
   const dirs = [
     APP_CONFIG.userDataPath,
     APP_CONFIG.documentsPath,
-    APP_CONFIG.translationsPath
+    APP_CONFIG.translationsPath,
+    APP_CONFIG.annotationsPath
   ];
   
   dirs.forEach(dir => {
@@ -332,6 +335,163 @@ ipcMain.handle('get-translations', async (event, filePath) => {
       return { success: true, data: JSON.parse(data) };
     } else {
       return { success: true, data: [] };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 颜色字符串转RGB
+function parseColor(colorStr) {
+  // 支持 rgba(r, g, b, a) 和 rgb(r, g, b) 格式
+  const rgbaMatch = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+  if (rgbaMatch) {
+    return {
+      r: parseInt(rgbaMatch[1]) / 255,
+      g: parseInt(rgbaMatch[2]) / 255,
+      b: parseInt(rgbaMatch[3]) / 255
+    };
+  }
+  
+  // 默认黄色高亮
+  return { r: 1, g: 1, b: 0.78 };
+}
+
+// 保存标注到PDF文件（创建新文件）
+ipcMain.handle('save-annotations-to-pdf', async (event, { filePath, annotations }) => {
+  try {
+    console.log('📝 开始导出带标注的PDF:', filePath);
+    
+    // 读取原始PDF
+    const existingPdfBytes = fs.readFileSync(filePath);
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const pages = pdfDoc.getPages();
+    
+    console.log('📄 PDF页数:', pages.length);
+    console.log('🎨 标注数量:', annotations.highlights?.length || 0);
+    
+    // 按页分组高亮
+    const highlightsByPage = new Map();
+    if (annotations.highlights) {
+      annotations.highlights.forEach(highlight => {
+        const pageIndex = highlight.pageIndex || 0;
+        if (!highlightsByPage.has(pageIndex)) {
+          highlightsByPage.set(pageIndex, []);
+        }
+        highlightsByPage.get(pageIndex).push(highlight);
+      });
+    }
+    
+    // 在每一页上添加高亮注释
+    highlightsByPage.forEach((highlights, pageIndex) => {
+      if (pageIndex >= pages.length) return;
+      
+      const page = pages[pageIndex];
+      const { width, height } = page.getSize();
+      
+      console.log(`📏 第${pageIndex}页尺寸: ${width} x ${height}`);
+      
+      highlights.forEach(highlight => {
+        // 解析颜色
+        const color = parseColor(highlight.color || 'rgba(255, 255, 200, 0.6)');
+        
+        // 支持新旧两种格式
+        const rects = highlight.rects || (highlight.rect ? [highlight.rect] : []);
+        
+        // 绘制所有矩形（一个高亮可能跨多行）
+        rects.forEach(rect => {
+          const x = rect.x || 0;
+          const y = rect.y || 0;
+          const rectWidth = rect.width || 100;
+          const rectHeight = rect.height || 20;
+          
+          // 绘制高亮矩形
+          page.drawRectangle({
+            x: x,
+            y: y,
+            width: rectWidth,
+            height: rectHeight,
+            color: rgb(color.r, color.g, color.b),
+            opacity: 0.4,
+            borderWidth: 0
+          });
+          
+          console.log(`✏️ 在第${pageIndex}页添加高亮: (${x.toFixed(2)}, ${y.toFixed(2)}, ${rectWidth.toFixed(2)}, ${rectHeight.toFixed(2)})`);
+        });
+      });
+    });
+    
+    // 生成新文件名（添加_annotated后缀）
+    const parsedPath = path.parse(filePath);
+    const newFileName = `${parsedPath.name}_annotated${parsedPath.ext}`;
+    const newFilePath = path.join(parsedPath.dir, newFileName);
+    
+    // 保存到新文件
+    const pdfBytes = await pdfDoc.save();
+    fs.writeFileSync(newFilePath, pdfBytes);
+    
+    console.log('✅ 带标注的PDF已导出到:', newFilePath);
+    
+    // 在文件管理器中显示文件
+    shell.showItemInFolder(newFilePath);
+    
+    return { success: true, message: '已导出到: ' + newFileName, path: newFilePath };
+    
+  } catch (error) {
+    console.error('❌ 导出PDF失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 从PDF读取现有标注
+ipcMain.handle('load-annotations-from-pdf', async (event, filePath) => {
+  try {
+    console.log('📖 从PDF读取标注:', filePath);
+    
+    const existingPdfBytes = fs.readFileSync(filePath);
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    
+    // PDF标注提取比较复杂，pdf-lib主要用于创建，而非读取复杂注释
+    // 这里返回空数据，让用户重新添加高亮
+    // 如果需要完整的注释读取功能，需要使用pdf.js的annotations API
+    
+    return { 
+      success: true, 
+      data: {
+        highlights: [],
+        wordTranslations: {},
+        sentenceTranslations: {}
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ 读取PDF标注失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 保留原有的JSON保存功能作为备份
+ipcMain.handle('save-annotations', async (event, { path: savePath, data }) => {
+  try {
+    const fullPath = path.join(__dirname, savePath);
+    fs.writeFileSync(fullPath, data, 'utf8');
+    return { success: true, path: fullPath };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 加载标注数据（从JSON备份）
+ipcMain.handle('load-annotations', async (event, filePath) => {
+  try {
+    const fileName = path.basename(filePath, path.extname(filePath));
+    const annotationFile = path.join(APP_CONFIG.annotationsPath, `${fileName}_annotations.json`);
+    
+    if (fs.existsSync(annotationFile)) {
+      const data = fs.readFileSync(annotationFile, 'utf8');
+      return { success: true, data: JSON.parse(data) };
+    } else {
+      return { success: true, data: null };
     }
   } catch (error) {
     return { success: false, error: error.message };

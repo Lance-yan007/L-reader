@@ -961,3 +961,127 @@ body.embedded-reader .toolbar {
     text-align: center;
     font-weight: 600;
 }
+
+/* ========== 保存确认对话框样式 ========== */
+
+.save-confirm-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-confirm-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.save-confirm-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 420px;
+    padding: 24px;
+    animation: saveDialogFadeIn 0.3s ease;
+}
+
+@keyframes saveDialogFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.save-confirm-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.save-confirm-header h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.save-confirm-body {
+    margin-bottom: 24px;
+}
+
+.save-confirm-body p {
+    font-size: 15px;
+    color: #555;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.save-confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.save-confirm-actions .btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.save-confirm-actions .btn-primary {
+    background: #4A90E2;
+    color: white;
+}
+
+.save-confirm-actions .btn-primary:hover {
+    background: #357ABD;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
+}
+
+.save-confirm-actions .btn-secondary {
+    background: #f0f0f0;
+    color: #555;
+}
+
+.save-confirm-actions .btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+/* ========== 按钮禁用状态 ========== */
+
+.btn.btn-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}

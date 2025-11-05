@@ -38,6 +38,30 @@
                 </div>
             </div>
             <div class="toolbar-right">
+                <!-- 撤销按钮 -->
+                <button class="btn btn-icon btn-disabled" id="undoBtn" title="撤销 (Ctrl+Z)" disabled>
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
+                    </svg>
+                </button>
+                <!-- 重做按钮 -->
+                <button class="btn btn-icon btn-disabled" id="redoBtn" title="重做 (Ctrl+Y)" disabled>
+                    <svg viewBox="0 0 24 24">
+                        <path d="M18.4,10.6C16.55,9 14.15,8 11.5,8C6.85,8 2.92,11.03 1.54,15.22L3.9,16C4.95,12.81 7.95,10.5 11.5,10.5C13.45,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z" />
+                    </svg>
+                </button>
+                <!-- 保存按钮 -->
+                <button class="btn btn-icon btn-disabled" id="saveBtn" title="保存标注 (Ctrl+S)" disabled>
+                    <svg viewBox="0 0 24 24">
+                        <path d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                    </svg>
+                </button>
+                <!-- 导出PDF按钮 -->
+                <button class="btn btn-icon" id="exportPdfBtn" title="导出带标注的PDF">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z" />
+                    </svg>
+                </button>
                 <button class="btn btn-icon" id="wordTranslateBtn" title="点词翻译">
                     <svg viewBox="0 0 24 24">
                         <path d="M12.87,15.07L10.33,12.56L10.36,12.53C12.1,10.59 13.34,8.36 14.07,6H17V4H10V2H8V4H1V6H12.17C11.5,7.92 10.44,9.75 9,11.35C8.07,10.32 7.3,9.19 6.69,8H4.69C5.42,9.63 6.42,11.17 7.67,12.56L2.58,17.58L4,19L9,14L12.11,17.11L12.87,15.07M18.5,10H16.5L12,22H14L15.12,19H19.87L21,22H23L18.5,10M15.88,17L17.5,12.67L19.12,17H15.88Z" />
@@ -256,6 +280,27 @@
             <div class="opacity-label">透明度</div>
             <input type="range" id="opacitySlider" class="opacity-slider" min="10" max="90" value="50" step="5">
             <div class="opacity-value" id="opacityValue">50%</div>
+        </div>
+    </div>
+
+    <!-- 保存确认对话框 -->
+    <div class="save-confirm-dialog" id="saveConfirmDialog" style="display: none;">
+        <div class="save-confirm-overlay"></div>
+        <div class="save-confirm-content">
+            <div class="save-confirm-header">
+                <svg viewBox="0 0 24 24" width="24" height="24" style="color: #f39c12;">
+                    <path fill="currentColor" d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z" />
+                </svg>
+                <h3>保存更改？</h3>
+            </div>
+            <div class="save-confirm-body">
+                <p>您有未保存的更改。是否要保存？</p>
+            </div>
+            <div class="save-confirm-actions">
+                <button class="btn btn-secondary" id="saveConfirmCancel">取消</button>
+                <button class="btn btn-secondary" id="saveConfirmDontSave">不保存</button>
+                <button class="btn btn-primary" id="saveConfirmSave">保存</button>
+            </div>
         </div>
     </div>
 

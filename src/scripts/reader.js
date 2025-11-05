@@ -42,6 +42,14 @@ class ReaderApp {
         this.requestDelayMs = 5000; // 两次请求之间最小间隔5秒
         this.lastRequestTime = 0; // 上次请求时间
         
+        // 撤销/重做和保存功能
+        this.historyStack = []; // 历史记录栈
+        this.historyIndex = -1; // 当前历史位置
+        this.maxHistorySize = 50; // 最大历史记录数
+        this.isDirty = false; // 是否有未保存的修改
+        this.lastSavedState = null; // 上次保存的状态
+        this.isClosing = false; // 是否正在关闭
+        
         this.init();
     }
 
@@ -51,6 +59,7 @@ class ReaderApp {
         this.updateStatus('就绪');
         this.initWordTooltip(); // 初始化悬浮框
         this.initContextMenu(); // 初始化右键菜单
+        this.resetHistory();
     }
 
     bindEvents() {
@@ -124,6 +133,55 @@ class ReaderApp {
         // 点词翻译按钮
         document.getElementById('wordTranslateBtn').addEventListener('click', () => {
             this.toggleWordTranslateMode();
+        });
+
+        // 撤销按钮
+        const undoBtn = document.getElementById('undoBtn');
+        if (undoBtn) {
+            undoBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.undo();
+            });
+        }
+
+        // 重做按钮
+        const redoBtn = document.getElementById('redoBtn');
+        if (redoBtn) {
+            redoBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.redo();
+            });
+        }
+
+        // 保存按钮
+        const saveBtn = document.getElementById('saveBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.saveDocument();
+            });
+        }
+
+        // 导出PDF按钮
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        if (exportPdfBtn) {
+            exportPdfBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.exportAnnotatedPDF();
+            });
+        }
+
+        // 保存确认对话框按钮
+        document.getElementById('saveConfirmSave').addEventListener('click', () => {
+            this.handleSaveConfirm('save');
+        });
+
+        document.getElementById('saveConfirmDontSave').addEventListener('click', () => {
+            this.handleSaveConfirm('dontSave');
+        });
+
+        document.getElementById('saveConfirmCancel').addEventListener('click', () => {
+            this.handleSaveConfirm('cancel');
         });
 
         // IPC事件监听
@@ -240,6 +298,8 @@ class ReaderApp {
             this.updateStatus('正在加载文件...');
             this.showLoading(true);
             
+            this.resetHistory();
+            
             this.currentFile = filePath;
             this.updateFileName(this.getFileName(filePath));
             
@@ -267,6 +327,10 @@ class ReaderApp {
             }
             
             this.loadTranslations();
+            
+            // 加载已保存的标注数据
+            await this.loadAnnotations();
+            
             this.updateStatus('文件加载完成');
             console.log('文件加载完成');
         } catch (error) {
@@ -274,6 +338,142 @@ class ReaderApp {
             this.showError('加载文件失败: ' + error.message);
         } finally {
             this.showLoading(false);
+        }
+    }
+
+    /**
+     * 加载已保存的标注数据
+     */
+    async loadAnnotations() {
+        if (!this.currentFile) return;
+
+        try {
+            const result = await ipcRenderer.invoke('load-annotations', this.currentFile);
+            
+            if (result.success && result.data) {
+                console.log('📂 加载已保存的标注:', result.data);
+                
+                // 等待一小段时间确保DOM已渲染
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 清除所有现有的高亮和下划线，避免重复
+                this.clearAllHighlights();
+                
+                // 恢复高亮和翻译数据
+                if (result.data.highlights && result.data.highlights.length > 0) {
+                    result.data.highlights.forEach(highlight => {
+                        const spans = [];
+                        
+                        // 支持新旧两种格式
+                        if (highlight.spanIndices && Array.isArray(highlight.spanIndices)) {
+                            // 新格式：spanIndices数组
+                            highlight.spanIndices.forEach(spanIndex => {
+                                const span = this.findSpanByPosition(highlight.pageIndex, spanIndex);
+                                if (span) {
+                                    spans.push(span);
+                                }
+                            });
+                        } else if (highlight.spanIndex !== undefined) {
+                            // 旧格式：单个spanIndex
+                            const span = this.findSpanByPosition(highlight.pageIndex, highlight.spanIndex);
+                            if (span) {
+                                spans.push(span);
+                            }
+                        }
+                        
+                        // 为所有span设置高亮属性（但不设置backgroundColor，由unified-highlight div处理）
+                        spans.forEach(span => {
+                            span.dataset.highlightId = highlight.highlightId;
+                            if (highlight.highlightColor) {
+                                span.dataset.highlightColor = highlight.highlightColor;
+                            }
+                            // 不设置span.style.backgroundColor，避免重复高亮
+                            // 背景颜色由unified-highlight div显示
+                            const word = this.extractWord(span.textContent);
+                            if (word) {
+                                this.highlightedWords.add(word.toLowerCase());
+                            }
+                        });
+                        
+                        // 重建统一高亮背景（这是唯一的高亮层）
+                        if (spans.length > 0) {
+                            this.createUnifiedHighlight(
+                                spans, 
+                                highlight.color || 'rgba(255, 255, 200, 0.6)', 
+                                highlight.highlightId
+                            );
+                        }
+                    });
+                    
+                    console.log(`✅ 恢复了 ${result.data.highlights.length} 个高亮组`);
+                }
+                
+                // 恢复下划线
+                if (result.data.underlines && result.data.underlines.length > 0) {
+                    console.log('📂 开始恢复下划线，数量:', result.data.underlines.length);
+                    result.data.underlines.forEach((underline, index) => {
+                        const spans = [];
+                        
+                        console.log(`📂 恢复下划线 ${index + 1}:`, underline);
+                        
+                        if (underline.spanIndices && Array.isArray(underline.spanIndices)) {
+                            underline.spanIndices.forEach(spanIndex => {
+                                const span = this.findSpanByPosition(underline.pageIndex, spanIndex);
+                                if (span) {
+                                    spans.push(span);
+                                } else {
+                                    console.warn(`⚠️ 找不到span: pageIndex=${underline.pageIndex}, spanIndex=${spanIndex}`);
+                                }
+                            });
+                        }
+                        
+                        console.log(`📂 找到 ${spans.length} 个span用于下划线 ${index + 1}`);
+                        
+                        // 为所有span设置下划线属性
+                        spans.forEach(span => {
+                            span.dataset.underlineId = underline.underlineId;
+                            span.classList.add('word-underlined');
+                        });
+                        
+                        // 重建统一下划线
+                        if (spans.length > 0) {
+                            console.log(`📂 创建统一下划线: underlineId=${underline.underlineId}, spans=${spans.length}`);
+                            this.createUnifiedUnderline(spans, underline.underlineId);
+                        } else {
+                            console.warn(`⚠️ 下划线 ${index + 1} 没有找到任何span，无法创建`);
+                        }
+                    });
+                    
+                    console.log(`✅ 恢复了 ${result.data.underlines.length} 个下划线组`);
+                } else {
+                    console.log('📂 没有下划线数据需要恢复');
+                }
+                
+                // 恢复翻译数据
+                if (result.data.wordTranslations) {
+                    Object.keys(result.data.wordTranslations).forEach(key => {
+                        this.wordTranslationMap.set(key, result.data.wordTranslations[key]);
+                    });
+                }
+                
+                if (result.data.sentenceTranslations) {
+                    Object.keys(result.data.sentenceTranslations).forEach(key => {
+                        this.sentenceTranslationMap.set(key, result.data.sentenceTranslations[key]);
+                    });
+                }
+                
+                // 保存为初始状态
+                this.lastSavedState = this.getCurrentState();
+                this.isDirty = false;
+                
+                this.updateStatus('标注已加载');
+            }
+
+            // 将当前状态视为最新的已保存状态，并清空历史记录
+            this.lastSavedState = this.getCurrentState();
+            this.resetHistory(false);
+        } catch (error) {
+            console.error('❌ 加载标注失败:', error);
         }
     }
 
@@ -440,6 +640,17 @@ class ReaderApp {
             const scale = 2.0; // 提高缩放比例，增加清晰度
             const viewport = page.getViewport({ scale });
             console.log(`页面${pageNum}视口尺寸:`, viewport.width, 'x', viewport.height);
+            
+            // 保存页面的原始尺寸和缩放信息，用于坐标转换
+            if (!this.pdfPageInfo) {
+                this.pdfPageInfo = new Map();
+            }
+            this.pdfPageInfo.set(pageNum - 1, { // pageIndex从0开始
+                viewport: viewport,
+                scale: scale,
+                width: page.view[2] - page.view[0], // PDF原始宽度
+                height: page.view[3] - page.view[1] // PDF原始高度
+            });
             
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
@@ -1222,6 +1433,14 @@ class ReaderApp {
         selection.removeAllRanges();
         this.currentSelection = null;
         
+        // 添加到历史记录
+        this.addToHistory('highlight', {
+            highlightId: highlightId,
+            color: color,
+            text: selectedText,
+            spanCount: selectedSpans.length
+        });
+        
         console.log('✅ 高亮完成（统一背景层）');
     }
 
@@ -1672,7 +1891,21 @@ class ReaderApp {
         }
     }
 
-    goBackToMain() {
+    async goBackToMain() {
+        // 检查是否有未保存的修改
+        if (this.isDirty && !this.isClosing) {
+            const action = await this.showSaveConfirmDialog();
+            
+            if (action === 'cancel') {
+                return; // 用户取消，留在当前页面
+            } else if (action === 'save') {
+                await this.saveDocument();
+            }
+            // 如果是'dontSave'，直接继续关闭
+        }
+
+        this.isClosing = true;
+
         if (this.isEmbedded) {
             try {
                 ipcRenderer.sendToHost('close-tab-request', { filePath: this.currentFile });
@@ -1688,7 +1921,7 @@ class ReaderApp {
 
     handleKeyboardShortcuts(e) {
         if (e.ctrlKey || e.metaKey) {
-            switch (e.key) {
+            switch (e.key.toLowerCase()) {
                 case '=':
                 case '+':
                     e.preventDefault();
@@ -1702,6 +1935,27 @@ class ReaderApp {
                     e.preventDefault();
                     this.zoomLevel = 1;
                     this.applyZoom();
+                    break;
+                case 'z':
+                    // Ctrl+Z: 撤销
+                    if (e.shiftKey) {
+                        // Ctrl+Shift+Z: 重做（某些系统习惯）
+                        e.preventDefault();
+                        this.redo();
+                    } else {
+                        e.preventDefault();
+                        this.undo();
+                    }
+                    break;
+                case 'y':
+                    // Ctrl+Y: 重做
+                    e.preventDefault();
+                    this.redo();
+                    break;
+                case 's':
+                    // Ctrl+S: 保存
+                    e.preventDefault();
+                    this.saveDocument();
                     break;
             }
         }
@@ -1878,6 +2132,13 @@ class ReaderApp {
         const rgb = this.hexToRgb(this.defaultHighlightColor);
         const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
         this.createUnifiedHighlight([span], bgColor, highlightId);
+        
+        // 添加到历史记录
+        this.addToHistory('wordTranslate', {
+            highlightId: highlightId,
+            word: word,
+            spanCount: 1
+        });
         
         // 如果已有翻译，不需要再次翻译；否则获取翻译
         if (!this.wordTranslationMap.has(word.toLowerCase())) {
@@ -3008,12 +3269,25 @@ class ReaderApp {
             });
 
             const spansToRemove = Array.from(spansToRemoveSet);
+            
+            // 保存被删除的高亮信息（用于历史记录）
+            const removedInfo = spansToRemove.map(span => ({
+                highlightId: span.dataset.highlightId,
+                color: span.dataset.highlightColor,
+                text: span.textContent
+            }));
 
             spansToRemove.forEach(spanEl => this.removeHighlightFromSpan(spanEl));
 
             if (spansToRemove.length > 0) {
                 this.recalculateMergedHighlights(spansToRemove[0]);
             }
+
+            // 添加到历史记录
+            this.addToHistory('unhighlight', {
+                removedSpans: removedInfo,
+                spanCount: spansToRemove.length
+            });
 
             this.hideContextMenu();
             this.hideColorPicker();
@@ -3130,6 +3404,14 @@ class ReaderApp {
         
         // 🎯 创建统一的高亮背景层（上下3px、圆角）
         this.createUnifiedHighlight(spans, bgColor, highlightId);
+        
+        // 添加到历史记录
+        const selectedText = spans.map(s => s.textContent).join('');
+        this.addToHistory('sentenceTranslate', {
+            highlightId: highlightId,
+            text: selectedText,
+            spanCount: spans.length
+        });
         
         // 清除选择
         this.currentSelection.removeAllRanges();
@@ -3299,6 +3581,15 @@ class ReaderApp {
         this.currentSelection = null;
         this.selectedSpans = null;
         
+        // 添加到历史记录
+        const selectedText = spans.map(s => s.textContent).join('');
+        this.addToHistory('highlight', {
+            highlightId: highlightId,
+            color: color,
+            text: selectedText,
+            spanCount: spans.length
+        });
+        
         console.log('✅ 高亮完成（统一背景层）');
     }
 
@@ -3394,6 +3685,14 @@ class ReaderApp {
         
         // 🎯 创建统一的高亮背景层
         this.createUnifiedHighlight([span], bgColor, highlightId);
+        
+        // 添加到历史记录
+        this.addToHistory('highlight', {
+            highlightId: highlightId,
+            color: color,
+            text: span.textContent,
+            spanCount: 1
+        });
     }
 
     /**
@@ -3709,6 +4008,14 @@ class ReaderApp {
             
             // 创建统一的下划线层
             this.createUnifiedUnderline(spansArray, underlineId);
+            
+            // 添加到历史记录
+            const text = spansArray.map(s => s.textContent).join('');
+            this.addToHistory('underline', {
+                underlineId: underlineId,
+                text: text,
+                spanCount: spansArray.length
+            });
         }
         
         this.hideContextMenu();
@@ -4210,6 +4517,614 @@ class ReaderApp {
                 }
             });
         }
+    }
+
+    // ==================== 撤销/重做和保存功能 ====================
+
+    /**
+     * 添加操作到历史记录
+     * @param {string} type - 操作类型（'highlight', 'unhighlight', 'translate'等）
+     * @param {object} data - 操作数据
+     */
+    addToHistory(type, data) {
+        // 如果当前不在历史栈的末尾，删除后面的记录
+        if (this.historyIndex < this.historyStack.length - 1) {
+            this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+        }
+
+        // 添加新记录
+        const historyItem = {
+            type: type,
+            data: data,
+            timestamp: Date.now(),
+            state: this.getCurrentState()
+        };
+
+        this.historyStack.push(historyItem);
+        this.historyIndex++;
+
+        // 限制历史记录大小
+        if (this.historyStack.length > this.maxHistorySize) {
+            this.historyStack.shift();
+            this.historyIndex--;
+        }
+
+        console.log(`📝 ${type} - 历史位置: ${this.historyIndex}/${this.historyStack.length - 1}`);
+
+        // 标记为未保存
+        this.markAsDirty();
+
+        // 更新按钮状态
+        this.updateUndoRedoButtons();
+    }
+
+    /**
+     * 撤销操作
+     */
+    undo() {
+        if (this.historyIndex < 0) {
+            console.log('⚠️ 没有可撤销的操作');
+            return;
+        }
+
+        console.log(`⬅️ 撤销操作，从位置 ${this.historyIndex} 到 ${this.historyIndex - 1}`);
+
+        // 移动到上一个状态
+        this.historyIndex--;
+
+        // 恢复状态
+        if (this.historyIndex >= 0) {
+            this.loadState(this.historyStack[this.historyIndex].state);
+        } else {
+            // 恢复到初始状态（无高亮）
+            this.clearAllHighlights();
+        }
+
+        // 更新按钮状态
+        this.updateUndoRedoButtons();
+        this.refreshDirtyState();
+        this.updateStatus('已撤销');
+    }
+
+    /**
+     * 重做操作
+     */
+    redo() {
+        if (this.historyIndex >= this.historyStack.length - 1) {
+            console.log('⚠️ 没有可重做的操作');
+            return;
+        }
+
+        console.log(`➡️ 重做操作，从位置 ${this.historyIndex} 到 ${this.historyIndex + 1}`);
+
+        // 移动到下一个状态
+        this.historyIndex++;
+
+        // 恢复状态
+        this.loadState(this.historyStack[this.historyIndex].state);
+
+        // 更新按钮状态
+        this.updateUndoRedoButtons();
+        this.refreshDirtyState();
+        this.updateStatus('已重做');
+    }
+
+    /**
+     * 更新撤销/重做按钮的状态
+     */
+    updateUndoRedoButtons() {
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+
+        if (undoBtn) {
+            const shouldDisable = this.historyIndex < 0;
+            undoBtn.disabled = shouldDisable;
+            undoBtn.classList.toggle('btn-disabled', shouldDisable);
+        }
+
+        if (redoBtn) {
+            const shouldDisable = this.historyIndex >= this.historyStack.length - 1;
+            redoBtn.disabled = shouldDisable;
+            redoBtn.classList.toggle('btn-disabled', shouldDisable);
+        }
+        
+        console.log('按钮状态更新:', {
+            historyIndex: this.historyIndex,
+            stackLength: this.historyStack.length,
+            canUndo: this.historyIndex >= 0,
+            canRedo: this.historyIndex < this.historyStack.length - 1
+        });
+    }
+
+    /**
+     * 获取当前状态
+     * @returns {object} 当前状态对象
+     */
+    getCurrentState() {
+        const state = {
+            highlights: [],
+            underlines: [],
+            wordTranslations: {},
+            sentenceTranslations: {}
+        };
+
+        // 收集所有高亮的span（按highlightId分组）
+        const highlightGroups = new Map(); // highlightId -> { spans, color, rects }
+        
+        const highlightedSpans = document.querySelectorAll('.pdf-text-layer span[data-highlight-id]');
+        highlightedSpans.forEach(span => {
+            const highlightId = span.dataset.highlightId;
+            if (!highlightId) return;
+            
+            if (!highlightGroups.has(highlightId)) {
+                highlightGroups.set(highlightId, {
+                    spans: [],
+                    color: span.style.backgroundColor || span.dataset.highlightColor,
+                    rects: []
+                });
+            }
+            highlightGroups.get(highlightId).spans.push(span);
+        });
+        
+        // 为每个highlightId收集位置信息
+        highlightGroups.forEach((group, highlightId) => {
+            if (group.spans.length === 0) return;
+            
+            const firstSpan = group.spans[0];
+            const pageIndex = this.getPageIndexOfSpan(firstSpan);
+            const pageInfo = this.pdfPageInfo ? this.pdfPageInfo.get(pageIndex) : null;
+            
+            // 获取该highlightId的所有背景div
+            const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+            const rects = [];
+            let actualColor = group.color; // 默认使用group中的颜色
+            
+            highlightDivs.forEach(div => {
+                // 从div获取实际颜色（这是真正的颜色值）
+                if (div.style.backgroundColor) {
+                    actualColor = div.style.backgroundColor;
+                }
+                
+                // 前端坐标（基于scale=2.0的viewport）
+                const frontendX = parseFloat(div.style.left) || 0;
+                const frontendY = parseFloat(div.style.top) || 0;
+                const frontendWidth = parseFloat(div.style.width) || 0;
+                const frontendHeight = parseFloat(div.style.height) || 0;
+                
+                // 转换为PDF原始坐标
+                let pdfRect;
+                if (pageInfo) {
+                    const scale = pageInfo.scale; // 2.0
+                    const pdfHeight = pageInfo.height; // PDF原始高度
+                    
+                    pdfRect = {
+                        x: frontendX / scale,
+                        y: pdfHeight - (frontendY / scale) - (frontendHeight / scale),
+                        width: frontendWidth / scale,
+                        height: frontendHeight / scale
+                    };
+                } else {
+                    pdfRect = {
+                        x: frontendX / 2.0,
+                        y: frontendY / 2.0,
+                        width: frontendWidth / 2.0,
+                        height: frontendHeight / 2.0
+                    };
+                }
+                rects.push(pdfRect);
+            });
+            
+            // 如果还是没有颜色，使用默认颜色
+            if (!actualColor || actualColor === 'custom' || actualColor === 'transparent') {
+                actualColor = 'rgba(255, 255, 200, 0.6)'; // 默认黄色
+            }
+            
+            // 保存这个高亮组（一个highlightId对应一个条目）
+            state.highlights.push({
+                highlightId: highlightId,
+                text: group.spans.map(s => s.textContent).join(''),
+                color: actualColor, // 使用从div获取的实际颜色
+                highlightColor: firstSpan.dataset.highlightColor,
+                pageIndex: pageIndex,
+                spanIndices: group.spans.map(s => this.getSpanIndexInPage(s)), // 保存所有span的索引
+                rects: rects // 所有矩形（可能跨多行）
+            });
+        });
+
+        // 收集所有下划线（按underlineId分组）
+        const underlineGroups = new Map(); // underlineId -> { spans }
+        
+        const underlinedSpans = document.querySelectorAll('.pdf-text-layer span[data-underline-id]');
+        console.log('📝 收集下划线，找到span数量:', underlinedSpans.length);
+        
+        underlinedSpans.forEach(span => {
+            const underlineId = span.dataset.underlineId;
+            if (!underlineId) {
+                console.warn('⚠️ span没有underlineId:', span);
+                return;
+            }
+            
+            if (!underlineGroups.has(underlineId)) {
+                underlineGroups.set(underlineId, {
+                    spans: []
+                });
+            }
+            underlineGroups.get(underlineId).spans.push(span);
+        });
+        
+        console.log('📝 下划线分组数量:', underlineGroups.size);
+        
+        // 为每个underlineId保存数据
+        underlineGroups.forEach((group, underlineId) => {
+            if (group.spans.length === 0) return;
+            
+            const firstSpan = group.spans[0];
+            const pageIndex = this.getPageIndexOfSpan(firstSpan);
+            
+            state.underlines.push({
+                underlineId: underlineId,
+                text: group.spans.map(s => s.textContent).join(''),
+                pageIndex: pageIndex,
+                spanIndices: group.spans.map(s => this.getSpanIndexInPage(s))
+            });
+        });
+        
+        console.log('📝 保存的下划线数量:', state.underlines.length);
+
+        // 收集翻译数据
+        this.wordTranslationMap.forEach((value, key) => {
+            state.wordTranslations[key] = value;
+        });
+
+        this.sentenceTranslationMap.forEach((value, key) => {
+            state.sentenceTranslations[key] = value;
+        });
+
+        return state;
+    }
+
+    /**
+     * 加载状态
+     * @param {object} state - 要加载的状态对象
+     */
+    loadState(state) {
+        if (!state) return;
+
+        console.log('🔄 加载状态:', state);
+
+        // 清除所有当前高亮
+        this.clearAllHighlights();
+
+        // 恢复高亮
+        state.highlights.forEach(highlight => {
+            const spans = [];
+            
+            // 支持新旧两种格式
+            if (highlight.spanIndices && Array.isArray(highlight.spanIndices)) {
+                // 新格式：spanIndices数组
+                highlight.spanIndices.forEach(spanIndex => {
+                    const span = this.findSpanByPosition(highlight.pageIndex, spanIndex);
+                    if (span) {
+                        spans.push(span);
+                    }
+                });
+            } else if (highlight.spanIndex !== undefined) {
+                // 旧格式：单个spanIndex
+                const span = this.findSpanByPosition(highlight.pageIndex, highlight.spanIndex);
+                if (span) {
+                    spans.push(span);
+                }
+            }
+            
+            // 为所有span设置高亮属性（但不设置backgroundColor，由unified-highlight div处理）
+            spans.forEach(span => {
+                // 不设置span.style.backgroundColor，避免与unified-highlight重复
+                if (highlight.highlightId) {
+                    span.dataset.highlightId = highlight.highlightId;
+                }
+                if (highlight.highlightColor) {
+                    span.dataset.highlightColor = highlight.highlightColor;
+                }
+            });
+            
+            // 重建统一高亮背景（这是唯一的高亮层）
+            if (spans.length > 0) {
+                this.createUnifiedHighlight(
+                    spans,
+                    highlight.color || 'rgba(255, 255, 200, 0.6)',
+                    highlight.highlightId
+                );
+            }
+        });
+
+        // 恢复下划线
+        if (state.underlines && state.underlines.length > 0) {
+            state.underlines.forEach(underline => {
+                const spans = [];
+                
+                if (underline.spanIndices && Array.isArray(underline.spanIndices)) {
+                    underline.spanIndices.forEach(spanIndex => {
+                        const span = this.findSpanByPosition(underline.pageIndex, spanIndex);
+                        if (span) {
+                            spans.push(span);
+                        }
+                    });
+                }
+                
+                // 为所有span设置下划线属性
+                spans.forEach(span => {
+                    span.dataset.underlineId = underline.underlineId;
+                    span.classList.add('word-underlined');
+                });
+                
+                // 重建统一下划线
+                if (spans.length > 0) {
+                    this.createUnifiedUnderline(spans, underline.underlineId);
+                }
+            });
+        }
+
+        // 恢复翻译数据
+        this.wordTranslationMap.clear();
+        Object.keys(state.wordTranslations || {}).forEach(key => {
+            this.wordTranslationMap.set(key, state.wordTranslations[key]);
+        });
+
+        this.sentenceTranslationMap.clear();
+        Object.keys(state.sentenceTranslations || {}).forEach(key => {
+            this.sentenceTranslationMap.set(key, state.sentenceTranslations[key]);
+        });
+    }
+
+    /**
+     * 清除所有高亮和下划线
+     */
+    clearAllHighlights() {
+        // 清除span上的高亮样式和属性
+        const highlightedSpans = document.querySelectorAll('.pdf-text-layer span[data-highlight-id]');
+        highlightedSpans.forEach(span => {
+            span.style.backgroundColor = '';
+            delete span.dataset.highlightId;
+            delete span.dataset.highlightColor;
+        });
+        
+        // 清除所有统一高亮背景层
+        const highlightDivs = document.querySelectorAll('.unified-highlight');
+        highlightDivs.forEach(div => div.remove());
+        
+        // 清除span上的下划线属性
+        const underlinedSpans = document.querySelectorAll('.pdf-text-layer span[data-underline-id]');
+        underlinedSpans.forEach(span => {
+            delete span.dataset.underlineId;
+            span.classList.remove('word-underlined');
+        });
+        
+        // 清除所有统一下划线层
+        const underlineDivs = document.querySelectorAll('.unified-underline');
+        underlineDivs.forEach(div => div.remove());
+    }
+
+    /**
+     * 根据位置查找span元素
+     */
+    getPageIndexOfSpan(span) {
+        const textLayer = span.closest('.pdf-text-layer');
+        if (!textLayer) return 0;
+        const allTextLayers = document.querySelectorAll('.pdf-text-layer');
+        return Array.from(allTextLayers).indexOf(textLayer);
+    }
+
+    getSpanIndexInPage(span) {
+        const textLayer = span.closest('.pdf-text-layer');
+        if (!textLayer) return 0;
+        const allSpans = textLayer.querySelectorAll('span');
+        return Array.from(allSpans).indexOf(span);
+    }
+
+    findSpanByPosition(pageIndex, spanIndex) {
+        const allTextLayers = document.querySelectorAll('.pdf-text-layer');
+        if (pageIndex >= allTextLayers.length) return null;
+        const textLayer = allTextLayers[pageIndex];
+        const allSpans = textLayer.querySelectorAll('span');
+        return allSpans[spanIndex];
+    }
+
+    /**
+     * 标记为有未保存的修改
+     */
+    markAsDirty() {
+        this.isDirty = true;
+        this.updateSaveButtonState();
+        this.updateStatus('有未保存的更改');
+    }
+
+    /**
+     * 重置历史记录和保存状态
+     * @param {boolean} clearSavedState 是否清除已保存状态
+     */
+    resetHistory(clearSavedState = true) {
+        this.historyStack = [];
+        this.historyIndex = -1;
+        if (clearSavedState) {
+            this.lastSavedState = null;
+        }
+        this.isDirty = false;
+        this.updateUndoRedoButtons();
+        this.updateSaveButtonState();
+    }
+
+    /**
+     * 保存文档
+     */
+    async saveDocument() {
+        if (!this.currentFile) {
+            console.warn('⚠️ 没有当前文件');
+            return;
+        }
+
+        try {
+            this.updateStatus('正在保存标注...');
+
+            // 获取当前状态
+            const state = this.getCurrentState();
+
+            console.log('📝 保存标注到JSON:', {
+                文件: this.currentFile,
+                高亮数量: state.highlights.length
+            });
+
+            // 生成保存文件名
+            const fileName = this.getFileName(this.currentFile);
+            const baseName = fileName.replace(/\.[^/.]+$/, '');
+            const savePath = `user-data/annotations/${baseName}_annotations.json`;
+
+            // 构建保存数据
+            const saveData = {
+                fileName: fileName,
+                filePath: this.currentFile,
+                savedAt: new Date().toISOString(),
+                highlights: state.highlights,
+                wordTranslations: state.wordTranslations,
+                sentenceTranslations: state.sentenceTranslations
+            };
+
+            // 保存到JSON文件
+            const result = await ipcRenderer.invoke('save-annotations', {
+                path: savePath,
+                data: JSON.stringify(saveData, null, 2)
+            });
+
+            if (result.success) {
+                this.isDirty = false;
+                this.lastSavedState = state;
+                this.updateSaveButtonState();
+                this.updateStatus('✅ 标注已保存');
+                this.refreshDirtyState();
+                console.log('✅ 标注已保存到:', savePath);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error('❌ 保存失败:', error);
+            this.updateStatus('保存失败: ' + error.message);
+        }
+    }
+
+    /**
+     * 导出带标注的PDF
+     */
+    async exportAnnotatedPDF() {
+        if (!this.currentFile) {
+            console.warn('⚠️ 没有当前文件');
+            return;
+        }
+
+        try {
+            this.updateStatus('正在导出PDF...');
+
+            // 获取当前状态
+            const state = this.getCurrentState();
+
+            console.log('📝 导出带标注的PDF:', {
+                文件: this.currentFile,
+                高亮数量: state.highlights.length
+            });
+
+            // 构建标注数据
+            const annotations = {
+                highlights: state.highlights,
+                wordTranslations: state.wordTranslations,
+                sentenceTranslations: state.sentenceTranslations
+            };
+
+            // 保存到PDF文件
+            const result = await ipcRenderer.invoke('save-annotations-to-pdf', {
+                filePath: this.currentFile,
+                annotations: annotations
+            });
+
+            if (result.success) {
+                this.updateStatus(`✅ ${result.message}`);
+                console.log('✅ 带标注的PDF已导出到:', result.path);
+                
+                // 同时保存JSON备份
+                await this.saveDocument();
+                
+                // 显示成功提示
+                alert(`导出成功！\n\n文件已保存到：\n${result.path}\n\n文件管理器将自动打开该文件所在位置。`);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error('❌ 导出失败:', error);
+            this.updateStatus('导出失败: ' + error.message);
+        }
+    }
+
+    /**
+     * 显示保存确认对话框
+     * @returns {Promise<string>} 返回用户选择: 'save', 'dontSave', 'cancel'
+     */
+    showSaveConfirmDialog() {
+        return new Promise((resolve) => {
+            const dialog = document.getElementById('saveConfirmDialog');
+            dialog.style.display = 'flex';
+
+            // 存储resolve函数供按钮使用
+            this.saveConfirmResolve = resolve;
+        });
+    }
+
+    /**
+     * 处理保存确认对话框的选择
+     * @param {string} action - 'save', 'dontSave', 'cancel'
+     */
+    handleSaveConfirm(action) {
+        const dialog = document.getElementById('saveConfirmDialog');
+        dialog.style.display = 'none';
+
+        if (this.saveConfirmResolve) {
+            this.saveConfirmResolve(action);
+            this.saveConfirmResolve = null;
+        }
+
+        console.log(`💬 用户选择: ${action}`);
+    }
+
+    /**
+     * 更新保存按钮状态
+     */
+    updateSaveButtonState() {
+        const saveBtn = document.getElementById('saveBtn');
+        if (saveBtn) {
+            if (this.isDirty) {
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('btn-disabled');
+            } else {
+                saveBtn.disabled = true;
+                saveBtn.classList.add('btn-disabled');
+            }
+        }
+    }
+
+    /**
+     * 判断当前状态是否与最近一次保存一致
+     * @returns {boolean}
+     */
+    isCurrentStateSaved() {
+        if (!this.lastSavedState) {
+            return this.historyIndex < 0;
+        }
+        const currentState = this.getCurrentState();
+        return JSON.stringify(currentState) === JSON.stringify(this.lastSavedState);
+    }
+
+    /**
+     * 根据当前状态刷新未保存标记
+     */
+    refreshDirtyState() {
+        this.isDirty = !this.isCurrentStateSaved();
+        this.updateSaveButtonState();
     }
 }
 
