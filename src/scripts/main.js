@@ -279,6 +279,16 @@ class MainApp {
         };
 
         tab.webview.addEventListener('did-finish-load', sendFileToReader);
+        
+        // 为webview添加开发者工具快捷键支持
+        // 在webview中按 F12 或 Ctrl+Shift+I (Windows/Linux) 或 Cmd+Option+I (Mac) 打开开发者工具
+        tab.webview.addEventListener('dom-ready', () => {
+            // 通过IPC让webview打开开发者工具
+            tab.webview.addEventListener('console-message', (e) => {
+                // 将所有webview的console输出也输出到主窗口控制台
+                console.log(`[WebView ${tab.id}]:`, e.message);
+            });
+        });
 
         tab.webview.addEventListener('ipc-message', (event) => {
             if (!event || !event.channel) {

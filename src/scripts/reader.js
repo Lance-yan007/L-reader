@@ -202,6 +202,20 @@ class ReaderApp {
         // 键盘快捷键
         document.addEventListener('keydown', (e) => {
             this.handleKeyboardShortcuts(e);
+            
+            // F12 或 Ctrl+Shift+I / Cmd+Option+I 打开开发者工具
+            if (e.key === 'F12' || 
+                (e.key === 'I' && (e.ctrlKey || e.metaKey) && e.shiftKey) ||
+                (e.key === 'I' && (e.metaKey || e.ctrlKey) && e.altKey)) {
+                e.preventDefault();
+                if (window.require) {
+                    const { remote } = window.require('electron');
+                    const currentWindow = remote.getCurrentWindow();
+                    if (currentWindow && currentWindow.webContents) {
+                        currentWindow.webContents.openDevTools();
+                    }
+                }
+            }
         });
     }
 
@@ -4984,9 +4998,27 @@ class ReaderApp {
                 filePath: this.currentFile,
                 savedAt: new Date().toISOString(),
                 highlights: state.highlights,
+                underlines: state.underlines || [], // 确保包含下划线
                 wordTranslations: state.wordTranslations,
                 sentenceTranslations: state.sentenceTranslations
             };
+            
+            // 验证保存数据
+            console.log('💾 保存数据验证:', {
+                高亮数量: saveData.highlights.length,
+                下划线数量: saveData.underlines.length,
+                单词翻译数量: Object.keys(saveData.wordTranslations).length,
+                句子翻译数量: Object.keys(saveData.sentenceTranslations).length
+            });
+            
+            // 如果应该有下划线但没收集到，给出警告
+            const actualUnderlinedSpans = document.querySelectorAll('.pdf-text-layer span[data-underline-id]');
+            if (actualUnderlinedSpans.length > 0 && saveData.underlines.length === 0) {
+                console.error('⚠️ 警告：页面中有下划线span，但getCurrentState()没有收集到！', {
+                    实际下划线span数量: actualUnderlinedSpans.length,
+                    收集到的下划线数量: saveData.underlines.length
+                });
+            }
 
             // 保存到JSON文件
             const result = await ipcRenderer.invoke('save-annotations', {
