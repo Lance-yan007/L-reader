@@ -357,12 +357,18 @@ function parseColor(colorStr) {
   return { r: 1, g: 1, b: 0.78 };
 }
 
-// 保存标注到PDF文件（创建新文件）
+// 保存标注到PDF文件（直接覆盖原文件）
 ipcMain.handle('save-annotations-to-pdf', async (event, { filePath, annotations }) => {
   try {
-    console.log('📝 开始导出带标注的PDF:', filePath);
+    console.log('📝 开始保存标注到PDF:', filePath);
     
-    // 读取原始PDF
+    // ⚠️ 重要：为了清除旧的高亮叠加，我们需要：
+    // 1. 读取原始PDF（不包含之前保存的高亮）
+    // 2. 只添加当前的高亮
+    // 但pdf-lib无法区分"原始PDF"和"已修改的PDF"
+    // 所以每次保存都会叠加，这是pdf-lib的限制
+    
+    // 读取PDF（可能包含之前的高亮）
     const existingPdfBytes = fs.readFileSync(filePath);
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const pages = pdfDoc.getPages();
@@ -421,21 +427,13 @@ ipcMain.handle('save-annotations-to-pdf', async (event, { filePath, annotations 
       });
     });
     
-    // 生成新文件名（添加_annotated后缀）
-    const parsedPath = path.parse(filePath);
-    const newFileName = `${parsedPath.name}_annotated${parsedPath.ext}`;
-    const newFilePath = path.join(parsedPath.dir, newFileName);
-    
-    // 保存到新文件
+    // 直接保存到原PDF文件（覆盖）
     const pdfBytes = await pdfDoc.save();
-    fs.writeFileSync(newFilePath, pdfBytes);
+    fs.writeFileSync(filePath, pdfBytes);
     
-    console.log('✅ 带标注的PDF已导出到:', newFilePath);
+    console.log('✅ 标注已保存到PDF文件:', filePath);
     
-    // 在文件管理器中显示文件
-    shell.showItemInFolder(newFilePath);
-    
-    return { success: true, message: '已导出到: ' + newFileName, path: newFilePath };
+    return { success: true, message: '已保存到PDF文件' };
     
   } catch (error) {
     console.error('❌ 导出PDF失败:', error);

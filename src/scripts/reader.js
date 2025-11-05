@@ -162,14 +162,6 @@ class ReaderApp {
             });
         }
 
-        // 导出PDF按钮
-        const exportPdfBtn = document.getElementById('exportPdfBtn');
-        if (exportPdfBtn) {
-            exportPdfBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.exportAnnotatedPDF();
-            });
-        }
 
         // 保存确认对话框按钮
         document.getElementById('saveConfirmSave').addEventListener('click', () => {
@@ -4977,56 +4969,62 @@ class ReaderApp {
         }
 
         try {
-            this.updateStatus('正在保存标注...');
+            this.updateStatus('正在保存到PDF...');
 
             // 获取当前状态
             const state = this.getCurrentState();
 
-            console.log('📝 保存标注到JSON:', {
+            console.log('📝 保存标注到PDF:', {
                 文件: this.currentFile,
-                高亮数量: state.highlights.length
+                高亮数量: state.highlights.length,
+                下划线数量: state.underlines?.length || 0
             });
 
-            // 生成保存文件名
-            const fileName = this.getFileName(this.currentFile);
-            const baseName = fileName.replace(/\.[^/.]+$/, '');
-            const savePath = `user-data/annotations/${baseName}_annotations.json`;
-
-            // 构建保存数据
-            const saveData = {
-                fileName: fileName,
-                filePath: this.currentFile,
-                savedAt: new Date().toISOString(),
+            // 构建标注数据
+            const annotations = {
                 highlights: state.highlights,
-                underlines: state.underlines || [], // 确保包含下划线
+                underlines: state.underlines || [],
                 wordTranslations: state.wordTranslations,
                 sentenceTranslations: state.sentenceTranslations
             };
             
             // 验证保存数据
             console.log('💾 保存数据验证:', {
-                高亮数量: saveData.highlights.length,
-                下划线数量: saveData.underlines.length,
-                单词翻译数量: Object.keys(saveData.wordTranslations).length,
-                句子翻译数量: Object.keys(saveData.sentenceTranslations).length
+                高亮数量: annotations.highlights.length,
+                下划线数量: annotations.underlines.length,
+                单词翻译数量: Object.keys(annotations.wordTranslations).length,
+                句子翻译数量: Object.keys(annotations.sentenceTranslations).length
             });
             
             // 如果应该有下划线但没收集到，给出警告
             const actualUnderlinedSpans = document.querySelectorAll('.pdf-text-layer span[data-underline-id]');
-            if (actualUnderlinedSpans.length > 0 && saveData.underlines.length === 0) {
+            if (actualUnderlinedSpans.length > 0 && annotations.underlines.length === 0) {
                 console.error('⚠️ 警告：页面中有下划线span，但getCurrentState()没有收集到！', {
                     实际下划线span数量: actualUnderlinedSpans.length,
-                    收集到的下划线数量: saveData.underlines.length
+                    收集到的下划线数量: annotations.underlines.length
                 });
             }
 
-            // 保存到JSON文件
-            const result = await ipcRenderer.invoke('save-annotations', {
+            // 保存JSON（用于本软件识别和修改）
+            // ⚠️ 不保存到PDF，因为pdf-lib无法删除已有高亮，会导致删除时无法清除PDF中的高亮
+            // 如果需要在其他阅读器查看，可以添加"导出PDF"功能
+            const fileName = this.getFileName(this.currentFile);
+            const baseName = fileName.replace(/\.[^/.]+$/, '');
+            const savePath = `user-data/annotations/${baseName}_annotations.json`;
+
+            const saveData = {
+                fileName: fileName,
+                filePath: this.currentFile,
+                savedAt: new Date().toISOString(),
+                ...annotations
+            };
+
+            const jsonResult = await ipcRenderer.invoke('save-annotations', {
                 path: savePath,
                 data: JSON.stringify(saveData, null, 2)
             });
 
-            if (result.success) {
+            if (jsonResult.success) {
                 this.isDirty = false;
                 this.lastSavedState = state;
                 this.updateSaveButtonState();
@@ -5034,7 +5032,7 @@ class ReaderApp {
                 this.refreshDirtyState();
                 console.log('✅ 标注已保存到:', savePath);
             } else {
-                throw new Error(result.error);
+                throw new Error(jsonResult.error);
             }
         } catch (error) {
             console.error('❌ 保存失败:', error);
@@ -5042,56 +5040,6 @@ class ReaderApp {
         }
     }
 
-    /**
-     * 导出带标注的PDF
-     */
-    async exportAnnotatedPDF() {
-        if (!this.currentFile) {
-            console.warn('⚠️ 没有当前文件');
-            return;
-        }
-
-        try {
-            this.updateStatus('正在导出PDF...');
-
-            // 获取当前状态
-            const state = this.getCurrentState();
-
-            console.log('📝 导出带标注的PDF:', {
-                文件: this.currentFile,
-                高亮数量: state.highlights.length
-            });
-
-            // 构建标注数据
-            const annotations = {
-                highlights: state.highlights,
-                wordTranslations: state.wordTranslations,
-                sentenceTranslations: state.sentenceTranslations
-            };
-
-            // 保存到PDF文件
-            const result = await ipcRenderer.invoke('save-annotations-to-pdf', {
-                filePath: this.currentFile,
-                annotations: annotations
-            });
-
-            if (result.success) {
-                this.updateStatus(`✅ ${result.message}`);
-                console.log('✅ 带标注的PDF已导出到:', result.path);
-                
-                // 同时保存JSON备份
-                await this.saveDocument();
-                
-                // 显示成功提示
-                alert(`导出成功！\n\n文件已保存到：\n${result.path}\n\n文件管理器将自动打开该文件所在位置。`);
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            console.error('❌ 导出失败:', error);
-            this.updateStatus('导出失败: ' + error.message);
-        }
-    }
 
     /**
      * 显示保存确认对话框
