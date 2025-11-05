@@ -45,6 +45,7 @@ class MainApp {
         this.tabStrip = document.getElementById('tabStrip');
         this.tabAddButton = document.getElementById('tabAddButton');
         this.homeView = document.getElementById('homeView');
+        this.vocabularyView = document.getElementById('vocabularyView');
         this.documentPanels = document.getElementById('documentPanels');
     }
 
@@ -208,12 +209,61 @@ class MainApp {
         this.updateTabStates();
         this.ensureActiveTabVisible();
 
-        if (targetTab.type === 'document' && targetTab.webview) {
-            try {
-                targetTab.webview.focus();
-            } catch (error) {
-                console.warn('无法聚焦文档标签:', error);
+        // 根据标签类型显示/隐藏相应的视图
+        if (targetTab.type === 'document') {
+            // 隐藏home view和vocabulary view
+            if (this.homeView) {
+                this.homeView.classList.remove('is-active');
+                this.homeView.style.display = 'none';
             }
+            if (this.vocabularyView) {
+                this.vocabularyView.classList.remove('is-active');
+                this.vocabularyView.style.display = 'none';
+            }
+            // 显示对应的文档面板，隐藏其他面板
+            if (this.documentPanels) {
+                const panels = this.documentPanels.querySelectorAll('.document-panel');
+                panels.forEach(panel => {
+                    const panelTabId = panel.dataset.tabId;
+                    if (panelTabId === tabId) {
+                        panel.classList.add('is-active');
+                        panel.style.display = 'flex';
+                    } else {
+                        panel.classList.remove('is-active');
+                        panel.style.display = 'none';
+                    }
+                });
+            }
+            // 更新导航状态
+            this.updateNavActiveState(null);
+            // 聚焦webview
+            if (targetTab.webview) {
+                try {
+                    targetTab.webview.focus();
+                } catch (error) {
+                    console.warn('无法聚焦文档标签:', error);
+                }
+            }
+        } else if (targetTab.type === 'home') {
+            // 显示home view
+            if (this.homeView) {
+                this.homeView.classList.add('is-active');
+                this.homeView.style.display = 'flex';
+            }
+            // 隐藏vocabulary view和文档面板
+            if (this.vocabularyView) {
+                this.vocabularyView.classList.remove('is-active');
+                this.vocabularyView.style.display = 'none';
+            }
+            if (this.documentPanels) {
+                const panels = this.documentPanels.querySelectorAll('.document-panel');
+                panels.forEach(panel => {
+                    panel.classList.remove('is-active');
+                    panel.style.display = 'none';
+                });
+            }
+            // 更新导航状态
+            this.updateNavActiveState('home');
         }
     }
 
@@ -229,9 +279,19 @@ class MainApp {
             return;
         }
 
+        // 隐藏home view和vocabulary view
+        if (this.homeView) {
+            this.homeView.classList.remove('is-active');
+            this.homeView.style.display = 'none';
+        }
+        if (this.vocabularyView) {
+            this.vocabularyView.classList.remove('is-active');
+            this.vocabularyView.style.display = 'none';
+        }
+
         const tabId = `tab-doc-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
         const panel = document.createElement('div');
-        panel.className = 'tab-panel document-panel';
+        panel.className = 'tab-panel document-panel is-active';
         panel.id = `${tabId}-panel`;
         panel.dataset.tabId = tabId;
         panel.setAttribute('role', 'tabpanel');
@@ -319,30 +379,45 @@ class MainApp {
             return;
         }
 
-        if (tab.panelElement && tab.panelElement.parentNode) {
-            tab.panelElement.parentNode.removeChild(tab.panelElement);
+        const isActive = this.activeTabId === tabId;
+        
+        // 先隐藏面板，避免白屏
+        if (tab.panelElement && tab.type === 'document') {
+            tab.panelElement.style.display = 'none';
         }
+
+        // 确定下一个要激活的标签
+        let nextActiveId = null;
+        if (isActive) {
+            // 优先选择同类型的下一个标签，如果没有则选择主页
+            const nextTab = this.tabs[tabIndex + 1] || this.tabs[tabIndex - 1];
+            nextActiveId = nextTab ? nextTab.id : this.homeTabId;
+        }
+
+        // 先切换到下一个标签（如果关闭的是当前标签）
+        if (isActive && nextActiveId) {
+            this.setActiveTab(nextActiveId);
+        }
+
+        // 延迟删除DOM元素，避免阻塞UI
+        setTimeout(() => {
+            if (tab.panelElement && tab.panelElement.parentNode) {
+                tab.panelElement.parentNode.removeChild(tab.panelElement);
+            }
+        }, 100);
 
         if (tab.filePath) {
             this.tabLookupByPath.delete(tab.filePath);
         }
 
-        const isActive = this.activeTabId === tabId;
         this.tabs.splice(tabIndex, 1);
-
-        let nextActiveId = this.activeTabId;
-        if (isActive) {
-            const fallback = this.tabs[tabIndex] || this.tabs[tabIndex - 1] || this.tabs.find(t => t.id === this.homeTabId);
-            nextActiveId = fallback ? fallback.id : null;
-        }
-
         this.renderTabStrip();
 
-        if (nextActiveId) {
-            this.setActiveTab(nextActiveId);
-        } else {
-            this.activeTabId = null;
-            this.updateTabStates();
+        // 如果没有下一个标签，确保显示主页
+        if (!nextActiveId || this.tabs.length === 1) {
+            this.activeTabId = this.homeTabId;
+            this.setActiveTab(this.homeTabId);
+            this.updateNavActiveState('home');
         }
     }
 
@@ -364,6 +439,16 @@ class MainApp {
         const homeNavBtn = document.getElementById('homeNavBtn');
         if (homeNavBtn) {
             homeNavBtn.addEventListener('click', () => {
+                // 隐藏vocabulary view
+                if (this.vocabularyView) {
+                    this.vocabularyView.classList.remove('is-active');
+                    this.vocabularyView.style.display = 'none';
+                }
+                // 显示home view
+                if (this.homeView) {
+                    this.homeView.classList.add('is-active');
+                    this.homeView.style.display = 'flex';
+                }
                 if (this.recentFiles.length > 0) {
                     this.showFilesView();
                     this.renderRecentFiles();
@@ -371,6 +456,14 @@ class MainApp {
                     this.showWelcomeView();
                 }
                 this.setActiveTab(this.homeTabId);
+                this.updateNavActiveState('home');
+            });
+        }
+
+        const vocabularyNavBtn = document.getElementById('vocabularyNavBtn');
+        if (vocabularyNavBtn) {
+            vocabularyNavBtn.addEventListener('click', () => {
+                this.showVocabularyView();
             });
         }
 
@@ -483,6 +576,39 @@ class MainApp {
     showFilesView() {
         document.getElementById('welcomeSection').style.display = 'none';
         document.getElementById('filesView').style.display = 'flex';
+    }
+
+    showVocabularyView() {
+        // 隐藏home view
+        if (this.homeView) {
+            this.homeView.classList.remove('is-active');
+            this.homeView.style.display = 'none';
+        }
+        // 显示vocabulary view
+        if (this.vocabularyView) {
+            this.vocabularyView.classList.add('is-active');
+            this.vocabularyView.style.display = 'flex';
+        }
+        // 隐藏所有文档面板
+        if (this.documentPanels) {
+            const panels = this.documentPanels.querySelectorAll('.document-panel');
+            panels.forEach(panel => {
+                panel.style.display = 'none';
+            });
+        }
+        this.updateNavActiveState('vocabulary');
+    }
+
+    updateNavActiveState(activeView) {
+        const homeNavBtn = document.getElementById('homeNavBtn');
+        const vocabularyNavBtn = document.getElementById('vocabularyNavBtn');
+        
+        if (homeNavBtn) {
+            homeNavBtn.classList.toggle('active', activeView === 'home');
+        }
+        if (vocabularyNavBtn) {
+            vocabularyNavBtn.classList.toggle('active', activeView === 'vocabulary');
+        }
     }
 
     showEmptyState(message) {

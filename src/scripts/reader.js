@@ -2156,6 +2156,20 @@ class ReaderApp {
                     translation: translation,
                     clickCount: 1
                 });
+                
+                // 保存翻译到translations目录（用于生词本）
+                try {
+                    const translationData = {
+                        filePath: this.currentFile,
+                        originalText: word,
+                        translatedText: translation,
+                        page: this.currentPage || 0,
+                        timestamp: new Date().toISOString()
+                    };
+                    await ipcRenderer.invoke('save-translation', translationData);
+                } catch (saveError) {
+                    console.error('保存翻译到生词本失败:', saveError);
+                }
             } catch (error) {
                 console.error('翻译失败:', error);
                 // 保存失败信息

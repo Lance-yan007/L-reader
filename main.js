@@ -341,6 +341,109 @@ ipcMain.handle('get-translations', async (event, filePath) => {
   }
 });
 
+// 获取所有翻译记录（用于生词本）
+ipcMain.handle('get-all-translations', async () => {
+  try {
+    const allTranslations = [];
+    
+    // 检查translations目录是否存在
+    if (!fs.existsSync(APP_CONFIG.translationsPath)) {
+      return { success: true, data: [] };
+    }
+    
+    // 读取所有翻译文件
+    const files = fs.readdirSync(APP_CONFIG.translationsPath);
+    const translationFiles = files.filter(file => file.endsWith('_translations.json'));
+    
+    for (const file of translationFiles) {
+      try {
+        const filePath = path.join(APP_CONFIG.translationsPath, file);
+        const data = fs.readFileSync(filePath, 'utf8');
+        const translations = JSON.parse(data);
+        
+        // 将每个翻译添加到总列表中，并记录来源文件
+        if (Array.isArray(translations)) {
+          translations.forEach(translation => {
+            translation.sourceFile = file; // 记录来源文件，用于删除时更新
+            allTranslations.push(translation);
+          });
+        }
+      } catch (error) {
+        console.error(`读取翻译文件失败 ${file}:`, error);
+      }
+    }
+    
+    // 按时间戳排序（最新的在前）
+    allTranslations.sort((a, b) => {
+      const timeA = new Date(a.timestamp || a.id || 0).getTime();
+      const timeB = new Date(b.timestamp || b.id || 0).getTime();
+      return timeB - timeA;
+    });
+    
+    return { success: true, data: allTranslations };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 删除翻译记录
+ipcMain.handle('delete-translations', async (event, translationIds) => {
+  try {
+    if (!Array.isArray(translationIds) || translationIds.length === 0) {
+      return { success: false, error: '无效的翻译ID列表' };
+    }
+
+    // 检查translations目录是否存在
+    if (!fs.existsSync(APP_CONFIG.translationsPath)) {
+      return { success: true, deleted: 0 };
+    }
+
+    // 读取所有翻译文件
+    const files = fs.readdirSync(APP_CONFIG.translationsPath);
+    const translationFiles = files.filter(file => file.endsWith('_translations.json'));
+    
+    let totalDeleted = 0;
+    const idSet = new Set(translationIds.map(id => String(id)));
+
+    // 遍历每个翻译文件
+    for (const file of translationFiles) {
+      try {
+        const filePath = path.join(APP_CONFIG.translationsPath, file);
+        const data = fs.readFileSync(filePath, 'utf8');
+        const translations = JSON.parse(data);
+        
+        if (!Array.isArray(translations)) {
+          continue;
+        }
+
+        // 过滤掉要删除的翻译
+        const originalLength = translations.length;
+        const filteredTranslations = translations.filter(translation => {
+          const translationId = String(translation.id || translation.timestamp);
+          return !idSet.has(translationId);
+        });
+
+        const deletedCount = originalLength - filteredTranslations.length;
+        if (deletedCount > 0) {
+          // 如果文件为空，删除文件；否则更新文件
+          if (filteredTranslations.length === 0) {
+            fs.unlinkSync(filePath);
+          } else {
+            fs.writeFileSync(filePath, JSON.stringify(filteredTranslations, null, 2));
+          }
+          totalDeleted += deletedCount;
+        }
+      } catch (error) {
+        console.error(`处理翻译文件失败 ${file}:`, error);
+      }
+    }
+    
+    return { success: true, deleted: totalDeleted };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // 颜色字符串转RGB
 function parseColor(colorStr) {
   // 支持 rgba(r, g, b, a) 和 rgb(r, g, b) 格式
