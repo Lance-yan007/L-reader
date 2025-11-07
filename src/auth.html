@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - NPDF Reader</title>
+    <link rel="stylesheet" href="styles/auth.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        // 初始化 Supabase 客户端（立即执行，不等待 DOMContentLoaded）
+        // 将配置作为 window 对象的属性，避免与 auth.js 中的常量冲突
+        window.SUPABASE_CONFIG = {
+            url: 'https://xgdfwbqcjmjxdsxvmgot.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw'
+        };
+        
+        // 初始化 Supabase 客户端的函数
+        function initSupabaseClient() {
+            if (typeof supabase !== 'undefined' && supabase.createClient && window.SUPABASE_CONFIG) {
+                try {
+                    window.supabaseClient = supabase.createClient(
+                        window.SUPABASE_CONFIG.url,
+                        window.SUPABASE_CONFIG.anonKey
+                    );
+                    console.log('✅ Supabase 客户端已初始化');
+                    // 触发自定义事件，通知其他脚本
+                    window.dispatchEvent(new CustomEvent('supabase-ready'));
+                    return true;
+                } catch (error) {
+                    console.error('❌ 创建 Supabase 客户端失败:', error);
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        // 立即尝试初始化（如果 CDN 已加载）
+        if (!initSupabaseClient()) {
+            // 如果失败，等待 CDN 加载完成
+            // 使用轮询检查 supabase 是否已加载
+            let attempts = 0;
+            const maxAttempts = 100; // 10秒
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (initSupabaseClient()) {
+                    clearInterval(checkInterval);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    console.error('❌ Supabase CDN 加载超时');
+                }
+            }, 100);
+        }
+    </script>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>NPDF Reader</h1>
+                <p>智能英文阅读器</p>
+            </div>
+
+            <!-- 登录表单 -->
+            <div class="auth-form" id="loginForm">
+                <h2>登录</h2>
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input type="email" id="loginEmail" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button class="btn btn-primary" id="loginBtn">登录</button>
+                <p class="auth-switch">
+                    还没有账号？<a href="#" id="showRegister">注册</a>
+                </p>
+                <!-- 重新发送验证邮件按钮（仅在需要时显示） -->
+                <p class="auth-switch" id="resendVerificationContainer" style="display: none;">
+                    <a href="#" id="resendVerificationLink">没收到验证邮件？重新发送</a>
+                </p>
+                <!-- 或者直接输入邮箱重新发送 -->
+                <div class="resend-verification" id="resendVerificationForm" style="display: none;">
+                    <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                        或输入邮箱地址重新发送验证邮件：
+                    </p>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <input 
+                            type="email" 
+                            id="resendEmailInput" 
+                            placeholder="your@email.com" 
+                            style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                        >
+                        <button 
+                            type="button" 
+                            id="resendEmailBtn" 
+                            class="btn btn-primary" 
+                            style="padding: 8px 16px; width: auto; font-size: 14px;"
+                        >
+                            发送
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 注册表单 -->
+            <div class="auth-form" id="registerForm" style="display: none;">
+                <h2>注册</h2>
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input type="email" id="registerEmail" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label>用户名（可选）</label>
+                    <input type="text" id="registerUsername" placeholder="username">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="registerPassword" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                    <label>确认密码</label>
+                    <input type="password" id="registerPasswordConfirm" placeholder="••••••••" required>
+                </div>
+                <button class="btn btn-primary" id="registerBtn">注册</button>
+                <p class="auth-switch">
+                    已有账号？<a href="#" id="showLogin">登录</a>
+                </p>
+            </div>
+
+            <!-- 错误提示 -->
+            <div class="error-message" id="errorMessage" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script src="scripts/auth.js"></script>
+</body>
+</html>
+

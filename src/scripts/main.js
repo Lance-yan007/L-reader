@@ -1,6 +1,63 @@
 const { ipcRenderer } = require('electron');
 const path = require('path');
 
+// 加载 auth-helper（使用绝对路径确保能正确加载）
+let authHelper;
+try {
+    // 在 Electron 渲染进程中，__dirname 可能指向 src/ 或 src/scripts/
+    // 尝试多种路径
+    const possiblePaths = [
+        path.join(__dirname, '../utils/auth-helper.js'),  // 如果 __dirname 是 src/scripts/
+        path.join(__dirname, 'utils/auth-helper.js'),     // 如果 __dirname 是 src/
+        path.resolve(__dirname, '../utils/auth-helper.js'),
+        path.resolve(__dirname, 'utils/auth-helper.js')
+    ];
+    
+    console.log('📦 加载 auth-helper...');
+    console.log('   当前目录 (__dirname):', __dirname);
+    
+    let loaded = false;
+    for (const tryPath of possiblePaths) {
+        try {
+            console.log('   尝试路径:', tryPath);
+            authHelper = require(tryPath).authHelper;
+            console.log('   ✅ 成功加载，使用路径:', tryPath);
+            loaded = true;
+            break;
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    if (!loaded) {
+        throw new Error('所有路径尝试都失败');
+    }
+    
+    console.log('✅ auth-helper 加载成功！');
+} catch (e) {
+    console.error('❌ 加载 auth-helper 失败:', e.message);
+    console.error('   错误详情:', e);
+    
+    // 创建一个降级的 authHelper 对象，避免应用崩溃
+    console.warn('⚠️ 使用降级模式：认证功能暂时不可用，但应用可以正常运行');
+    authHelper = {
+        checkAuth: async () => {
+            console.warn('⚠️ auth-helper 未加载，跳过认证检查');
+            return { isAuthenticated: false, user: null, session: null };
+        },
+        getCurrentUser: async () => null,
+        getUserProfile: async () => null,
+        logout: async () => {
+            console.warn('⚠️ 认证功能未加载，无法登出');
+            return { success: false };
+        },
+        onAuthStateChange: () => {
+            console.warn('⚠️ 认证监听未加载');
+            return { data: { subscription: null } };
+        }
+    };
+}
+
 class MainApp {
     constructor() {
         this.recentFiles = [];
@@ -18,12 +75,128 @@ class MainApp {
     }
 
     async init() {
+        // 检查登录状态（暂时禁用，先让应用能运行）
+        try {
+            await this.checkAuth();
+        } catch (error) {
+            console.warn('认证检查失败，继续运行应用:', error);
+            // 如果认证检查失败，暂时跳过，让应用能运行
+        }
+        
         this.cacheDom();
         this.setupTabSystem();
         await this.loadPDFJS();
         this.bindEvents();
         this.loadRecentFiles();
         this.setupWindowStateListener();
+        
+        // 只有在 authHelper 加载成功时才设置监听
+        if (authHelper && typeof authHelper.onAuthStateChange === 'function') {
+            this.setupAuthListener();
+        }
+    }
+
+    async checkAuth() {
+        if (!authHelper) {
+            console.warn('authHelper 未加载，跳过认证检查');
+            return;
+        }
+        
+        try {
+            const { isAuthenticated, user } = await authHelper.checkAuth();
+            
+            if (!isAuthenticated) {
+                // 未登录，跳转到登录页面
+                window.location.href = 'auth.html';
+                return;
+            }
+
+            // 已登录，加载用户信息
+            await this.loadUserInfo();
+        } catch (error) {
+            console.error('检查登录状态失败:', error);
+            // 出错时也跳转到登录页面（但如果 authHelper 未加载，就不跳转）
+            if (authHelper) {
+                window.location.href = 'auth.html';
+            }
+        }
+    }
+
+    async loadUserInfo() {
+        if (!authHelper) {
+            console.warn('authHelper 未加载，跳过加载用户信息');
+            return;
+        }
+        
+        try {
+            const userProfile = await authHelper.getUserProfile();
+            const user = await authHelper.getCurrentUser();
+            
+            if (userProfile) {
+                this.updateUserUI(userProfile);
+            } else if (user) {
+                // 如果没有用户资料，使用认证信息
+                this.updateUserUI({
+                    email: user.email,
+                    username: user.email?.split('@')[0] || '用户'
+                });
+            }
+        } catch (error) {
+            console.error('加载用户信息失败:', error);
+        }
+    }
+
+    updateUserUI(userProfile) {
+        const sidebarUser = document.getElementById('sidebarUser');
+        const userName = document.getElementById('userName');
+        const userEmail = document.getElementById('userEmail');
+        
+        if (sidebarUser) {
+            sidebarUser.style.display = 'flex';
+        }
+        
+        if (userName) {
+            userName.textContent = userProfile.username || userProfile.email?.split('@')[0] || '用户';
+        }
+        
+        if (userEmail) {
+            userEmail.textContent = userProfile.email || '';
+        }
+    }
+
+    setupAuthListener() {
+        if (!authHelper || typeof authHelper.onAuthStateChange !== 'function') {
+            console.warn('authHelper 未加载，跳过设置认证监听');
+            return;
+        }
+        
+        // 监听认证状态变化
+        authHelper.onAuthStateChange((event, session, user) => {
+            if (event === 'SIGNED_OUT') {
+                // 登出后跳转到登录页面
+                window.location.href = 'auth.html';
+            } else if (event === 'SIGNED_IN') {
+                // 登录后加载用户信息
+                this.loadUserInfo();
+            }
+        });
+    }
+
+    async handleLogout() {
+        if (!authHelper) {
+            alert('认证功能未加载，无法登出');
+            return;
+        }
+        
+        if (confirm('确定要退出登录吗？')) {
+            try {
+                await authHelper.logout();
+                // 登出成功后会通过 authListener 自动跳转
+            } catch (error) {
+                console.error('登出失败:', error);
+                alert('登出失败，请重试');
+            }
+        }
     }
 
     async loadPDFJS() {
@@ -464,6 +637,14 @@ class MainApp {
         if (vocabularyNavBtn) {
             vocabularyNavBtn.addEventListener('click', () => {
                 this.showVocabularyView();
+            });
+        }
+
+        // 登出按钮
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
             });
         }
 
