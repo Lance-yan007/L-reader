@@ -147,20 +147,11 @@ class MainApp {
     }
 
     updateUserUI(userProfile) {
-        const sidebarUser = document.getElementById('sidebarUser');
-        const userName = document.getElementById('userName');
-        const userEmail = document.getElementById('userEmail');
-        
-        if (sidebarUser) {
-            sidebarUser.style.display = 'flex';
-        }
-        
-        if (userName) {
-            userName.textContent = userProfile.username || userProfile.email?.split('@')[0] || '用户';
-        }
-        
-        if (userEmail) {
-            userEmail.textContent = userProfile.email || '';
+        // 更新个人中心按钮显示的用户名（如果需要）
+        const profileNavLabel = document.getElementById('profileNavLabel');
+        if (profileNavLabel && userProfile) {
+            const displayName = userProfile.username || userProfile.email?.split('@')[0] || '个人中心';
+            profileNavLabel.textContent = displayName;
         }
     }
 
@@ -199,6 +190,24 @@ class MainApp {
         }
     }
 
+    async handleDeleteAccount() {
+        if (!confirm('确定要删除账号吗？此操作不可恢复，所有数据将被永久删除。')) {
+            return;
+        }
+
+        if (!confirm('再次确认：你真的要删除账号吗？')) {
+            return;
+        }
+
+        try {
+            alert('账号删除功能开发中...');
+            // TODO: 实现账号删除功能
+        } catch (error) {
+            console.error('删除账号失败:', error);
+            alert('删除账号失败：' + error.message);
+        }
+    }
+
     async loadPDFJS() {
         try {
             const pdfjsLib = window['pdfjs-dist/build/pdf'];
@@ -219,6 +228,7 @@ class MainApp {
         this.tabAddButton = document.getElementById('tabAddButton');
         this.homeView = document.getElementById('homeView');
         this.vocabularyView = document.getElementById('vocabularyView');
+        this.profileView = document.getElementById('profileView');
         this.documentPanels = document.getElementById('documentPanels');
     }
 
@@ -384,7 +394,7 @@ class MainApp {
 
         // 根据标签类型显示/隐藏相应的视图
         if (targetTab.type === 'document') {
-            // 隐藏home view和vocabulary view
+            // 隐藏home view、vocabulary view和profile view
             if (this.homeView) {
                 this.homeView.classList.remove('is-active');
                 this.homeView.style.display = 'none';
@@ -392,6 +402,10 @@ class MainApp {
             if (this.vocabularyView) {
                 this.vocabularyView.classList.remove('is-active');
                 this.vocabularyView.style.display = 'none';
+            }
+            if (this.profileView) {
+                this.profileView.classList.remove('is-active');
+                this.profileView.style.display = 'none';
             }
             // 显示对应的文档面板，隐藏其他面板
             if (this.documentPanels) {
@@ -423,11 +437,17 @@ class MainApp {
                 this.homeView.classList.add('is-active');
                 this.homeView.style.display = 'flex';
             }
-            // 隐藏vocabulary view和文档面板
+            // 隐藏vocabulary view
             if (this.vocabularyView) {
                 this.vocabularyView.classList.remove('is-active');
                 this.vocabularyView.style.display = 'none';
             }
+            // 隐藏profile view
+            if (this.profileView) {
+                this.profileView.classList.remove('is-active');
+                this.profileView.style.display = 'none';
+            }
+            // 隐藏所有文档面板
             if (this.documentPanels) {
                 const panels = this.documentPanels.querySelectorAll('.document-panel');
                 panels.forEach(panel => {
@@ -617,6 +637,11 @@ class MainApp {
                     this.vocabularyView.classList.remove('is-active');
                     this.vocabularyView.style.display = 'none';
                 }
+                // 隐藏profile view
+                if (this.profileView) {
+                    this.profileView.classList.remove('is-active');
+                    this.profileView.style.display = 'none';
+                }
                 // 显示home view
                 if (this.homeView) {
                     this.homeView.classList.add('is-active');
@@ -640,11 +665,34 @@ class MainApp {
             });
         }
 
-        // 登出按钮
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                this.handleLogout();
+        // 个人中心按钮
+        const profileNavBtn = document.getElementById('profileNavBtn');
+        if (profileNavBtn) {
+            profileNavBtn.addEventListener('click', () => {
+                this.showProfileView();
+            });
+        }
+
+        // 个人中心操作按钮
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        const changeEmailBtn = document.getElementById('changeEmailBtn');
+        const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', () => {
+                alert('修改密码功能开发中...');
+            });
+        }
+
+        if (changeEmailBtn) {
+            changeEmailBtn.addEventListener('click', () => {
+                alert('修改邮箱功能开发中...');
+            });
+        }
+
+        if (deleteAccountBtn) {
+            deleteAccountBtn.addEventListener('click', () => {
+                this.handleDeleteAccount();
             });
         }
 
@@ -765,6 +813,11 @@ class MainApp {
             this.homeView.classList.remove('is-active');
             this.homeView.style.display = 'none';
         }
+        // 隐藏profile view
+        if (this.profileView) {
+            this.profileView.classList.remove('is-active');
+            this.profileView.style.display = 'none';
+        }
         // 显示vocabulary view
         if (this.vocabularyView) {
             this.vocabularyView.classList.add('is-active');
@@ -780,15 +833,105 @@ class MainApp {
         this.updateNavActiveState('vocabulary');
     }
 
+    showProfileView() {
+        // 隐藏home view
+        if (this.homeView) {
+            this.homeView.classList.remove('is-active');
+            this.homeView.style.display = 'none';
+        }
+        // 隐藏vocabulary view
+        if (this.vocabularyView) {
+            this.vocabularyView.classList.remove('is-active');
+            this.vocabularyView.style.display = 'none';
+        }
+        // 隐藏所有文档面板
+        if (this.documentPanels) {
+            const panels = this.documentPanels.querySelectorAll('.document-panel');
+            panels.forEach(panel => {
+                panel.classList.remove('is-active');
+                panel.style.display = 'none';
+            });
+        }
+        // 显示profile view
+        if (this.profileView) {
+            this.profileView.classList.add('is-active');
+            this.profileView.style.display = 'flex';
+        }
+        // 不要调用 setActiveTab，因为那会重新显示 home view
+        // 只更新导航状态
+        this.updateNavActiveState('profile');
+    }
+
+    async loadProfileData() {
+        try {
+            if (!authHelper) {
+                console.warn('authHelper 未加载，无法加载个人中心数据');
+                return;
+            }
+
+            const user = await authHelper.getCurrentUser();
+            if (!user) {
+                return;
+            }
+
+            // 更新个人中心显示
+            const userEmail = document.getElementById('userEmail');
+            const userName = document.getElementById('userName');
+            const userCreatedAt = document.getElementById('userCreatedAt');
+
+            if (userEmail) {
+                userEmail.textContent = user.email || '未设置';
+            }
+
+            if (userName) {
+                const username = user.user_metadata?.username || user.email?.split('@')[0] || '用户';
+                userName.textContent = username;
+            }
+
+            if (userCreatedAt) {
+                const date = new Date(user.created_at);
+                userCreatedAt.textContent = date.toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+
+            // 加载统计数据
+            await this.loadProfileStats();
+        } catch (error) {
+            console.error('加载个人中心数据失败:', error);
+        }
+    }
+
+    async loadProfileStats() {
+        try {
+            // TODO: 从 Supabase 加载实际统计数据
+            const documentsCount = document.getElementById('documentsCount');
+            const translationsCount = document.getElementById('translationsCount');
+            const annotationsCount = document.getElementById('annotationsCount');
+
+            if (documentsCount) documentsCount.textContent = '0';
+            if (translationsCount) translationsCount.textContent = '0';
+            if (annotationsCount) annotationsCount.textContent = '0';
+        } catch (error) {
+            console.error('加载统计数据失败:', error);
+        }
+    }
+
     updateNavActiveState(activeView) {
         const homeNavBtn = document.getElementById('homeNavBtn');
         const vocabularyNavBtn = document.getElementById('vocabularyNavBtn');
+        const profileNavBtn = document.getElementById('profileNavBtn');
         
         if (homeNavBtn) {
             homeNavBtn.classList.toggle('active', activeView === 'home');
         }
         if (vocabularyNavBtn) {
             vocabularyNavBtn.classList.toggle('active', activeView === 'vocabulary');
+        }
+        if (profileNavBtn) {
+            profileNavBtn.classList.toggle('active', activeView === 'profile');
         }
     }
 

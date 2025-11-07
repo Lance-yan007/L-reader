@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgdfwbqcjmjxdsxvmgot.supabase.co https://cdn.jsdelivr.net;">
+    <title>个人中心 - NPDF Reader</title>
+    <link rel="stylesheet" href="styles/profile.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        // 初始化 Supabase 客户端
+        window.SUPABASE_CONFIG = {
+            url: 'https://xgdfwbqcjmjxdsxvmgot.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw'
+        };
+        
+        function initSupabaseClient() {
+            if (typeof supabase !== 'undefined' && supabase.createClient && window.SUPABASE_CONFIG) {
+                try {
+                    window.supabaseClient = supabase.createClient(
+                        window.SUPABASE_CONFIG.url,
+                        window.SUPABASE_CONFIG.anonKey
+                    );
+                    console.log('✅ Supabase 客户端已初始化');
+                    window.dispatchEvent(new CustomEvent('supabase-ready'));
+                    return true;
+                } catch (error) {
+                    console.error('❌ 创建 Supabase 客户端失败:', error);
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        if (!initSupabaseClient()) {
+            let attempts = 0;
+            const maxAttempts = 100;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (initSupabaseClient()) {
+                    clearInterval(checkInterval);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    console.error('❌ Supabase CDN 加载超时');
+                }
+            }, 100);
+        }
+    </script>
+</head>
+<body>
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1>个人中心</h1>
+            <p>管理你的账号信息和设置</p>
+        </div>
+
+        <div class="profile-content">
+            <!-- 用户信息卡片 -->
+            <div class="profile-card">
+                <div class="card-header">
+                    <h2>账号信息</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <label>邮箱</label>
+                        <div class="info-value" id="userEmail">加载中...</div>
+                    </div>
+                    <div class="info-item">
+                        <label>用户名</label>
+                        <div class="info-value" id="userName">加载中...</div>
+                    </div>
+                    <div class="info-item">
+                        <label>注册时间</label>
+                        <div class="info-value" id="userCreatedAt">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作卡片 -->
+            <div class="profile-card">
+                <div class="card-header">
+                    <h2>账号操作</h2>
+                </div>
+                <div class="card-body">
+                    <button class="action-button" id="changePasswordBtn">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M12,1L8,5H11V14H13V5H16M18,23H6C4.89,23 4,22.1 4,21V9A2,2 0 0,1 6,7H9V9H6V21H18V9H15V7H18A2,2 0 0,1 20,9V21A2,2 0 0,1 18,23Z"/>
+                        </svg>
+                        修改密码
+                    </button>
+                    <button class="action-button action-button-danger" id="deleteAccountBtn">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                        </svg>
+                        删除账号
+                    </button>
+                </div>
+            </div>
+
+            <!-- 阅读设置卡片 -->
+            <div class="profile-card">
+                <div class="card-header">
+                    <h2>阅读设置</h2>
+                </div>
+                <div class="card-body">
+                    <div class="setting-item">
+                        <div class="setting-label">
+                            <label>自动保存翻译</label>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoSaveTranslations" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-label">
+                            <label>自动保存标注</label>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoSaveAnnotations" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据管理卡片 -->
+            <div class="profile-card">
+                <div class="card-header">
+                    <h2>数据管理</h2>
+                </div>
+                <div class="card-body">
+                    <button class="action-button" id="clearCacheBtn">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                        </svg>
+                        清除缓存
+                    </button>
+                    <button class="action-button" id="exportDataBtn">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        导出数据
+                    </button>
+                    <button class="action-button" id="importDataBtn">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"/>
+                        </svg>
+                        导入数据
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 消息提示 -->
+    <div class="message" id="errorMessage" style="display: none;"></div>
+
+    <!-- 修改密码模态对话框 -->
+    <div class="modal-overlay" id="changePasswordModal" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2>修改密码</h2>
+                <button class="modal-close" id="closePasswordModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">当前密码</label>
+                        <input type="password" id="currentPassword" required autocomplete="current-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">新密码（至少6个字符）</label>
+                        <input type="password" id="newPassword" required autocomplete="new-password" minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">确认新密码</label>
+                        <input type="password" id="confirmPassword" required autocomplete="new-password" minlength="6">
+                    </div>
+                    <div class="form-error" id="passwordFormError" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-cancel" id="cancelPasswordBtn">取消</button>
+                <button type="button" class="modal-btn modal-btn-primary" id="submitPasswordBtn">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/profile.js"></script>
+</body>
+</html>
+

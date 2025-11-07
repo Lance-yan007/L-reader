@@ -375,6 +375,17 @@ body.sidebar-collapsed .sidebar::after {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 1;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--sidebar-border);
+}
+
+.nav-item-profile {
+    width: 100%;
 }
 
 .nav-item {
@@ -456,6 +467,13 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
     padding: 36px 40px;
     overflow-y: auto;
     height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    background: #ffffff;
 }
 
 #homeView.is-active {
@@ -482,6 +500,13 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
     display: none;
     width: 100%;
     height: 100%;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
 }
 
 .tab-panel.is-active {
@@ -509,6 +534,22 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
 }
 
 .vocabulary-frame {
+    flex: 1;
+    border: none;
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+}
+
+.profile-panel-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.profile-frame {
     flex: 1;
     border: none;
     width: 100%;
@@ -793,88 +834,11 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
     }
 }
 
-/* 用户信息区域样式 */
-.sidebar-user {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    margin-top: auto;
-    border-top: 1px solid var(--sidebar-border);
-    background: rgba(255, 255, 255, 0.5);
+/* 侧边栏折叠时的个人中心按钮样式 */
+body.sidebar-collapsed .sidebar-footer {
+    padding-top: 8px;
 }
 
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
-}
-
-.user-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--action-primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.user-details {
-    flex: 1;
-    min-width: 0;
-}
-
-.user-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--primary-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.user-email {
-    font-size: 12px;
-    color: var(--muted-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.user-logout-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    background: transparent;
-    border: none;
-    color: var(--secondary-text);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s ease, color 0.2s ease;
-    flex-shrink: 0;
-}
-
-.user-logout-btn:hover {
-    background: var(--action-secondary-bg);
-    color: var(--primary-text);
-}
-
-body.sidebar-collapsed .sidebar-user {
-    padding: 12px;
-    justify-content: center;
-}
-
-body.sidebar-collapsed .user-info {
+body.sidebar-collapsed .nav-item-profile .nav-label {
     display: none;
-}
-
-body.sidebar-collapsed .user-logout-btn {
-    width: 100%;
 }
