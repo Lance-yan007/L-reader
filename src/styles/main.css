@@ -602,15 +602,15 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
 }
 
 .action-btn-primary {
-    background: var(--action-primary);
+    background: #8282FF;
     color: #ffffff;
-    box-shadow: 0 10px 20px rgba(0, 113, 227, 0.24);
+    box-shadow: 0 10px 20px rgba(130, 130, 255, 0.24);
 }
 
 .action-btn-primary:hover {
-    background: var(--action-primary-hover);
+    background: #6a6aff;
     transform: translateY(-2px);
-    box-shadow: 0 16px 28px rgba(10, 132, 255, 0.22);
+    box-shadow: 0 16px 28px rgba(130, 130, 255, 0.32);
 }
 
 .action-btn-secondary {
@@ -686,17 +686,20 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
     flex-direction: column;
     aspect-ratio: 3 / 4;
     border-radius: 22px;
-    overflow: hidden;
+    overflow: visible;
     background: #f5f5f9;
     border: 1px solid var(--card-border);
     box-shadow: 0 18px 36px var(--card-shadow);
     transition: transform 0.25s ease, box-shadow 0.25s ease;
     cursor: pointer;
+    position: relative;
+    z-index: 1;
 }
 
 .file-card:hover {
     transform: translateY(-6px);
     box-shadow: 0 24px 48px rgba(28, 28, 30, 0.12);
+    z-index: 2;
 }
 
 .file-preview {
@@ -708,6 +711,7 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
     align-items: flex-start;
     justify-content: flex-start;
     overflow: hidden;
+    border-radius: 0 0 22px 22px;
 }
 
 .preview-canvas {

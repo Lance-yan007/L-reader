@@ -1052,6 +1052,7 @@ class MainApp {
             card.querySelector('.file-date-card').textContent = this.formatDate(file.date);
             card.querySelector('.file-size-card').textContent = file.size || '';
             
+            // 卡片点击事件
             card.addEventListener('click', () => {
                 this.openFileFromCard(file.path);
             });
@@ -1164,6 +1165,69 @@ class MainApp {
         }
     }
 
+    async renameFile(filePath, cardElement) {
+        const currentName = this.getFileName(filePath);
+        
+        // 使用prompt输入新文件名
+        const newName = prompt('请输入新文件名（包含扩展名）:', currentName);
+        
+        if (!newName || newName === currentName || !newName.trim()) {
+            return;
+        }
+        
+        try {
+            // 构建新路径（使用字符串操作，因为渲染进程不能使用path模块）
+            const lastSlash = filePath.lastIndexOf('/');
+            const lastBackslash = filePath.lastIndexOf('\\');
+            const lastSeparator = Math.max(lastSlash, lastBackslash);
+            const dir = lastSeparator >= 0 ? filePath.substring(0, lastSeparator + 1) : '';
+            const newPath = dir + newName.trim();
+            
+            const result = await ipcRenderer.invoke('rename-file', {
+                oldPath: filePath,
+                newPath: newPath
+            });
+            
+            if (result.success) {
+                // 更新最近文件列表
+                const fileIndex = this.recentFiles.findIndex(f => f.path === filePath);
+                if (fileIndex >= 0) {
+                    this.recentFiles[fileIndex].path = newPath;
+                    this.recentFiles[fileIndex].name = newName.trim();
+                    this.saveRecentFiles();
+                    this.renderRecentFiles();
+                }
+            } else {
+                alert('重命名失败: ' + result.error);
+            }
+        } catch (error) {
+            console.error('重命名文件失败:', error);
+            alert('重命名失败: ' + error.message);
+        }
+    }
+
+    async deleteFile(filePath, cardElement) {
+        if (!confirm('确定要删除这个文件吗？此操作不可撤销。')) {
+            return;
+        }
+        
+        try {
+            const result = await ipcRenderer.invoke('delete-file', filePath);
+            
+            if (result.success) {
+                // 从最近文件列表中移除
+                this.recentFiles = this.recentFiles.filter(f => f.path !== filePath);
+                this.saveRecentFiles();
+                this.renderRecentFiles();
+            } else {
+                alert('删除失败: ' + result.error);
+            }
+        } catch (error) {
+            console.error('删除文件失败:', error);
+            alert('删除失败: ' + error.message);
+        }
+    }
+
     getFileName(filePath) {
         return filePath.split('/').pop() || filePath.split('\\').pop();
     }
@@ -1214,6 +1278,10 @@ class MainApp {
         if (statusText) {
             statusText.textContent = message;
         }
+    }
+
+    saveRecentFiles() {
+        localStorage.setItem('recentFiles', JSON.stringify(this.recentFiles));
     }
 }
 
