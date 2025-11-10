@@ -104,6 +104,50 @@
                 <span id="selectionInfo"></span>
             </div>
         </footer>
+
+        <!-- AI对话按钮（右下角） -->
+        <button class="ai-chat-button" id="aiChatButton" title="AI对话">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <!-- 圆形背景 -->
+                <circle cx="12" cy="12" r="10" fill="#E0E0E0" stroke="#BDBDBD" stroke-width="1"/>
+                <!-- 眼睛（两个小弧线） -->
+                <path d="M 8 8 Q 8 6 9 6 Q 10 6 10 8" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                <path d="M 14 8 Q 14 6 15 6 Q 16 6 16 8" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                <!-- 嘴巴（弯曲的线） -->
+                <path d="M 8 14 Q 10 18 12 18 Q 14 18 16 14" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            </svg>
+        </button>
+
+        <!-- AI对话面板（右侧） -->
+        <div class="ai-chat-panel" id="aiChatPanel">
+            <div class="ai-chat-header">
+                <h3>AI 助手</h3>
+                <button class="ai-chat-close" id="aiChatClose">
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="ai-chat-messages" id="aiChatMessages">
+                <div class="ai-chat-welcome">
+                    <p>👋 你好！我是AI助手，可以帮助你理解当前页面的内容。</p>
+                    <p>你可以问我关于当前PDF页面的任何问题。</p>
+                </div>
+            </div>
+            <div class="ai-chat-input-container">
+                <textarea 
+                    class="ai-chat-input" 
+                    id="aiChatInput" 
+                    placeholder="输入你的问题..."
+                    rows="1"
+                ></textarea>
+                <button class="ai-chat-send" id="aiChatSend" title="发送">
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- 翻译弹窗 -->

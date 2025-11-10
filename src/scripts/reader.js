@@ -50,6 +50,11 @@ class ReaderApp {
         this.lastSavedState = null; // 上次保存的状态
         this.isClosing = false; // 是否正在关闭
         
+        // AI对话功能
+        this.pdfDocument = null; // PDF文档对象
+        this.aiChatMessages = []; // 对话历史
+        this.isAiChatOpen = false; // 对话面板是否打开
+        
         this.init();
     }
 
@@ -60,6 +65,7 @@ class ReaderApp {
         this.initWordTooltip(); // 初始化悬浮框
         this.initContextMenu(); // 初始化右键菜单
         this.resetHistory();
+        this.initAiChat(); // 初始化AI对话功能
     }
 
     bindEvents() {
@@ -515,6 +521,9 @@ class ReaderApp {
             const pdf = await loadingTask.promise;
             console.log('PDF文档解析成功，页数:', pdf.numPages);
             
+            // 存储PDF文档对象，供AI对话功能使用
+            this.pdfDocument = pdf;
+            
             this.totalPages = pdf.numPages;
             this.updatePageInfo();
             
@@ -522,6 +531,9 @@ class ReaderApp {
             console.log('开始渲染PDF所有页面...');
             await this.renderAllPDFPages(pdf);
             console.log('PDF所有页面渲染完成');
+            
+            // 显示AI对话按钮
+            this.showAiChatButton();
             
         } catch (error) {
             console.error('PDF加载失败:', error);
@@ -1898,6 +1910,8 @@ class ReaderApp {
     }
 
     async goBackToMain() {
+        // 隐藏AI对话按钮
+        this.hideAiChatButton();
         // 检查是否有未保存的修改
         if (this.isDirty && !this.isClosing) {
             const action = await this.showSaveConfirmDialog();
@@ -5119,6 +5133,376 @@ class ReaderApp {
     refreshDirtyState() {
         this.isDirty = !this.isCurrentStateSaved();
         this.updateSaveButtonState();
+    }
+
+    /**
+     * 初始化AI对话功能
+     */
+    initAiChat() {
+        const chatButton = document.getElementById('aiChatButton');
+        const chatPanel = document.getElementById('aiChatPanel');
+        const chatClose = document.getElementById('aiChatClose');
+        const chatSend = document.getElementById('aiChatSend');
+        const chatInput = document.getElementById('aiChatInput');
+
+        if (!chatButton || !chatPanel || !chatClose || !chatSend || !chatInput) {
+            console.warn('AI对话UI元素未找到');
+            return;
+        }
+
+        // 初始隐藏按钮，等PDF加载后再显示
+        chatButton.style.display = 'none';
+
+        // 打开/关闭对话面板
+        chatButton.addEventListener('click', () => {
+            this.toggleAiChat();
+        });
+
+        chatClose.addEventListener('click', () => {
+            this.closeAiChat();
+        });
+
+        // 发送消息
+        chatSend.addEventListener('click', () => {
+            this.sendAiMessage();
+        });
+
+        // 回车发送（Shift+Enter换行）
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendAiMessage();
+            }
+        });
+
+        // 自动调整输入框高度
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+        });
+    }
+
+    /**
+     * 切换AI对话面板
+     */
+    toggleAiChat() {
+        const chatPanel = document.getElementById('aiChatPanel');
+        if (!chatPanel) return;
+
+        this.isAiChatOpen = !this.isAiChatOpen;
+        if (this.isAiChatOpen) {
+            chatPanel.classList.add('open');
+            // 聚焦输入框
+            const chatInput = document.getElementById('aiChatInput');
+            if (chatInput) {
+                setTimeout(() => chatInput.focus(), 300);
+            }
+        } else {
+            chatPanel.classList.remove('open');
+        }
+    }
+
+    /**
+     * 关闭AI对话面板
+     */
+    closeAiChat() {
+        const chatPanel = document.getElementById('aiChatPanel');
+        if (!chatPanel) return;
+
+        this.isAiChatOpen = false;
+        chatPanel.classList.remove('open');
+    }
+
+    /**
+     * 获取当前可见页面的文本内容
+     * @returns {Promise<string>} 页面文本内容
+     */
+    async getCurrentPageText() {
+        if (!this.pdfDocument) {
+            return 'PDF文档未加载';
+        }
+
+        try {
+            // 获取当前可见的页面（根据滚动位置判断）
+            const visiblePageNum = this.getVisiblePageNumber();
+            const page = await this.pdfDocument.getPage(visiblePageNum);
+            const textContent = await page.getTextContent();
+            
+            // 提取所有文本项并合并
+            const textItems = textContent.items.map(item => item.str).filter(str => str && str.trim());
+            const pageText = textItems.join(' ');
+            
+            return pageText || `第${visiblePageNum}页没有文本内容`;
+        } catch (error) {
+            console.error('获取页面文本失败:', error);
+            return '获取页面文本失败';
+        }
+    }
+
+    /**
+     * 获取当前可见的页面编号
+     * @returns {number} 页面编号（从1开始）
+     */
+    getVisiblePageNumber() {
+        // 获取所有页面容器
+        const pageContainers = document.querySelectorAll('.pdf-page-container');
+        if (pageContainers.length === 0) {
+            return 1;
+        }
+
+        // 获取视口中心位置（相对于文档顶部）
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const viewportCenter = scrollTop + window.innerHeight / 2;
+
+        // 找到最接近视口中心的页面
+        let closestPage = 1;
+        let minDistance = Infinity;
+
+        pageContainers.forEach((container, index) => {
+            const rect = container.getBoundingClientRect();
+            // 计算页面中心相对于文档顶部的位置
+            const pageTop = rect.top + scrollTop;
+            const pageCenter = pageTop + rect.height / 2;
+            const distance = Math.abs(pageCenter - viewportCenter);
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestPage = index + 1;
+            }
+        });
+
+        return closestPage;
+    }
+
+    /**
+     * 发送AI消息
+     */
+    async sendAiMessage() {
+        const chatInput = document.getElementById('aiChatInput');
+        const chatSend = document.getElementById('aiChatSend');
+        const chatMessages = document.getElementById('aiChatMessages');
+
+        if (!chatInput || !chatSend || !chatMessages) return;
+
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // 清空输入框
+        chatInput.value = '';
+        chatInput.style.height = 'auto';
+
+        // 禁用发送按钮
+        chatSend.disabled = true;
+
+        // 添加用户消息
+        this.addChatMessage('user', message);
+
+        // 显示加载状态
+        const loadingId = this.addChatMessage('assistant', '', true);
+
+        try {
+            // 获取当前可见页面编号和文本
+            const visiblePageNum = this.getVisiblePageNumber();
+            const pageText = await this.getCurrentPageText();
+
+            // 调用AI API
+            const response = await this.callAiChatAPI(message, pageText, visiblePageNum);
+
+            // 移除加载状态，添加AI回复
+            this.updateChatMessage(loadingId, 'assistant', response);
+        } catch (error) {
+            console.error('AI对话失败:', error);
+            this.updateChatMessage(loadingId, 'assistant', '抱歉，AI助手暂时无法响应。请稍后再试。');
+        } finally {
+            // 重新启用发送按钮
+            chatSend.disabled = false;
+        }
+    }
+
+    /**
+     * 调用AI对话API
+     * @param {string} userMessage - 用户消息
+     * @param {string} pageText - 当前页面文本
+     * @param {number} pageNum - 当前页面编号
+     * @returns {Promise<string>} AI回复
+     */
+    async callAiChatAPI(userMessage, pageText, pageNum = 1) {
+        // 等待限流器允许
+        await this.waitForRateLimit();
+        
+        // 记录请求时间
+        const now = Date.now();
+        this.apiRequestQueue.push(now);
+        this.lastRequestTime = now;
+
+        const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+        console.log(`📡 调用Gemini API进行AI对话（第${pageNum}页）`);
+
+        // 构建提示词，包含页面内容
+        const prompt = `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，当前正在查看第${pageNum}页，该页面的内容如下：
+
+【第${pageNum}页内容】
+${pageText}
+
+【用户问题】
+${userMessage}
+
+请基于第${pageNum}页的内容回答用户的问题。如果问题与当前页面内容无关，请礼貌地说明。回答要简洁明了，使用中文。`;
+
+        const response = await fetch(fullUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
+            
+            if (response.status === 429) {
+                throw new Error('API_RATE_LIMIT');
+            }
+            
+            throw new Error(`API请求失败: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+            const text = data.candidates[0].content.parts[0].text;
+            return text.trim();
+        } else {
+            throw new Error('API返回格式异常');
+        }
+    }
+
+    /**
+     * 添加聊天消息
+     * @param {string} role - 'user' 或 'assistant'
+     * @param {string} content - 消息内容
+     * @param {boolean} isLoading - 是否为加载状态
+     * @returns {string} 消息ID
+     */
+    addChatMessage(role, content, isLoading = false) {
+        const chatMessages = document.getElementById('aiChatMessages');
+        if (!chatMessages) return null;
+
+        // 如果是第一条消息，移除欢迎消息
+        if (this.aiChatMessages.length === 0) {
+            const welcome = chatMessages.querySelector('.ai-chat-welcome');
+            if (welcome) {
+                welcome.remove();
+            }
+        }
+
+        const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `ai-chat-message ${role}${isLoading ? ' loading' : ''}`;
+        messageDiv.id = messageId;
+
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+        if (isLoading) {
+            messageDiv.innerHTML = `
+                <div class="ai-chat-message-bubble">
+                    <div class="ai-chat-loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div class="ai-chat-message-bubble">${this.escapeHtml(content)}</div>
+                <div class="ai-chat-message-time">${time}</div>
+            `;
+        }
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // 保存到历史记录
+        if (!isLoading) {
+            this.aiChatMessages.push({ role, content, time });
+        }
+
+        return messageId;
+    }
+
+    /**
+     * 更新聊天消息
+     * @param {string} messageId - 消息ID
+     * @param {string} role - 'user' 或 'assistant'
+     * @param {string} content - 消息内容
+     */
+    updateChatMessage(messageId, role, content) {
+        const messageDiv = document.getElementById(messageId);
+        if (!messageDiv) return;
+
+        messageDiv.className = `ai-chat-message ${role}`;
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        
+        messageDiv.innerHTML = `
+            <div class="ai-chat-message-bubble">${this.escapeHtml(content)}</div>
+            <div class="ai-chat-message-time">${time}</div>
+        `;
+
+        // 更新历史记录
+        const messageIndex = this.aiChatMessages.findIndex(msg => msg.role === role && !msg.content);
+        if (messageIndex >= 0) {
+            this.aiChatMessages[messageIndex].content = content;
+            this.aiChatMessages[messageIndex].time = time;
+        } else {
+            this.aiChatMessages.push({ role, content, time });
+        }
+
+        // 滚动到底部
+        const chatMessages = document.getElementById('aiChatMessages');
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    /**
+     * HTML转义
+     * @param {string} text - 原始文本
+     * @returns {string} 转义后的文本
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * 显示AI对话按钮
+     */
+    showAiChatButton() {
+        const chatButton = document.getElementById('aiChatButton');
+        if (chatButton) {
+            chatButton.style.display = 'flex';
+        }
+    }
+
+    /**
+     * 隐藏AI对话按钮
+     */
+    hideAiChatButton() {
+        const chatButton = document.getElementById('aiChatButton');
+        if (chatButton) {
+            chatButton.style.display = 'none';
+        }
+        // 如果对话面板打开，也关闭它
+        this.closeAiChat();
     }
 }
 
