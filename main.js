@@ -9,7 +9,7 @@ const pendingOpenFiles = [];
 
 // 应用配置
 const APP_CONFIG = {
-  name: 'NPDF Reader',
+  name: 'L-reader',
   version: '1.0.0',
   userDataPath: path.join(__dirname, 'user-data'),
   documentsPath: path.join(__dirname, 'user-data', 'documents'),
@@ -186,8 +186,8 @@ function createMenu() {
           click: () => {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: '关于 NPDF Reader',
-              message: 'NPDF Reader v1.0.0',
+              title: '关于 L-reader',
+              message: 'L-reader v1.0.0',
               detail: '专为中国留学生设计的智能英文阅读器'
             });
           }
@@ -600,6 +600,41 @@ ipcMain.handle('load-annotations', async (event, filePath) => {
 });
 
 // 从主界面打开文件
+ipcMain.handle('delete-file', async (event, filePath) => {
+  try {
+    // 如果文件存在，尝试删除
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+        return { success: true, deleted: true };
+      } catch (error) {
+        // 如果删除失败（如权限问题），仍然返回成功，让前端从列表中移除
+        // 但记录错误信息供调试
+        console.warn('删除文件失败，但仍从列表中移除:', filePath, error.message);
+        return { success: true, deleted: false, warning: error.message };
+      }
+    }
+    // 文件不存在，直接返回成功（从列表中移除）
+    return { success: true, deleted: false, warning: '文件不存在，已从列表中移除' };
+  } catch (error) {
+    // 即使出现其他错误，也返回成功，让前端从列表中移除
+    console.warn('删除文件时出现错误，但仍从列表中移除:', filePath, error.message);
+    return { success: true, deleted: false, warning: error.message };
+  }
+});
+
+ipcMain.handle('rename-file', async (event, { oldPath, newPath }) => {
+  try {
+    if (fs.existsSync(oldPath)) {
+      fs.renameSync(oldPath, newPath);
+      return { success: true, newPath: newPath };
+    }
+    return { success: false, error: '文件不存在' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('open-file-from-main', async (event, filePath) => {
   try {
     openFile(filePath);

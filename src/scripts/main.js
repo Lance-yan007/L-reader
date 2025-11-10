@@ -711,6 +711,13 @@ class MainApp {
             }
         });
 
+        // 点击外部关闭所有文件卡片菜单
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.file-card')) {
+                this.closeAllFileCardMenus();
+            }
+        });
+
         this.initSidebarInteractions();
     }
 
@@ -1052,8 +1059,38 @@ class MainApp {
             card.querySelector('.file-date-card').textContent = this.formatDate(file.date);
             card.querySelector('.file-size-card').textContent = file.size || '';
             
-            // 卡片点击事件
-            card.addEventListener('click', () => {
+            // 获取菜单相关元素
+            const menuBtn = clone.querySelector('.file-card-menu-btn');
+            const menu = clone.querySelector('.file-card-menu');
+            const renameBtn = clone.querySelector('[data-action="rename"]');
+            const deleteBtn = clone.querySelector('[data-action="delete"]');
+            
+            // 菜单按钮点击事件
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleFileCardMenu(card, menu);
+            });
+            
+            // 重命名按钮点击事件
+            renameBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.closeAllFileCardMenus();
+                this.renameFile(file.path, card);
+            });
+            
+            // 删除按钮点击事件
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.closeAllFileCardMenus();
+                this.deleteFile(file.path, card);
+            });
+            
+            // 卡片点击事件（排除菜单区域）
+            card.addEventListener('click', (e) => {
+                // 如果点击的是菜单按钮或菜单本身，不触发打开文件
+                if (e.target.closest('.file-card-menu-btn') || e.target.closest('.file-card-menu')) {
+                    return;
+                }
                 this.openFileFromCard(file.path);
             });
             
@@ -1062,6 +1099,25 @@ class MainApp {
             if (file.type === 'pdf') {
                 this.generatePDFPreview(file.path, card);
             }
+        });
+    }
+    
+    toggleFileCardMenu(card, menu) {
+        const isOpen = menu.classList.contains('is-open');
+        
+        // 先关闭所有其他菜单
+        this.closeAllFileCardMenus();
+        
+        // 切换当前菜单
+        if (!isOpen) {
+            menu.classList.add('is-open');
+        }
+    }
+    
+    closeAllFileCardMenus() {
+        const allMenus = document.querySelectorAll('.file-card-menu.is-open');
+        allMenus.forEach(menu => {
+            menu.classList.remove('is-open');
         });
     }
 
@@ -1197,6 +1253,16 @@ class MainApp {
                     this.saveRecentFiles();
                     this.renderRecentFiles();
                 }
+                
+                // 如果该文件正在标签页中打开，更新标签页标题
+                const tab = this.tabs.find(t => t.filePath === filePath);
+                if (tab) {
+                    tab.filePath = newPath;
+                    tab.title = newName.trim();
+                    this.tabLookupByPath.delete(filePath);
+                    this.tabLookupByPath.set(newPath, tab.id);
+                    this.renderTabStrip();
+                }
             } else {
                 alert('重命名失败: ' + result.error);
             }
@@ -1214,17 +1280,34 @@ class MainApp {
         try {
             const result = await ipcRenderer.invoke('delete-file', filePath);
             
-            if (result.success) {
-                // 从最近文件列表中移除
-                this.recentFiles = this.recentFiles.filter(f => f.path !== filePath);
-                this.saveRecentFiles();
-                this.renderRecentFiles();
-            } else {
-                alert('删除失败: ' + result.error);
+            // 无论文件是否存在，都从列表中移除
+            // 从最近文件列表中移除
+            this.recentFiles = this.recentFiles.filter(f => f.path !== filePath);
+            this.saveRecentFiles();
+            
+            // 如果该文件正在标签页中打开，关闭该标签页
+            const tab = this.tabs.find(t => t.filePath === filePath);
+            if (tab) {
+                this.closeTab(tab.id);
+            }
+            
+            // 从标签页查找表中移除
+            this.tabLookupByPath.delete(filePath);
+            
+            // 重新渲染文件列表
+            this.renderRecentFiles();
+            
+            // 如果有警告信息（如文件不存在或删除失败），在控制台记录，但不显示错误弹窗
+            if (result.warning) {
+                console.log('删除操作完成，但有提示:', result.warning);
             }
         } catch (error) {
             console.error('删除文件失败:', error);
-            alert('删除失败: ' + error.message);
+            // 即使出错，也从列表中移除
+            this.recentFiles = this.recentFiles.filter(f => f.path !== filePath);
+            this.saveRecentFiles();
+            this.tabLookupByPath.delete(filePath);
+            this.renderRecentFiles();
         }
     }
 

@@ -702,6 +702,117 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
     z-index: 2;
 }
 
+/* 三个点按钮 */
+.file-card-menu-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--secondary-text);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(28, 28, 30, 0.12);
+    backdrop-filter: blur(10px);
+}
+
+.file-card:hover .file-card-menu-btn {
+    display: flex;
+}
+
+.file-card-menu-btn:hover {
+    background: #ffffff;
+    color: var(--primary-text);
+    transform: scale(1.1);
+}
+
+.file-card-menu-btn:active {
+    transform: scale(0.95);
+}
+
+.file-card-menu-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 菜单容器 */
+.file-card-menu {
+    position: absolute;
+    top: 44px;
+    right: 12px;
+    min-width: 140px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(28, 28, 30, 0.16), 0 2px 8px rgba(28, 28, 30, 0.08);
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.file-card-menu.is-open {
+    display: flex;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* 菜单项 */
+.file-card-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--primary-text);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.file-card-menu-item:hover {
+    background: rgba(118, 118, 128, 0.12);
+}
+
+.file-card-menu-item:active {
+    background: rgba(118, 118, 128, 0.18);
+}
+
+.file-card-menu-item[data-action="delete"] {
+    color: #ff3b30;
+}
+
+.file-card-menu-item[data-action="delete"]:hover {
+    background: rgba(255, 59, 48, 0.1);
+}
+
+.file-card-menu-item svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.file-card-menu-item span {
+    flex: 1;
+}
+
 .file-preview {
     position: relative;
     flex: 1;
