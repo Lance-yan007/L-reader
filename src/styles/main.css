@@ -860,6 +860,36 @@ body.sidebar-collapsed.sidebar-hovering .sidebar {
     word-break: break-word;
 }
 
+/* 重命名输入框 */
+.file-name-input {
+    width: 100%;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-text);
+    line-height: 1.35;
+    background: #ffffff;
+    border: 2px solid var(--action-primary);
+    border-radius: 8px;
+    padding: 4px 8px;
+    outline: none;
+    font-family: inherit;
+    box-shadow: 0 2px 8px rgba(0, 113, 227, 0.2);
+}
+
+.file-name-input:focus {
+    border-color: var(--action-primary-hover);
+    box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+}
+
+/* 重命名模式：隐藏文件名，显示输入框 */
+.file-card.is-renaming .file-name-card {
+    display: none;
+}
+
+.file-card.is-renaming .file-name-input {
+    display: block !important;
+}
+
 .file-meta-card {
     display: flex;
     align-items: center;

@@ -70,6 +70,8 @@ class MainApp {
         this.tabAddButton = null;
         this.homeView = null;
         this.documentPanels = null;
+        this.currentRenamingCard = null;
+        this.currentRenamingInput = null;
         this.handleWindowResize = this.handleWindowResize.bind(this);
         this.init();
     }
@@ -711,10 +713,17 @@ class MainApp {
             }
         });
 
-        // 点击外部关闭所有文件卡片菜单
+        // 点击外部关闭所有文件卡片菜单和取消重命名
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.file-card')) {
                 this.closeAllFileCardMenus();
+                
+                // 如果正在重命名，取消重命名
+                if (this.currentRenamingCard && this.currentRenamingInput) {
+                    const nameCard = this.currentRenamingCard.querySelector('.file-name-card');
+                    const currentName = nameCard ? nameCard.textContent : '';
+                    this.cancelRenameFile(this.currentRenamingCard, nameCard, this.currentRenamingInput, currentName);
+                }
             }
         });
 
@@ -1064,6 +1073,8 @@ class MainApp {
             const menu = clone.querySelector('.file-card-menu');
             const renameBtn = clone.querySelector('[data-action="rename"]');
             const deleteBtn = clone.querySelector('[data-action="delete"]');
+            const nameCard = clone.querySelector('.file-name-card');
+            const nameInput = clone.querySelector('.file-name-input');
             
             // 菜单按钮点击事件
             menuBtn.addEventListener('click', (e) => {
@@ -1075,7 +1086,7 @@ class MainApp {
             renameBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.closeAllFileCardMenus();
-                this.renameFile(file.path, card);
+                this.startRenameFile(file.path, card, nameCard, nameInput);
             });
             
             // 删除按钮点击事件
@@ -1085,10 +1096,18 @@ class MainApp {
                 this.deleteFile(file.path, card);
             });
             
-            // 卡片点击事件（排除菜单区域）
+            // 卡片点击事件（排除菜单区域和重命名模式）
             card.addEventListener('click', (e) => {
                 // 如果点击的是菜单按钮或菜单本身，不触发打开文件
                 if (e.target.closest('.file-card-menu-btn') || e.target.closest('.file-card-menu')) {
+                    return;
+                }
+                // 如果正在重命名模式，不触发打开文件
+                if (card.classList.contains('is-renaming')) {
+                    return;
+                }
+                // 如果点击的是重命名输入框，不触发打开文件
+                if (e.target.closest('.file-name-input')) {
                     return;
                 }
                 this.openFileFromCard(file.path);
@@ -1221,23 +1240,133 @@ class MainApp {
         }
     }
 
-    async renameFile(filePath, cardElement) {
+    startRenameFile(filePath, cardElement, nameCard, nameInput) {
         const currentName = this.getFileName(filePath);
         
-        // 使用prompt输入新文件名
-        const newName = prompt('请输入新文件名（包含扩展名）:', currentName);
+        // 保存原始信息，用于失败时恢复
+        cardElement.dataset.originalName = currentName;
+        cardElement.dataset.originalPath = filePath;
         
-        if (!newName || newName === currentName || !newName.trim()) {
-            return;
-        }
+        // 进入重命名模式
+        cardElement.classList.add('is-renaming');
         
+        // 设置输入框的值
+        nameInput.value = currentName;
+        
+        // 阻止输入框点击事件冒泡，避免触发卡片点击
+        nameInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // 聚焦输入框并选中文件名（不包括扩展名）
+        setTimeout(() => {
+            nameInput.focus();
+            const lastDotIndex = currentName.lastIndexOf('.');
+            if (lastDotIndex > 0) {
+                // 选中文件名部分，保留扩展名
+                nameInput.setSelectionRange(0, lastDotIndex);
+            } else {
+                // 没有扩展名，选中全部
+                nameInput.select();
+            }
+        }, 10);
+        
+        // 确认重命名
+        const confirmRename = async () => {
+            const newName = nameInput.value.trim();
+            
+            if (!newName || newName === currentName) {
+                // 取消重命名模式
+                this.cancelRenameFile(cardElement, nameCard, nameInput, currentName);
+                return;
+            }
+            
+            // 执行重命名
+            const success = await this.executeRenameFile(filePath, newName, cardElement);
+            
+            if (success) {
+                // 退出重命名模式
+                this.cancelRenameFile(cardElement, nameCard, nameInput, newName);
+            } else {
+                // 重命名失败，恢复原文件名
+                this.cancelRenameFile(cardElement, nameCard, nameInput, currentName);
+            }
+        };
+        
+        // 取消重命名
+        const cancelRename = () => {
+            this.cancelRenameFile(cardElement, nameCard, nameInput, currentName);
+        };
+        
+        // 绑定事件 - 使用捕获阶段确保优先处理
+        nameInput.addEventListener('blur', confirmRename, { once: true });
+        
+        // 处理标准快捷键 - 在捕获阶段处理，确保优先于全局监听器
+        const handleKeydown = (e) => {
+            // 允许标准快捷键（Ctrl/Cmd + A, C, V, X, Z, Y）
+            // Mac使用Cmd键（metaKey），Windows/Linux使用Ctrl键
+            const isModifierKey = e.metaKey || e.ctrlKey;
+            
+            // 标准编辑快捷键：全选、复制、粘贴、剪切、撤销
+            if (isModifierKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
+                // 不阻止默认行为，让浏览器处理
+                e.stopPropagation(); // 阻止事件冒泡到其他监听器
+                e.stopImmediatePropagation(); // 阻止同一元素上的其他监听器
+                return;
+            }
+            
+            // Mac上Cmd+Shift+Z用于重做，Windows/Linux上Ctrl+Y用于重做
+            if (isModifierKey && e.shiftKey && e.key.toLowerCase() === 'z') {
+                // 允许重做快捷键（Mac）
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return;
+            }
+            if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+                // Windows/Linux的Ctrl+Y重做
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return;
+            }
+            
+            // 应用特定的快捷键
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                nameInput.blur(); // 触发 blur 事件
+                nameInput.removeEventListener('keydown', handleKeydown); // 移除监听器
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                cancelRename();
+                nameInput.removeEventListener('keydown', handleKeydown); // 移除监听器
+            }
+        };
+        
+        // 在捕获阶段添加监听器，确保优先处理
+        nameInput.addEventListener('keydown', handleKeydown, { capture: true });
+        
+        // 点击外部取消（通过全局点击事件处理）
+        this.currentRenamingCard = cardElement;
+        this.currentRenamingInput = nameInput;
+    }
+    
+    cancelRenameFile(cardElement, nameCard, nameInput, name) {
+        cardElement.classList.remove('is-renaming');
+        nameInput.value = name;
+        nameCard.textContent = name;
+        this.currentRenamingCard = null;
+        this.currentRenamingInput = null;
+    }
+    
+    async executeRenameFile(filePath, newName, cardElement) {
         try {
             // 构建新路径（使用字符串操作，因为渲染进程不能使用path模块）
             const lastSlash = filePath.lastIndexOf('/');
             const lastBackslash = filePath.lastIndexOf('\\');
             const lastSeparator = Math.max(lastSlash, lastBackslash);
             const dir = lastSeparator >= 0 ? filePath.substring(0, lastSeparator + 1) : '';
-            const newPath = dir + newName.trim();
+            const newPath = dir + newName;
             
             const result = await ipcRenderer.invoke('rename-file', {
                 oldPath: filePath,
@@ -1249,26 +1378,35 @@ class MainApp {
                 const fileIndex = this.recentFiles.findIndex(f => f.path === filePath);
                 if (fileIndex >= 0) {
                     this.recentFiles[fileIndex].path = newPath;
-                    this.recentFiles[fileIndex].name = newName.trim();
+                    this.recentFiles[fileIndex].name = newName;
                     this.saveRecentFiles();
-                    this.renderRecentFiles();
+                    // 更新当前卡片的文件名显示和路径
+                    cardElement.setAttribute('data-file-path', newPath);
+                    const nameCard = cardElement.querySelector('.file-name-card');
+                    if (nameCard) {
+                        nameCard.textContent = newName;
+                    }
                 }
                 
                 // 如果该文件正在标签页中打开，更新标签页标题
                 const tab = this.tabs.find(t => t.filePath === filePath);
                 if (tab) {
                     tab.filePath = newPath;
-                    tab.title = newName.trim();
+                    tab.title = newName;
                     this.tabLookupByPath.delete(filePath);
                     this.tabLookupByPath.set(newPath, tab.id);
                     this.renderTabStrip();
                 }
+                
+                return true;
             } else {
                 alert('重命名失败: ' + result.error);
+                return false;
             }
         } catch (error) {
             console.error('重命名文件失败:', error);
             alert('重命名失败: ' + error.message);
+            return false;
         }
     }
 

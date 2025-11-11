@@ -723,7 +723,7 @@ class ReaderApp {
                 display: block;
                 width: ${viewport.width}px;
                 height: ${viewport.height}px;
-                border: 2px solid #4A90E2;
+                border: none;
                 border-radius: 8px;
                 overflow: hidden;
                 box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -1065,7 +1065,7 @@ class ReaderApp {
                 
                 // 创建Canvas容器
                 const canvasContainer = document.createElement('div');
-                canvasContainer.style.cssText = 'display: inline-block; border: 3px solid #4A90E2; border-radius: 8px; overflow: hidden;';
+                canvasContainer.style.cssText = 'display: inline-block; border: none; border-radius: 8px; overflow: hidden;';
                 
                 // 直接插入Canvas对象（不使用outerHTML）
                 canvasContainer.appendChild(canvas);
@@ -1940,6 +1940,46 @@ class ReaderApp {
     }
 
     handleKeyboardShortcuts(e) {
+        // 如果焦点在输入框或文本区域中，允许标准快捷键（Ctrl/Cmd + A, C, V, X, Z, Y）
+        const activeElement = document.activeElement;
+        const isInputElement = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+        );
+        
+        if (isInputElement) {
+            // 在输入框中，只拦截应用特定的快捷键，允许标准编辑快捷键
+            // Mac使用Cmd键（metaKey），Windows/Linux使用Ctrl键
+            const isModifierKey = e.metaKey || e.ctrlKey;
+            
+            // 允许标准编辑快捷键：全选、复制、粘贴、剪切、撤销
+            // 这些快捷键应该由浏览器默认处理，我们完全不拦截
+            if (isModifierKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
+                // 完全不处理，让浏览器默认行为生效
+                return;
+            }
+            
+            // Mac上Cmd+Shift+Z用于重做，Windows/Linux上Ctrl+Y用于重做
+            if (isModifierKey && e.shiftKey && e.key.toLowerCase() === 'z') {
+                return; // 允许重做快捷键（Mac），不阻止默认行为
+            }
+            if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+                return; // Windows/Linux的Ctrl+Y重做，不阻止默认行为
+            }
+            
+            // 只拦截应用特定的快捷键（如 Ctrl+S / Cmd+S 保存）
+            if (isModifierKey && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                this.saveDocument();
+                return;
+            }
+            
+            // 其他快捷键在输入框中不拦截
+            return;
+        }
+        
+        // 不在输入框中，处理全局快捷键
         if (e.ctrlKey || e.metaKey) {
             switch (e.key.toLowerCase()) {
                 case '=':
@@ -5168,17 +5208,48 @@ class ReaderApp {
         });
 
         // 回车发送（Shift+Enter换行）
-        chatInput.addEventListener('keydown', (e) => {
+        const handleChatKeydown = (e) => {
+            // 允许标准快捷键（Ctrl/Cmd + A, C, V, X, Z, Y）
+            // Mac使用Cmd键（metaKey），Windows/Linux使用Ctrl键
+            const isModifierKey = e.metaKey || e.ctrlKey;
+            
+            // 标准编辑快捷键：全选、复制、粘贴、剪切、撤销
+            if (isModifierKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
+                // 不阻止默认行为，让浏览器处理
+                e.stopPropagation(); // 阻止事件冒泡到其他监听器
+                e.stopImmediatePropagation(); // 阻止同一元素上的其他监听器
+                return;
+            }
+            
+            // Mac上Cmd+Shift+Z用于重做，Windows/Linux上Ctrl+Y用于重做
+            if (isModifierKey && e.shiftKey && e.key.toLowerCase() === 'z') {
+                // 允许重做快捷键（Mac）
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return;
+            }
+            if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+                // Windows/Linux的Ctrl+Y重做
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return;
+            }
+            
+            // 应用特定的快捷键
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
+                e.stopPropagation();
                 this.sendAiMessage();
             }
-        });
+        };
+        
+        // 在捕获阶段添加监听器，确保优先处理
+        chatInput.addEventListener('keydown', handleChatKeydown, { capture: true });
 
         // 自动调整输入框高度
         chatInput.addEventListener('input', () => {
             chatInput.style.height = 'auto';
-            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+            chatInput.style.height = Math.min(Math.max(chatInput.scrollHeight, 40), 100) + 'px';
         });
     }
 
@@ -5289,7 +5360,7 @@ class ReaderApp {
 
         // 清空输入框
         chatInput.value = '';
-        chatInput.style.height = 'auto';
+        chatInput.style.height = '40px';
 
         // 禁用发送按钮
         chatSend.disabled = true;
