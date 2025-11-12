@@ -4,8 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgdfwbqcjmjxdsxvmgot.supabase.co https://generativelanguage.googleapis.com https://cdn.jsdelivr.net;">
-    <title>NPDF Reader - 阅读器</title>
+    <title>L-reader - 阅读器</title>
     <link rel="stylesheet" href="styles/reader.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        // 初始化 Supabase 客户端
+        window.SUPABASE_CONFIG = {
+            url: 'https://xgdfwbqcjmjxdsxvmgot.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw'
+        };
+        
+        function initSupabaseClient() {
+            if (typeof supabase !== 'undefined' && supabase.createClient && window.SUPABASE_CONFIG) {
+                try {
+                    window.supabaseClient = supabase.createClient(
+                        window.SUPABASE_CONFIG.url,
+                        window.SUPABASE_CONFIG.anonKey
+                    );
+                    console.log('✅ Supabase 客户端已初始化');
+                    window.dispatchEvent(new CustomEvent('supabase-ready'));
+                    return true;
+                } catch (error) {
+                    console.error('❌ 创建 Supabase 客户端失败:', error);
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        if (!initSupabaseClient()) {
+            let attempts = 0;
+            const maxAttempts = 100;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (initSupabaseClient()) {
+                    clearInterval(checkInterval);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    console.error('❌ Supabase CDN 加载超时');
+                }
+            }, 100);
+        }
+    </script>
 </head>
 <body>
     <div class="reader-container">
@@ -107,21 +148,28 @@
 
         <!-- AI对话按钮（右下角） -->
         <button class="ai-chat-button" id="aiChatButton" title="AI对话">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <!-- 圆形背景 -->
-                <circle cx="12" cy="12" r="10" fill="#E0E0E0" stroke="#BDBDBD" stroke-width="1"/>
-                <!-- 眼睛（两个小弧线） -->
-                <path d="M 8 8 Q 8 6 9 6 Q 10 6 10 8" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-                <path d="M 14 8 Q 14 6 15 6 Q 16 6 16 8" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-                <!-- 嘴巴（弯曲的线） -->
-                <path d="M 8 14 Q 10 18 12 18 Q 14 18 16 14" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <svg viewBox="0 0 100 100" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <!-- 圆形白色背景 -->
+                <circle cx="50" cy="50" r="45" fill="#ffffff"/>
+                
+                <!-- 字母L（黑色艺术字） -->
+                <text x="50" y="70" 
+                      font-family="Georgia, 'Times New Roman', serif" 
+                      font-size="48" 
+                      font-weight="bold" 
+                      text-anchor="middle" 
+                      fill="#000000"
+                      style="font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-variant-position: normal; font-stretch: normal; line-height: normal; letter-spacing: 0;">L</text>
             </svg>
         </button>
 
         <!-- AI对话面板（右侧） -->
         <div class="ai-chat-panel" id="aiChatPanel">
             <div class="ai-chat-header">
-                <h3>AI 助手</h3>
+                <div class="ai-chat-header-left">
+                    <h3>L-reader AI</h3>
+                    <span class="ai-chat-model">Gemini 2.0 Flash</span>
+                </div>
                 <button class="ai-chat-close" id="aiChatClose">
                     <svg viewBox="0 0 24 24" width="20" height="20">
                         <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" fill="currentColor"/>
@@ -130,8 +178,7 @@
             </div>
             <div class="ai-chat-messages" id="aiChatMessages">
                 <div class="ai-chat-welcome">
-                    <p>👋 你好！我是AI助手，可以帮助你理解当前页面的内容。</p>
-                    <p>你可以问我关于当前PDF页面的任何问题。</p>
+                    <p>欢迎使用 L-reader AI</p>
                 </div>
             </div>
             <div class="ai-chat-input-container">
@@ -342,6 +389,7 @@
         </div>
     </div>
 
+    <script src="../utils/subscription-helper.js"></script>
     <script src="scripts/reader.js"></script>
 </body>
 </html>

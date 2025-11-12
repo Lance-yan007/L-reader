@@ -8,14 +8,45 @@ class VocabularyApp {
         this.selectedIds = new Set();
         this.autoRefreshInterval = null;
         this.lastUpdateTime = 0;
+        this.subscriptionHelper = null;
+        this.currentUserId = null;
+        this.subscriptionStatus = { planType: 'free', subscription: null };
         this.init();
     }
 
     init() {
         this.cacheDom();
         this.bindEvents();
+        this.initSubscriptionHelper(); // 初始化订阅助手
         this.loadTranslations(true); // 首次加载时显示加载指示器
         this.startAutoRefresh();
+    }
+
+    /**
+     * 初始化订阅助手
+     */
+    async initSubscriptionHelper() {
+        try {
+            // 检查是否有Supabase客户端
+            if (typeof window !== 'undefined' && window.supabaseClient) {
+                const SubscriptionHelper = window.SubscriptionHelper || 
+                    (await import('../utils/subscription-helper.js')).default;
+                
+                if (SubscriptionHelper) {
+                    this.subscriptionHelper = new SubscriptionHelper(window.supabaseClient);
+                    
+                    // 获取当前用户ID
+                    const { data: { user } } = await window.supabaseClient.auth.getUser();
+                    if (user) {
+                        this.currentUserId = user.id;
+                        // 获取订阅状态
+                        this.subscriptionStatus = await this.subscriptionHelper.getSubscriptionStatus(user.id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('初始化订阅助手失败:', error);
+        }
     }
 
     cacheDom() {
@@ -105,6 +136,8 @@ class VocabularyApp {
                 // 如果有新数据或首次加载，重新渲染列表
                 if (hasNewData || showLoadingIndicator) {
                     this.renderVocabularyList();
+                    // 更新订阅状态显示（如果有）
+                    this.updateSubscriptionDisplay();
                 }
                 
                 this.lastUpdateTime = Date.now();
@@ -427,7 +460,125 @@ class VocabularyApp {
             alert('删除失败: ' + error.message);
         }
     }
+
+    /**
+     * 更新订阅状态显示
+     */
+    async updateSubscriptionDisplay() {
+        try {
+            if (!this.subscriptionHelper || !this.currentUserId) return;
+
+            // 重新获取订阅状态
+            this.subscriptionStatus = await this.subscriptionHelper.getSubscriptionStatus(this.currentUserId);
+            
+            // 获取生词本总数
+            const vocabularyCount = this.translations.length;
+            const limits = SubscriptionHelper.LIMITS[this.subscriptionStatus.planType] || SubscriptionHelper.LIMITS.free;
+            const limit = limits.vocabulary;
+
+            // 在页面上显示生词本使用情况
+            const header = document.getElementById('vocabularyTitle') || document.querySelector('.vocabulary-header h1');
+            if (header) {
+                if (limit === Infinity) {
+                    header.textContent = `生词本 (${vocabularyCount})`;
+                    header.style.color = '';
+                } else {
+                    header.textContent = `生词本 (${vocabularyCount}/${limit})`;
+                    
+                    // 如果接近上限，添加警告样式
+                    const percentage = (vocabularyCount / limit) * 100;
+                    if (percentage >= 90) {
+                        header.style.color = '#ff3b30';
+                    } else if (percentage >= 70) {
+                        header.style.color = '#ff9500';
+                    } else {
+                        header.style.color = '';
+                    }
+                }
+            }
+
+            // 如果达到上限，显示提示
+            if (limit !== Infinity && vocabularyCount >= limit) {
+                this.showVocabularyLimitWarning();
+            }
+        } catch (error) {
+            console.error('更新订阅显示失败:', error);
+        }
+    }
+
+    /**
+     * 显示生词本上限警告
+     */
+    showVocabularyLimitWarning() {
+        // 检查是否已经显示过警告
+        if (document.getElementById('vocabularyLimitWarning')) {
+            return;
+        }
+
+        const warningDiv = document.createElement('div');
+        warningDiv.id = 'vocabularyLimitWarning';
+        warningDiv.className = 'vocabulary-limit-warning';
+        warningDiv.innerHTML = `
+            <div class="warning-content">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-message">
+                    生词本已达到上限。升级订阅可享受更多容量。
+                </div>
+                <button class="warning-button" id="upgradeFromVocabularyBtn">升级订阅</button>
+                <button class="warning-close" id="closeVocabularyWarning">&times;</button>
+            </div>
+        `;
+
+        const main = document.querySelector('.vocabulary-content');
+        if (main) {
+            main.insertBefore(warningDiv, main.firstChild);
+        }
+
+        // 绑定事件
+        const upgradeBtn = warningDiv.querySelector('#upgradeFromVocabularyBtn');
+        const closeBtn = warningDiv.querySelector('#closeVocabularyWarning');
+
+        upgradeBtn.addEventListener('click', () => {
+            // 打开个人中心订阅页面
+            if (typeof window !== 'undefined' && window.electron && window.electron.invoke) {
+                window.electron.invoke('open-profile-page').catch(err => {
+                    console.error('打开个人中心失败:', err);
+                    // 降级方案：尝试直接跳转
+                    if (typeof window !== 'undefined') {
+                        window.location.href = 'profile.html';
+                    }
+                });
+            } else if (typeof ipcRenderer !== 'undefined') {
+                // 兼容旧版本（如果直接使用 ipcRenderer）
+                ipcRenderer.invoke('open-profile-page').catch(err => {
+                    console.error('打开个人中心失败:', err);
+                });
+            } else {
+                // 降级方案：直接跳转
+                if (typeof window !== 'undefined') {
+                    window.location.href = 'profile.html';
+                }
+            }
+        });
+
+        closeBtn.addEventListener('click', () => {
+            warningDiv.remove();
+        });
+    }
 }
+
+// 订阅限制配置（与 subscription-helper.js 保持一致）
+VocabularyApp.LIMITS = {
+    free: {
+        vocabulary: 100
+    },
+    monthly: {
+        vocabulary: 500
+    },
+    yearly: {
+        vocabulary: Infinity
+    }
+};
 
 // 初始化应用
 document.addEventListener('DOMContentLoaded', () => {

@@ -4,14 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgdfwbqcjmjxdsxvmgot.supabase.co https://cdn.jsdelivr.net;">
-    <title>生词本 - NPDF Reader</title>
+    <title>生词本 - L-reader</title>
     <link rel="stylesheet" href="styles/vocabulary.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        // 初始化 Supabase 客户端
+        window.SUPABASE_CONFIG = {
+            url: 'https://xgdfwbqcjmjxdsxvmgot.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw'
+        };
+        
+        function initSupabaseClient() {
+            if (typeof supabase !== 'undefined' && supabase.createClient && window.SUPABASE_CONFIG) {
+                try {
+                    window.supabaseClient = supabase.createClient(
+                        window.SUPABASE_CONFIG.url,
+                        window.SUPABASE_CONFIG.anonKey
+                    );
+                    console.log('✅ Supabase 客户端已初始化');
+                    window.dispatchEvent(new CustomEvent('supabase-ready'));
+                    return true;
+                } catch (error) {
+                    console.error('❌ 创建 Supabase 客户端失败:', error);
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        if (!initSupabaseClient()) {
+            let attempts = 0;
+            const maxAttempts = 100;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (initSupabaseClient()) {
+                    clearInterval(checkInterval);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    console.error('❌ Supabase CDN 加载超时');
+                }
+            }, 100);
+        }
+    </script>
 </head>
 <body>
     <div class="vocabulary-container">
         <!-- 顶部标题栏 -->
         <header class="vocabulary-header">
-            <h1 class="vocabulary-title">生词本</h1>
+            <h1 class="vocabulary-title" id="vocabularyTitle">生词本</h1>
             <div class="vocabulary-header-actions">
                 <!-- 编辑模式工具栏 -->
                 <div class="edit-toolbar" id="editToolbar" style="display: none;">
@@ -58,6 +99,7 @@
         </main>
     </div>
 
+    <script src="../utils/subscription-helper.js"></script>
     <script src="scripts/vocabulary.js"></script>
 </body>
 </html>

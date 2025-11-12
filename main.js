@@ -644,6 +644,123 @@ ipcMain.handle('open-file-from-main', async (event, filePath) => {
   }
 });
 
+// 打开个人中心页面
+ipcMain.handle('open-profile-page', async () => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('navigate-to-profile');
+      return { success: true };
+    }
+    return { success: false, error: '主窗口不存在' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================
+// StoreKit 内购处理
+// ============================================
+
+// 初始化 StoreKit
+ipcMain.handle('storekit-initialize', async () => {
+  try {
+    // 检查是否在 macOS 上
+    if (process.platform !== 'darwin') {
+      return { success: false, error: 'StoreKit 仅在 macOS 上可用' };
+    }
+
+    // 这里需要调用原生 StoreKit API
+    // 由于 Electron 不直接支持 StoreKit，我们需要：
+    // 1. 使用原生 Node.js 模块（需要编译）
+    // 2. 或者使用第三方库
+    // 3. 或者通过 shell 脚本调用系统 API
+    
+    // 暂时返回成功，实际实现需要原生模块
+    return { success: true, message: 'StoreKit 已初始化（需要原生模块支持）' };
+  } catch (error) {
+    console.error('StoreKit 初始化失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 加载产品信息
+ipcMain.handle('storekit-load-products', async (event, productIds) => {
+  try {
+    if (process.platform !== 'darwin') {
+      return { success: false, error: 'StoreKit 仅在 macOS 上可用' };
+    }
+
+    // TODO: 调用 StoreKit API 加载产品信息
+    // 这里需要原生模块支持
+    
+    // 临时返回模拟数据
+    const products = productIds.map(id => ({
+      productId: id,
+      localizedTitle: id.includes('monthly') ? '月订阅' : '年订阅',
+      localizedDescription: id.includes('monthly') ? '¥39.9/月' : '¥299/年',
+      price: id.includes('monthly') ? '39.9' : '299',
+      currencyCode: 'CNY'
+    }));
+
+    return { success: true, products };
+  } catch (error) {
+    console.error('加载产品信息失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 购买订阅
+ipcMain.handle('storekit-purchase', async (event, productId) => {
+  try {
+    if (process.platform !== 'darwin') {
+      return { success: false, error: 'StoreKit 仅在 macOS 上可用' };
+    }
+
+    // TODO: 调用 StoreKit API 发起购买
+    // 这里需要原生模块支持
+    
+    // 临时返回：提示用户需要在 App Store Connect 配置
+    return {
+      success: false,
+      error: 'StoreKit 购买功能需要配置',
+      message: '请在 App Store Connect 中配置订阅产品，并集成原生 StoreKit 模块'
+    };
+  } catch (error) {
+    console.error('购买订阅失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 恢复购买
+ipcMain.handle('storekit-restore', async () => {
+  try {
+    if (process.platform !== 'darwin') {
+      return { success: false, error: 'StoreKit 仅在 macOS 上可用' };
+    }
+
+    // TODO: 调用 StoreKit API 恢复购买
+    return { success: false, error: '恢复购买功能需要原生模块支持' };
+  } catch (error) {
+    console.error('恢复购买失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 获取订阅状态
+ipcMain.handle('storekit-get-status', async () => {
+  try {
+    if (process.platform !== 'darwin') {
+      return { success: false, error: 'StoreKit 仅在 macOS 上可用' };
+    }
+
+    // TODO: 调用 StoreKit API 获取订阅状态
+    return { success: false, error: '获取订阅状态需要原生模块支持' };
+  } catch (error) {
+    console.error('获取订阅状态失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // 处理外部文件打开
 app.on('open-file', (event, filePath) => {
   event.preventDefault();

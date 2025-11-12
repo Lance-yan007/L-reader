@@ -55,6 +55,10 @@ class ReaderApp {
         this.aiChatMessages = []; // 对话历史
         this.isAiChatOpen = false; // 对话面板是否打开
         
+        // 订阅管理
+        this.subscriptionHelper = null; // 订阅助手实例
+        this.currentUserId = null; // 当前用户ID
+        
         this.init();
     }
 
@@ -66,6 +70,32 @@ class ReaderApp {
         this.initContextMenu(); // 初始化右键菜单
         this.resetHistory();
         this.initAiChat(); // 初始化AI对话功能
+        this.initSubscriptionHelper(); // 初始化订阅助手
+    }
+
+    /**
+     * 初始化订阅助手
+     */
+    async initSubscriptionHelper() {
+        try {
+            // 检查是否有Supabase客户端
+            if (typeof window !== 'undefined' && window.supabaseClient) {
+                const SubscriptionHelper = window.SubscriptionHelper || 
+                    (await import('../utils/subscription-helper.js')).default;
+                
+                if (SubscriptionHelper) {
+                    this.subscriptionHelper = new SubscriptionHelper(window.supabaseClient);
+                    
+                    // 获取当前用户ID
+                    const { data: { user } } = await window.supabaseClient.auth.getUser();
+                    if (user) {
+                        this.currentUserId = user.id;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('初始化订阅助手失败:', error);
+        }
     }
 
     bindEvents() {
@@ -2202,6 +2232,25 @@ class ReaderApp {
         
         // 如果已有翻译，不需要再次翻译；否则获取翻译
         if (!this.wordTranslationMap.has(word.toLowerCase())) {
+            // 检查订阅限制
+            if (this.subscriptionHelper && this.currentUserId) {
+                try {
+                    const limitCheck = await this.subscriptionHelper.checkAndUpdateUsage(
+                        this.currentUserId,
+                        'wordTranslations'
+                    );
+
+                    if (!limitCheck.allowed) {
+                        // 显示限制提示
+                        this.showUpgradePrompt(limitCheck.message || '点词翻译使用次数已达上限');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('检查订阅限制失败:', error);
+                    // 如果检查失败，允许继续使用（降级处理）
+                }
+            }
+
             // 获取翻译（不显示悬浮框，只保存翻译）
             try {
                 const translation = await this.translateWord(word);
@@ -2212,6 +2261,25 @@ class ReaderApp {
                 });
                 
                 // 保存翻译到translations目录（用于生词本）
+                // 先检查生词本限制
+                if (this.subscriptionHelper && this.currentUserId) {
+                    try {
+                        const limitCheck = await this.subscriptionHelper.checkAndUpdateUsage(
+                            this.currentUserId,
+                            'vocabulary'
+                        );
+
+                        if (!limitCheck.allowed) {
+                            // 达到上限，不保存但显示提示
+                            this.showUpgradePrompt(limitCheck.message || '生词本已达到上限');
+                            return; // 不保存翻译
+                        }
+                    } catch (error) {
+                        console.error('检查生词本限制失败:', error);
+                        // 如果检查失败，允许继续保存（降级处理）
+                    }
+                }
+
                 try {
                     const translationData = {
                         filePath: this.currentFile,
@@ -5358,6 +5426,25 @@ class ReaderApp {
         const message = chatInput.value.trim();
         if (!message) return;
 
+        // 检查订阅限制
+        if (this.subscriptionHelper && this.currentUserId) {
+            try {
+                const limitCheck = await this.subscriptionHelper.checkAndUpdateUsage(
+                    this.currentUserId,
+                    'aiChat'
+                );
+
+                if (!limitCheck.allowed) {
+                    // 显示限制提示
+                    this.showUpgradePrompt(limitCheck.message || 'AI助手使用次数已达上限');
+                    return;
+                }
+            } catch (error) {
+                console.error('检查订阅限制失败:', error);
+                // 如果检查失败，允许继续使用（降级处理）
+            }
+        }
+
         // 清空输入框
         chatInput.value = '';
         chatInput.style.height = '40px';
@@ -5507,6 +5594,68 @@ ${userMessage}
         }
 
         return messageId;
+    }
+
+    /**
+     * 显示升级提示
+     * @param {string} message - 提示消息
+     */
+    showUpgradePrompt(message) {
+        // 创建提示弹窗
+        const promptDiv = document.createElement('div');
+        promptDiv.className = 'upgrade-prompt';
+        promptDiv.innerHTML = `
+            <div class="upgrade-prompt-content">
+                <div class="upgrade-prompt-icon">⚠️</div>
+                <div class="upgrade-prompt-message">${this.escapeHtml(message)}</div>
+                <div class="upgrade-prompt-actions">
+                    <button class="upgrade-prompt-button upgrade-prompt-button-primary" id="upgradePromptUpgrade">升级订阅</button>
+                    <button class="upgrade-prompt-button" id="upgradePromptCancel">稍后再说</button>
+                </div>
+            </div>
+        `;
+
+        // 添加到页面
+        document.body.appendChild(promptDiv);
+
+        // 绑定事件
+        const upgradeBtn = promptDiv.querySelector('#upgradePromptUpgrade');
+        const cancelBtn = promptDiv.querySelector('#upgradePromptCancel');
+
+        upgradeBtn.addEventListener('click', () => {
+            // 打开个人中心订阅页面
+            if (typeof window !== 'undefined' && window.electron && window.electron.invoke) {
+                window.electron.invoke('open-profile-page').catch(err => {
+                    console.error('打开个人中心失败:', err);
+                    // 降级方案：尝试直接跳转
+                    if (typeof window !== 'undefined') {
+                        window.location.href = 'profile.html';
+                    }
+                });
+            } else if (typeof ipcRenderer !== 'undefined') {
+                // 兼容旧版本（如果直接使用 ipcRenderer）
+                ipcRenderer.invoke('open-profile-page').catch(err => {
+                    console.error('打开个人中心失败:', err);
+                });
+            } else {
+                // 降级方案：直接跳转
+                if (typeof window !== 'undefined') {
+                    window.location.href = 'profile.html';
+                }
+            }
+            promptDiv.remove();
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            promptDiv.remove();
+        });
+
+        // 3秒后自动关闭
+        setTimeout(() => {
+            if (promptDiv.parentNode) {
+                promptDiv.remove();
+            }
+        }, 5000);
     }
 
     /**
