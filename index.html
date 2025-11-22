@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <!-- 导航栏 -->
     <header class="header">
@@ -25,10 +27,10 @@
                 </ul>
                 <div class="nav-actions">
                     <button class="btn-login">登录</button>
-                    <button class="btn-online-nav" onclick="window.location.href='web-app.html'">
+                    <a href="web-app.html" class="btn-online-nav">
                         <i class="fas fa-globe"></i>
                         <span>在线使用</span>
-                    </button>
+                    </a>
                     <button class="btn-download-nav">免费下载</button>
                 </div>
                 <button class="mobile-menu-toggle">
@@ -56,10 +58,10 @@
                     让您专注于学习，而不是查字典。
                 </p>
                 <div class="hero-actions">
-                    <button class="btn-primary btn-large" onclick="window.location.href='web-app.html'">
+                    <a href="web-app.html" class="btn-primary btn-large">
                         <i class="fas fa-globe"></i>
                         立即使用
-                    </button>
+                    </a>
                     <button class="btn-secondary btn-large">
                         <i class="fas fa-download"></i>
                         免费下载
@@ -375,13 +377,14 @@
                 <h2 class="download-title">立即开始使用 L-reader</h2>
                 <p class="download-description">支持在线使用或下载桌面版，免费体验所有功能</p>
                 <div class="download-buttons">
-                    <button class="btn-download-platform btn-online-primary" onclick="window.location.href='web-app.html'" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5);">
+                    <a href="web-app.html" class="btn-download-platform btn-online-primary"
+                        style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5); text-decoration: none;">
                         <i class="fas fa-globe"></i>
                         <div>
                             <span class="platform-label">在线使用</span>
                             <span class="platform-version">无需下载，立即体验</span>
                         </div>
-                    </button>
+                    </a>
                     <button class="btn-download-platform">
                         <i class="fab fa-apple"></i>
                         <div>
@@ -487,5 +490,5 @@
 
     <script src="script.js"></script>
 </body>
-</html>
 
+</html>

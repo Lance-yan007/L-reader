@@ -12,10 +12,10 @@ try {
         path.resolve(__dirname, '../utils/auth-helper.js'),
         path.resolve(__dirname, 'utils/auth-helper.js')
     ];
-    
+
     console.log('📦 加载 auth-helper...');
     console.log('   当前目录 (__dirname):', __dirname);
-    
+
     let loaded = false;
     for (const tryPath of possiblePaths) {
         try {
@@ -28,16 +28,16 @@ try {
             continue;
         }
     }
-    
+
     if (!loaded) {
         throw new Error('所有路径尝试都失败');
     }
-    
+
     console.log('✅ auth-helper 加载成功！');
 } catch (e) {
     console.error('❌ 加载 auth-helper 失败:', e.message);
     console.error('   错误详情:', e);
-    
+
     // 创建一个降级的 authHelper 对象，避免应用崩溃
     console.warn('⚠️ 使用降级模式：认证功能暂时不可用，但应用可以正常运行');
     authHelper = {
@@ -77,21 +77,21 @@ class MainApp {
     }
 
     async init() {
-        // 检查登录状态（暂时禁用，先让应用能运行）
-        try {
-            await this.checkAuth();
-        } catch (error) {
-            console.warn('认证检查失败，继续运行应用:', error);
-            // 如果认证检查失败，暂时跳过，让应用能运行
-        }
-        
+        // 检查登录状态（Web版本已禁用）
+        console.log('Web版本：跳过认证检查');
+        // try {
+        //     await this.checkAuth();
+        // } catch (error) {
+        //     console.warn('认证检查失败，继续运行应用:', error);
+        // }
+
         this.cacheDom();
         this.setupTabSystem();
         await this.loadPDFJS();
         this.bindEvents();
         this.loadRecentFiles();
         this.setupWindowStateListener();
-        
+
         // 只有在 authHelper 加载成功时才设置监听
         if (authHelper && typeof authHelper.onAuthStateChange === 'function') {
             this.setupAuthListener();
@@ -99,29 +99,8 @@ class MainApp {
     }
 
     async checkAuth() {
-        if (!authHelper) {
-            console.warn('authHelper 未加载，跳过认证检查');
-            return;
-        }
-        
-        try {
-            const { isAuthenticated, user } = await authHelper.checkAuth();
-            
-            if (!isAuthenticated) {
-                // 未登录，跳转到登录页面
-                window.location.href = 'auth.html';
-                return;
-            }
-
-            // 已登录，加载用户信息
-            await this.loadUserInfo();
-        } catch (error) {
-            console.error('检查登录状态失败:', error);
-            // 出错时也跳转到登录页面（但如果 authHelper 未加载，就不跳转）
-            if (authHelper) {
-                window.location.href = 'auth.html';
-            }
-        }
+        console.log('Web版本：认证功能已禁用');
+        return;
     }
 
     async loadUserInfo() {
@@ -129,11 +108,11 @@ class MainApp {
             console.warn('authHelper 未加载，跳过加载用户信息');
             return;
         }
-        
+
         try {
             const userProfile = await authHelper.getUserProfile();
             const user = await authHelper.getCurrentUser();
-            
+
             if (userProfile) {
                 this.updateUserUI(userProfile);
             } else if (user) {
@@ -158,38 +137,11 @@ class MainApp {
     }
 
     setupAuthListener() {
-        if (!authHelper || typeof authHelper.onAuthStateChange !== 'function') {
-            console.warn('authHelper 未加载，跳过设置认证监听');
-            return;
-        }
-        
-        // 监听认证状态变化
-        authHelper.onAuthStateChange((event, session, user) => {
-            if (event === 'SIGNED_OUT') {
-                // 登出后跳转到登录页面
-                window.location.href = 'auth.html';
-            } else if (event === 'SIGNED_IN') {
-                // 登录后加载用户信息
-                this.loadUserInfo();
-            }
-        });
+        console.log('Web版本：跳过认证监听');
     }
 
     async handleLogout() {
-        if (!authHelper) {
-            alert('认证功能未加载，无法登出');
-            return;
-        }
-        
-        if (confirm('确定要退出登录吗？')) {
-            try {
-                await authHelper.logout();
-                // 登出成功后会通过 authListener 自动跳转
-            } catch (error) {
-                console.error('登出失败:', error);
-                alert('登出失败，请重试');
-            }
-        }
+        alert('Web版本无需登录/登出');
     }
 
     async handleDeleteAccount() {
@@ -534,7 +486,7 @@ class MainApp {
         };
 
         tab.webview.addEventListener('did-finish-load', sendFileToReader);
-        
+
         // 为webview添加开发者工具快捷键支持
         // 在webview中按 F12 或 Ctrl+Shift+I (Windows/Linux) 或 Cmd+Option+I (Mac) 打开开发者工具
         tab.webview.addEventListener('dom-ready', () => {
@@ -575,7 +527,7 @@ class MainApp {
         }
 
         const isActive = this.activeTabId === tabId;
-        
+
         // 先隐藏面板，避免白屏
         if (tab.panelElement && tab.type === 'document') {
             tab.panelElement.style.display = 'none';
@@ -717,7 +669,7 @@ class MainApp {
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.file-card')) {
                 this.closeAllFileCardMenus();
-                
+
                 // 如果正在重命名，取消重命名
                 if (this.currentRenamingCard && this.currentRenamingInput) {
                     const nameCard = this.currentRenamingCard.querySelector('.file-name-card');
@@ -939,7 +891,7 @@ class MainApp {
         const homeNavBtn = document.getElementById('homeNavBtn');
         const vocabularyNavBtn = document.getElementById('vocabularyNavBtn');
         const profileNavBtn = document.getElementById('profileNavBtn');
-        
+
         if (homeNavBtn) {
             homeNavBtn.classList.toggle('active', activeView === 'home');
         }
@@ -966,7 +918,7 @@ class MainApp {
     async openFile() {
         try {
             const result = await ipcRenderer.invoke('open-file-dialog');
-            
+
             if (!result.canceled && result.filePaths.length > 0) {
                 const filePath = result.filePaths[0];
                 await this.handleFileOpened(filePath);
@@ -979,7 +931,7 @@ class MainApp {
     async openFolder() {
         try {
             const result = await ipcRenderer.invoke('open-folder-dialog');
-            
+
             if (!result.canceled && result.filePaths.length > 0) {
                 const folderPath = result.filePaths[0];
                 console.log('打开文件夹:', folderPath);
@@ -1017,7 +969,7 @@ class MainApp {
     async addToRecentFiles(filePath) {
         const fileName = this.getFileName(filePath);
         const fileType = this.getFileType(filePath);
-        
+
         let fileSize = 'unknown';
         try {
             const fs = require('fs');
@@ -1037,13 +989,13 @@ class MainApp {
 
         this.recentFiles = this.recentFiles.filter(file => file.path !== filePath);
         this.recentFiles.unshift(fileInfo);
-        
+
         if (this.recentFiles.length > 20) {
             this.recentFiles = this.recentFiles.slice(0, 20);
         }
 
         localStorage.setItem('recentFiles', JSON.stringify(this.recentFiles));
-        
+
         this.showFilesView();
         this.renderRecentFiles();
     }
@@ -1056,18 +1008,18 @@ class MainApp {
 
         const grid = document.getElementById('filesGrid');
         const template = document.getElementById('fileCardTemplate');
-        
+
         grid.innerHTML = '';
 
         this.recentFiles.forEach((file, index) => {
             const clone = template.content.cloneNode(true);
             const card = clone.querySelector('.file-card');
-            
+
             card.setAttribute('data-file-path', file.path);
             card.querySelector('.file-name-card').textContent = file.name;
             card.querySelector('.file-date-card').textContent = this.formatDate(file.date);
             card.querySelector('.file-size-card').textContent = file.size || '';
-            
+
             // 获取菜单相关元素
             const menuBtn = clone.querySelector('.file-card-menu-btn');
             const menu = clone.querySelector('.file-card-menu');
@@ -1075,27 +1027,27 @@ class MainApp {
             const deleteBtn = clone.querySelector('[data-action="delete"]');
             const nameCard = clone.querySelector('.file-name-card');
             const nameInput = clone.querySelector('.file-name-input');
-            
+
             // 菜单按钮点击事件
             menuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.toggleFileCardMenu(card, menu);
             });
-            
+
             // 重命名按钮点击事件
             renameBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.closeAllFileCardMenus();
                 this.startRenameFile(file.path, card, nameCard, nameInput);
             });
-            
+
             // 删除按钮点击事件
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.closeAllFileCardMenus();
                 this.deleteFile(file.path, card);
             });
-            
+
             // 卡片点击事件（排除菜单区域和重命名模式）
             card.addEventListener('click', (e) => {
                 // 如果点击的是菜单按钮或菜单本身，不触发打开文件
@@ -1112,27 +1064,27 @@ class MainApp {
                 }
                 this.openFileFromCard(file.path);
             });
-            
+
             grid.appendChild(clone);
-            
+
             if (file.type === 'pdf') {
                 this.generatePDFPreview(file.path, card);
             }
         });
     }
-    
+
     toggleFileCardMenu(card, menu) {
         const isOpen = menu.classList.contains('is-open');
-        
+
         // 先关闭所有其他菜单
         this.closeAllFileCardMenus();
-        
+
         // 切换当前菜单
         if (!isOpen) {
             menu.classList.add('is-open');
         }
     }
-    
+
     closeAllFileCardMenus() {
         const allMenus = document.querySelectorAll('.file-card-menu.is-open');
         allMenus.forEach(menu => {
@@ -1148,7 +1100,7 @@ class MainApp {
 
         try {
             const result = await ipcRenderer.invoke('read-file', filePath);
-            
+
             if (!result.success) {
                 console.error('读取PDF失败:', result.error);
                 return;
@@ -1159,13 +1111,13 @@ class MainApp {
                 cMapUrl: '../node_modules/pdfjs-dist/cmaps/',
                 cMapPacked: true
             });
-            
+
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
-            
+
             const canvas = cardElement.querySelector('.preview-canvas');
             const context = canvas.getContext('2d');
-            
+
             // 获取预览区域的尺寸
             const previewContainer = cardElement.querySelector('.file-preview');
             const previewStyles = window.getComputedStyle(previewContainer);
@@ -1177,7 +1129,7 @@ class MainApp {
             const rawHeight = previewContainer.clientHeight - paddingTop - paddingBottom;
             const containerWidth = rawWidth > 0 ? rawWidth : 180;
             const containerHeight = rawHeight > 0 ? rawHeight : 200;
-            
+
             // 计算高分辨率缩放比例 - 提高清晰度
             const viewport = page.getViewport({ scale: 1.0 });
             const previewHeightPortion = 0.35;
@@ -1188,42 +1140,42 @@ class MainApp {
             const oversample = 2; // 超采样提升清晰度
             const highDpiScale = Math.max(baseScale * deviceRatio * oversample, baseScale * deviceRatio);
             const scaledViewport = page.getViewport({ scale: highDpiScale });
-            
+
             // 设置canvas尺寸 - 高分辨率，只截取左上区域
             canvas.width = scaledViewport.width * previewWidthPortion;
             canvas.height = scaledViewport.height * previewHeightPortion;
-            
+
             // 设置canvas显示尺寸，保持宽高比
             const displayWidth = containerWidth;
             const displayHeight = displayWidth * (canvas.height / canvas.width);
             canvas.style.width = displayWidth + 'px';
             canvas.style.height = displayHeight + 'px';
-            
+
             // 创建临时canvas渲染完整页面
             const tempCanvas = document.createElement('canvas');
             const tempContext = tempCanvas.getContext('2d');
             tempCanvas.width = scaledViewport.width;
             tempCanvas.height = scaledViewport.height;
-            
+
             // 渲染完整PDF页面到临时canvas
             await page.render({
                 canvasContext: tempContext,
                 viewport: scaledViewport
             }).promise;
-            
+
             // 将临时canvas的左上部分绘制到显示canvas
             context.drawImage(
                 tempCanvas,
                 0, 0, scaledViewport.width * previewWidthPortion, scaledViewport.height * previewHeightPortion,  // 源区域（左上区域）
                 0, 0, canvas.width, canvas.height  // 目标区域
             );
-            
+
             // 隐藏占位符
             const placeholder = cardElement.querySelector('.preview-placeholder');
             if (placeholder) {
                 placeholder.style.display = 'none';
             }
-            
+
             console.log('PDF预览生成成功（截取左上区域）:', filePath);
         } catch (error) {
             console.error('生成PDF预览失败:', error);
@@ -1242,22 +1194,22 @@ class MainApp {
 
     startRenameFile(filePath, cardElement, nameCard, nameInput) {
         const currentName = this.getFileName(filePath);
-        
+
         // 保存原始信息，用于失败时恢复
         cardElement.dataset.originalName = currentName;
         cardElement.dataset.originalPath = filePath;
-        
+
         // 进入重命名模式
         cardElement.classList.add('is-renaming');
-        
+
         // 设置输入框的值
         nameInput.value = currentName;
-        
+
         // 阻止输入框点击事件冒泡，避免触发卡片点击
         nameInput.addEventListener('click', (e) => {
             e.stopPropagation();
         });
-        
+
         // 聚焦输入框并选中文件名（不包括扩展名）
         setTimeout(() => {
             nameInput.focus();
@@ -1270,20 +1222,20 @@ class MainApp {
                 nameInput.select();
             }
         }, 10);
-        
+
         // 确认重命名
         const confirmRename = async () => {
             const newName = nameInput.value.trim();
-            
+
             if (!newName || newName === currentName) {
                 // 取消重命名模式
                 this.cancelRenameFile(cardElement, nameCard, nameInput, currentName);
                 return;
             }
-            
+
             // 执行重命名
             const success = await this.executeRenameFile(filePath, newName, cardElement);
-            
+
             if (success) {
                 // 退出重命名模式
                 this.cancelRenameFile(cardElement, nameCard, nameInput, newName);
@@ -1292,21 +1244,21 @@ class MainApp {
                 this.cancelRenameFile(cardElement, nameCard, nameInput, currentName);
             }
         };
-        
+
         // 取消重命名
         const cancelRename = () => {
             this.cancelRenameFile(cardElement, nameCard, nameInput, currentName);
         };
-        
+
         // 绑定事件 - 使用捕获阶段确保优先处理
         nameInput.addEventListener('blur', confirmRename, { once: true });
-        
+
         // 处理标准快捷键 - 在捕获阶段处理，确保优先于全局监听器
         const handleKeydown = (e) => {
             // 允许标准快捷键（Ctrl/Cmd + A, C, V, X, Z, Y）
             // Mac使用Cmd键（metaKey），Windows/Linux使用Ctrl键
             const isModifierKey = e.metaKey || e.ctrlKey;
-            
+
             // 标准编辑快捷键：全选、复制、粘贴、剪切、撤销
             if (isModifierKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
                 // 不阻止默认行为，让浏览器处理
@@ -1314,7 +1266,7 @@ class MainApp {
                 e.stopImmediatePropagation(); // 阻止同一元素上的其他监听器
                 return;
             }
-            
+
             // Mac上Cmd+Shift+Z用于重做，Windows/Linux上Ctrl+Y用于重做
             if (isModifierKey && e.shiftKey && e.key.toLowerCase() === 'z') {
                 // 允许重做快捷键（Mac）
@@ -1328,7 +1280,7 @@ class MainApp {
                 e.stopImmediatePropagation();
                 return;
             }
-            
+
             // 应用特定的快捷键
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -1342,15 +1294,15 @@ class MainApp {
                 nameInput.removeEventListener('keydown', handleKeydown); // 移除监听器
             }
         };
-        
+
         // 在捕获阶段添加监听器，确保优先处理
         nameInput.addEventListener('keydown', handleKeydown, { capture: true });
-        
+
         // 点击外部取消（通过全局点击事件处理）
         this.currentRenamingCard = cardElement;
         this.currentRenamingInput = nameInput;
     }
-    
+
     cancelRenameFile(cardElement, nameCard, nameInput, name) {
         cardElement.classList.remove('is-renaming');
         nameInput.value = name;
@@ -1358,7 +1310,7 @@ class MainApp {
         this.currentRenamingCard = null;
         this.currentRenamingInput = null;
     }
-    
+
     async executeRenameFile(filePath, newName, cardElement) {
         try {
             // 构建新路径（使用字符串操作，因为渲染进程不能使用path模块）
@@ -1367,12 +1319,12 @@ class MainApp {
             const lastSeparator = Math.max(lastSlash, lastBackslash);
             const dir = lastSeparator >= 0 ? filePath.substring(0, lastSeparator + 1) : '';
             const newPath = dir + newName;
-            
+
             const result = await ipcRenderer.invoke('rename-file', {
                 oldPath: filePath,
                 newPath: newPath
             });
-            
+
             if (result.success) {
                 // 更新最近文件列表
                 const fileIndex = this.recentFiles.findIndex(f => f.path === filePath);
@@ -1387,7 +1339,7 @@ class MainApp {
                         nameCard.textContent = newName;
                     }
                 }
-                
+
                 // 如果该文件正在标签页中打开，更新标签页标题
                 const tab = this.tabs.find(t => t.filePath === filePath);
                 if (tab) {
@@ -1397,7 +1349,7 @@ class MainApp {
                     this.tabLookupByPath.set(newPath, tab.id);
                     this.renderTabStrip();
                 }
-                
+
                 return true;
             } else {
                 alert('重命名失败: ' + result.error);
@@ -1414,27 +1366,27 @@ class MainApp {
         if (!confirm('确定要删除这个文件吗？此操作不可撤销。')) {
             return;
         }
-        
+
         try {
             const result = await ipcRenderer.invoke('delete-file', filePath);
-            
+
             // 无论文件是否存在，都从列表中移除
             // 从最近文件列表中移除
             this.recentFiles = this.recentFiles.filter(f => f.path !== filePath);
             this.saveRecentFiles();
-            
+
             // 如果该文件正在标签页中打开，关闭该标签页
             const tab = this.tabs.find(t => t.filePath === filePath);
             if (tab) {
                 this.closeTab(tab.id);
             }
-            
+
             // 从标签页查找表中移除
             this.tabLookupByPath.delete(filePath);
-            
+
             // 重新渲染文件列表
             this.renderRecentFiles();
-            
+
             // 如果有警告信息（如文件不存在或删除失败），在控制台记录，但不显示错误弹窗
             if (result.warning) {
                 console.log('删除操作完成，但有提示:', result.warning);
@@ -1477,7 +1429,7 @@ class MainApp {
         const now = new Date();
         const diffTime = Math.abs(now - date);
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays === 0) {
             return '今天';
         } else if (diffDays === 1) {

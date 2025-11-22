@@ -1,4 +1,15 @@
-const { ipcRenderer } = require('electron');
+let ipcRenderer;
+try {
+    // Try to load from Electron
+    const electron = require('electron');
+    ipcRenderer = electron.ipcRenderer;
+} catch (e) {
+    // Fallback to window.ipcRenderer (Web Adapter)
+    ipcRenderer = window.ipcRenderer;
+    if (!ipcRenderer) {
+        console.error('ipcRenderer not found. Ensure web-adapter.js is loaded.');
+    }
+}
 
 class ReaderApp {
     constructor() {
@@ -16,7 +27,7 @@ class ReaderApp {
         this.translations = [];
         this.isSidebarCollapsed = false;
         this.isEmbedded = false;
-        
+
         // 点词翻译相关状态
         this.wordTranslateMode = false; // 是否开启点词翻译模式
         this.wordTranslationMap = new Map(); // 单词翻译映射表 word -> {translation, positions}
@@ -27,21 +38,21 @@ class ReaderApp {
         this.contextMenu = null; // 右键菜单DOM元素
         this.currentContextTarget = null; // 当前右键点击的元素
         this.currentSelection = null; // 当前文本选择对象
-        
+
         // 默认高亮颜色（紫色）- 会随着用户选择颜色而更新
         this.defaultHighlightColor = '#CDBBEB';
-        
+
         // Gemini API配置
         this.geminiApiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
         // 使用Gemini 2.0 Flash模型 - 快速且稳定
         this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
-        
+
         // API请求限流器配置（免费层：15次/分钟）
         this.apiRequestQueue = []; // 请求时间戳队列
         this.maxRequestsPerMinute = 12; // 设置为12次以留出余量
         this.requestDelayMs = 5000; // 两次请求之间最小间隔5秒
         this.lastRequestTime = 0; // 上次请求时间
-        
+
         // 撤销/重做和保存功能
         this.historyStack = []; // 历史记录栈
         this.historyIndex = -1; // 当前历史位置
@@ -49,16 +60,16 @@ class ReaderApp {
         this.isDirty = false; // 是否有未保存的修改
         this.lastSavedState = null; // 上次保存的状态
         this.isClosing = false; // 是否正在关闭
-        
+
         // AI对话功能
         this.pdfDocument = null; // PDF文档对象
         this.aiChatMessages = []; // 对话历史
         this.isAiChatOpen = false; // 对话面板是否打开
-        
+
         // 订阅管理
         this.subscriptionHelper = null; // 订阅助手实例
         this.currentUserId = null; // 当前用户ID
-        
+
         this.init();
     }
 
@@ -77,25 +88,11 @@ class ReaderApp {
      * 初始化订阅助手
      */
     async initSubscriptionHelper() {
-        try {
-            // 检查是否有Supabase客户端
-            if (typeof window !== 'undefined' && window.supabaseClient) {
-                const SubscriptionHelper = window.SubscriptionHelper || 
-                    (await import('../utils/subscription-helper.js')).default;
-                
-                if (SubscriptionHelper) {
-                    this.subscriptionHelper = new SubscriptionHelper(window.supabaseClient);
-                    
-                    // 获取当前用户ID
-                    const { data: { user } } = await window.supabaseClient.auth.getUser();
-                    if (user) {
-                        this.currentUserId = user.id;
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('初始化订阅助手失败:', error);
-        }
+        console.log('Web版本：跳过订阅助手初始化');
+        this.subscriptionHelper = {
+            checkSubscription: async () => ({ isSubscribed: true, plan: 'pro' }),
+            getSubscriptionStatus: async () => ({ isSubscribed: true, plan: 'pro' })
+        };
     }
 
     bindEvents() {
@@ -223,16 +220,16 @@ class ReaderApp {
             console.log('阅读器窗口接收到文件路径:', filePath);
             this.loadFile(filePath);
         });
-        
+
         // 缩放事件监听
         this.bindZoomEvents();
 
         // 键盘快捷键
         document.addEventListener('keydown', (e) => {
             this.handleKeyboardShortcuts(e);
-            
+
             // F12 或 Ctrl+Shift+I / Cmd+Option+I 打开开发者工具
-            if (e.key === 'F12' || 
+            if (e.key === 'F12' ||
                 (e.key === 'I' && (e.ctrlKey || e.metaKey) && e.shiftKey) ||
                 (e.key === 'I' && (e.metaKey || e.ctrlKey) && e.altKey)) {
                 e.preventDefault();
@@ -294,18 +291,18 @@ class ReaderApp {
 
                 // 计算距离变化的比例
                 const distanceRatio = currentDistance / initialDistance;
-                
+
                 // 关键：使用线性映射，而不是直接乘法
                 const scaleChange = (distanceRatio - 1) * SCALE_SENSITIVITY * initialZoomLevel;
                 const newZoomLevel = initialZoomLevel + scaleChange;
-                
+
                 // 限制缩放范围
                 const clampedZoomLevel = Math.max(this.minZoom, Math.min(newZoomLevel, this.maxZoom));
-                
+
                 // 直接设置缩放级别，避免使用zoomIn/zoomOut
                 this.zoomLevel = clampedZoomLevel;
                 this.applyZoom();
-                
+
                 e.preventDefault();
             }
         });
@@ -339,16 +336,16 @@ class ReaderApp {
             console.log('开始加载文件:', filePath);
             this.updateStatus('正在加载文件...');
             this.showLoading(true);
-            
+
             this.resetHistory();
-            
+
             this.currentFile = filePath;
             this.updateFileName(this.getFileName(filePath));
-            
+
             // 根据文件类型加载不同的内容
             const fileType = this.getFileType(filePath);
             console.log('检测到文件类型:', fileType);
-            
+
             switch (fileType) {
                 case 'pdf':
                     console.log('加载PDF文件');
@@ -367,12 +364,12 @@ class ReaderApp {
                     console.log('不支持的文件格式:', fileType);
                     throw new Error('不支持的文件格式: ' + fileType);
             }
-            
+
             this.loadTranslations();
-            
+
             // 加载已保存的标注数据
             await this.loadAnnotations();
-            
+
             this.updateStatus('文件加载完成');
             console.log('文件加载完成');
         } catch (error) {
@@ -391,21 +388,21 @@ class ReaderApp {
 
         try {
             const result = await ipcRenderer.invoke('load-annotations', this.currentFile);
-            
+
             if (result.success && result.data) {
                 console.log('📂 加载已保存的标注:', result.data);
-                
+
                 // 等待一小段时间确保DOM已渲染
                 await new Promise(resolve => setTimeout(resolve, 500));
-                
+
                 // 清除所有现有的高亮和下划线，避免重复
                 this.clearAllHighlights();
-                
+
                 // 恢复高亮和翻译数据
                 if (result.data.highlights && result.data.highlights.length > 0) {
                     result.data.highlights.forEach(highlight => {
                         const spans = [];
-                        
+
                         // 支持新旧两种格式
                         if (highlight.spanIndices && Array.isArray(highlight.spanIndices)) {
                             // 新格式：spanIndices数组
@@ -422,7 +419,7 @@ class ReaderApp {
                                 spans.push(span);
                             }
                         }
-                        
+
                         // 为所有span设置高亮属性（但不设置backgroundColor，由unified-highlight div处理）
                         spans.forEach(span => {
                             span.dataset.highlightId = highlight.highlightId;
@@ -436,28 +433,28 @@ class ReaderApp {
                                 this.highlightedWords.add(word.toLowerCase());
                             }
                         });
-                        
+
                         // 重建统一高亮背景（这是唯一的高亮层）
                         if (spans.length > 0) {
                             this.createUnifiedHighlight(
-                                spans, 
-                                highlight.color || 'rgba(255, 255, 200, 0.6)', 
+                                spans,
+                                highlight.color || 'rgba(255, 255, 200, 0.6)',
                                 highlight.highlightId
                             );
                         }
                     });
-                    
+
                     console.log(`✅ 恢复了 ${result.data.highlights.length} 个高亮组`);
                 }
-                
+
                 // 恢复下划线
                 if (result.data.underlines && result.data.underlines.length > 0) {
                     console.log('📂 开始恢复下划线，数量:', result.data.underlines.length);
                     result.data.underlines.forEach((underline, index) => {
                         const spans = [];
-                        
+
                         console.log(`📂 恢复下划线 ${index + 1}:`, underline);
-                        
+
                         if (underline.spanIndices && Array.isArray(underline.spanIndices)) {
                             underline.spanIndices.forEach(spanIndex => {
                                 const span = this.findSpanByPosition(underline.pageIndex, spanIndex);
@@ -468,15 +465,15 @@ class ReaderApp {
                                 }
                             });
                         }
-                        
+
                         console.log(`📂 找到 ${spans.length} 个span用于下划线 ${index + 1}`);
-                        
+
                         // 为所有span设置下划线属性
                         spans.forEach(span => {
                             span.dataset.underlineId = underline.underlineId;
                             span.classList.add('word-underlined');
                         });
-                        
+
                         // 重建统一下划线
                         if (spans.length > 0) {
                             console.log(`📂 创建统一下划线: underlineId=${underline.underlineId}, spans=${spans.length}`);
@@ -485,29 +482,29 @@ class ReaderApp {
                             console.warn(`⚠️ 下划线 ${index + 1} 没有找到任何span，无法创建`);
                         }
                     });
-                    
+
                     console.log(`✅ 恢复了 ${result.data.underlines.length} 个下划线组`);
                 } else {
                     console.log('📂 没有下划线数据需要恢复');
                 }
-                
+
                 // 恢复翻译数据
                 if (result.data.wordTranslations) {
                     Object.keys(result.data.wordTranslations).forEach(key => {
                         this.wordTranslationMap.set(key, result.data.wordTranslations[key]);
                     });
                 }
-                
+
                 if (result.data.sentenceTranslations) {
                     Object.keys(result.data.sentenceTranslations).forEach(key => {
                         this.sentenceTranslationMap.set(key, result.data.sentenceTranslations[key]);
                     });
                 }
-                
+
                 // 保存为初始状态
                 this.lastSavedState = this.getCurrentState();
                 this.isDirty = false;
-                
+
                 this.updateStatus('标注已加载');
             }
 
@@ -525,18 +522,18 @@ class ReaderApp {
             // 动态加载PDF.js
             const pdfjsLib = await this.loadPDFJS();
             console.log('PDF.js库加载成功');
-            
+
             // 读取PDF文件
             console.log('开始读取PDF文件...');
             const result = await ipcRenderer.invoke('read-file', filePath);
             console.log('PDF文件读取结果:', result.success ? '成功' : '失败');
-            
+
             if (!result.success) {
                 throw new Error(result.error);
             }
-            
+
             console.log('PDF文件大小:', result.data.length, 'bytes');
-            
+
             // 加载PDF文档
             console.log('开始解析PDF文档...');
             const loadingTask = pdfjsLib.getDocument({
@@ -547,28 +544,28 @@ class ReaderApp {
                 disableStream: true,
                 disableRange: true
             });
-            
+
             const pdf = await loadingTask.promise;
             console.log('PDF文档解析成功，页数:', pdf.numPages);
-            
+
             // 存储PDF文档对象，供AI对话功能使用
             this.pdfDocument = pdf;
-            
+
             this.totalPages = pdf.numPages;
             this.updatePageInfo();
-            
+
             // 渲染所有页面
             console.log('开始渲染PDF所有页面...');
             await this.renderAllPDFPages(pdf);
             console.log('PDF所有页面渲染完成');
-            
+
             // 显示AI对话按钮
             this.showAiChatButton();
-            
+
         } catch (error) {
             console.error('PDF加载失败:', error);
             console.error('错误堆栈:', error.stack);
-            
+
             // 显示错误信息
             const container = document.getElementById('documentContainer');
             if (container) {
@@ -605,27 +602,27 @@ class ReaderApp {
 
             // 清空容器
             container.innerHTML = '';
-            
+
             // 🔧 确保清理所有旧的文本层
             const oldTextLayers = document.querySelectorAll('.pdf-text-layer');
             oldTextLayers.forEach(layer => layer.remove());
             console.log('🧹 清理了', oldTextLayers.length, '个旧的文本层');
-            
+
             // 创建包装div
             const wrapper = document.createElement('div');
             wrapper.className = 'pdf-wrapper';
             wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh; width: 100%; overflow: visible; position: relative; display: block; text-align: center;';
-            
+
             // 创建标题
             const title = document.createElement('h2');
             title.textContent = `📄 ${this.getFileName(this.currentFile)}`;
             title.style.cssText = 'color: #2c3e50; margin-bottom: 20px; text-align: center;';
-            
+
             // 创建页面信息
             const pageInfo = document.createElement('p');
             pageInfo.textContent = `PDF文档 - 共${this.totalPages}页`;
             pageInfo.style.cssText = 'text-align: center; color: #666; margin-bottom: 20px;';
-            
+
             wrapper.appendChild(title);
             wrapper.appendChild(pageInfo);
 
@@ -633,46 +630,46 @@ class ReaderApp {
             const allPagesContainer = document.createElement('div');
             allPagesContainer.className = 'all-pages-container';
             allPagesContainer.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 10px; width: 100%;';
-            
+
             // 渲染所有页面到整体容器中
             for (let pageNum = 1; pageNum <= this.totalPages; pageNum++) {
                 console.log(`渲染第${pageNum}页...`);
                 const pageCanvas = await this.renderSinglePDFPage(pdf, pageNum);
-                
+
                 // 创建单个页面包装容器
                 const pageWrapper = document.createElement('div');
                 pageWrapper.className = 'page-wrapper';
                 pageWrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; flex-shrink: 0;';
-                
+
                 // 创建页面标题
                 const pageTitle = document.createElement('h3');
                 pageTitle.textContent = `第 ${pageNum} 页`;
                 pageTitle.style.cssText = 'color: #2c3e50; margin-bottom: 10px; font-size: 16px; text-align: center;';
-                
+
                 // 组装：标题 + pageCanvas (已包含Canvas和文本层)
                 pageWrapper.appendChild(pageTitle);
                 pageWrapper.appendChild(pageCanvas);
-                
+
                 // 添加到整体容器中
                 allPagesContainer.appendChild(pageWrapper);
-                
+
                 console.log(`第${pageNum}页渲染完成`);
             }
-            
+
             // 将整体容器添加到wrapper
             wrapper.appendChild(allPagesContainer);
-            
+
             container.appendChild(wrapper);
             console.log('所有PDF页面已渲染到DOM');
-            
+
             // 应用当前的缩放级别
             this.applyZoom();
-            
+
             // 触发预翻译（可选，用于实现即点即显）
             setTimeout(() => {
                 this.preTranslateDocument();
             }, 500);
-            
+
         } catch (error) {
             console.error('渲染所有PDF页面失败:', error);
             throw error;
@@ -684,11 +681,11 @@ class ReaderApp {
             console.log(`获取PDF页面: ${pageNum}`);
             const page = await pdf.getPage(pageNum);
             console.log(`页面${pageNum}获取成功，开始渲染...`);
-            
+
             const scale = 2.0; // 提高缩放比例，增加清晰度
             const viewport = page.getViewport({ scale });
             console.log(`页面${pageNum}视口尺寸:`, viewport.width, 'x', viewport.height);
-            
+
             // 保存页面的原始尺寸和缩放信息，用于坐标转换
             if (!this.pdfPageInfo) {
                 this.pdfPageInfo = new Map();
@@ -699,17 +696,17 @@ class ReaderApp {
                 width: page.view[2] - page.view[0], // PDF原始宽度
                 height: page.view[3] - page.view[1] // PDF原始高度
             });
-            
+
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            
+
             // 高DPI支持，提高清晰度
             const devicePixelRatio = window.devicePixelRatio || 1;
             const scaledViewport = page.getViewport({ scale: scale * devicePixelRatio });
-            
+
             canvas.height = scaledViewport.height;
             canvas.width = scaledViewport.width;
-            
+
             // 设置Canvas的显示尺寸（CSS像素）- 必须与文本层尺寸一致
             canvas.style.cssText = `
                 width: ${viewport.width}px;
@@ -720,31 +717,31 @@ class ReaderApp {
                 top: 0;
                 z-index: 1;
             `;
-            
+
             // 确保Canvas有正确的尺寸
             canvas.setAttribute('width', canvas.width);
             canvas.setAttribute('height', canvas.height);
-            
+
             console.log(`页面${pageNum} Canvas尺寸:`, canvas.width, 'x', canvas.height);
-            
+
             // 缩放Canvas上下文以支持高DPI
             context.scale(devicePixelRatio, devicePixelRatio);
-            
+
             const renderContext = {
                 canvasContext: context,
                 viewport: viewport
             };
-            
+
             console.log(`开始渲染页面${pageNum}到Canvas...`);
             const renderTask = page.render(renderContext);
             await renderTask.promise;
             console.log(`页面${pageNum} Canvas渲染完成`);
-            
+
             // ========== 创建文本层（支持文本选择）==========
             console.log(`开始渲染页面${pageNum}的文本层...`);
             const textLayerDiv = await this.renderTextLayer(page, viewport);
             console.log(`页面${pageNum} 文本层渲染完成`);
-            
+
             // ========== 组装双层结构 ==========
             const pageContainer = document.createElement('div');
             pageContainer.className = 'pdf-page-container';
@@ -759,16 +756,16 @@ class ReaderApp {
                 box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                 background: white;
             `;
-            
+
             pageContainer.appendChild(canvas);      // 底层：Canvas图像
             pageContainer.appendChild(textLayerDiv); // 顶层：可选文本
-            
+
             console.log(`📦 页面容器尺寸: ${viewport.width}x${viewport.height}`);
             console.log(`📦 Canvas显示尺寸: ${canvas.style.width} x ${canvas.style.height}`);
             console.log(`📦 文本层尺寸: ${textLayerDiv.style.width} x ${textLayerDiv.style.height}`);
-            
+
             return pageContainer;
-            
+
         } catch (error) {
             console.error(`渲染PDF页面${pageNum}失败:`, error);
             throw error;
@@ -785,70 +782,70 @@ class ReaderApp {
         // 创建文本层容器（样式由CSS控制）
         const textLayerDiv = document.createElement('div');
         textLayerDiv.className = 'pdf-text-layer';
-        
+
         console.log(`📐 文本层基于viewport: ${viewport.width}x${viewport.height}`);
-        
+
         // 创建Canvas测量上下文（用于精确测量文字宽度）
         const measureCanvas = document.createElement('canvas');
         const measureContext = measureCanvas.getContext('2d');
-        
+
         try {
             // 提取PDF文本内容
             const textContent = await page.getTextContent();
             console.log(`📝 提取到 ${textContent.items.length} 个文本项`);
-            
+
             let wordCount = 0;
-            
+
             // 遍历每个文本项，按单词拆分并创建独立span
             textContent.items.forEach((item, index) => {
                 // 跳过空文本
                 if (!item.str || item.str.trim() === '') return;
-                
+
                 // 使用PDF.js的变换工具进行坐标转换
                 const tx = window.pdfjsLib.Util.transform(
                     viewport.transform,
                     item.transform
                 );
-                
+
                 // 计算字体大小和位置
                 const fontSize = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
                 const fontHeight = item.height || fontSize;
                 const itemWidth = item.width * viewport.scale;
-                
+
                 // 设置测量上下文的字体（必须与显示字体一致）
                 measureContext.font = `${fontSize}px sans-serif`;
-                
+
                 // 测量整个item的实际渲染宽度
                 const actualItemWidth = measureContext.measureText(item.str).width;
-                
+
                 // 计算缩放比例（PDF宽度 vs 实际渲染宽度）
                 const widthScale = itemWidth / actualItemWidth;
-                
+
                 // 将文本按单词拆分（保留标点符号）
                 const words = this.splitTextIntoWords(item.str);
-                
+
                 // 累积计算每个单词的位置
                 let currentX = tx[4];  // 起始X位置
-                
+
                 words.forEach((wordInfo, wordIndex) => {
                     const { word, startIndex, endIndex } = wordInfo;
-                    
+
                     // 使用Canvas精确测量当前单词的实际宽度
                     const actualWordWidth = measureContext.measureText(word).width;
-                    
+
                     // 应用缩放比例得到PDF中的显示宽度
                     const displayWordWidth = actualWordWidth * widthScale;
-                    
+
                     // 创建单词span元素
                     const wordSpan = document.createElement('span');
                     wordSpan.textContent = word;
                     wordSpan.setAttribute('data-word', word);
-                    
+
                     // 计算精确的垂直位置（考虑圆角和视觉对齐）
                     // tx[5]是baseline位置，fontHeight是字体高度
                     // 使用更精确的对齐方式
                     const topPosition = tx[5] - fontHeight;
-                    
+
                     wordSpan.style.cssText = `
                         position: absolute;
                         left: ${currentX}px;
@@ -866,29 +863,29 @@ class ReaderApp {
                         display: inline-block;
                         vertical-align: baseline;
                     `;
-                    
+
                     // 🎯 绑定hover事件，用于显示翻译（不论是否在翻译模式）
                     wordSpan.addEventListener('mouseenter', this.handleWordHover.bind(this));
                     wordSpan.addEventListener('mouseleave', this.handleWordLeave.bind(this));
-                    
+
                     textLayerDiv.appendChild(wordSpan);
                     wordCount++;
-                    
+
                     // 累积X位置，为下一个单词做准备
                     currentX += displayWordWidth;
                 });
             });
-            
+
             // 绑定文本选择事件
             this.bindTextSelectionEvents(textLayerDiv);
-            
+
             console.log(`✅ 文本层创建完成，共 ${wordCount} 个单词（Canvas精确测量）`);
-            
+
         } catch (error) {
             console.error('渲染文本层失败:', error);
             // 即使失败也返回空的文本层，不影响PDF显示
         }
-        
+
         return textLayerDiv;
     }
 
@@ -901,10 +898,10 @@ class ReaderApp {
         const words = [];
         let currentWord = '';
         let startIndex = 0;
-        
+
         for (let i = 0; i < text.length; i++) {
             const char = text[i];
-            
+
             // 判断是否为分隔符（空格、制表符等）
             if (/\s/.test(char)) {
                 // 如果有累积的单词，保存它
@@ -916,14 +913,14 @@ class ReaderApp {
                     });
                     currentWord = '';
                 }
-                
+
                 // 保存空格作为独立元素（用于保持布局）
                 words.push({
                     word: char,
                     startIndex: i,
                     endIndex: i + 1
                 });
-                
+
                 startIndex = i + 1;
             } else {
                 // 累积字符到当前单词
@@ -933,7 +930,7 @@ class ReaderApp {
                 currentWord += char;
             }
         }
-        
+
         // 保存最后一个单词
         if (currentWord) {
             words.push({
@@ -942,7 +939,7 @@ class ReaderApp {
                 endIndex: text.length
             });
         }
-        
+
         return words;
     }
 
@@ -983,25 +980,25 @@ class ReaderApp {
             console.log('获取PDF页面:', pageNum);
             const page = await pdf.getPage(pageNum);
             console.log('页面获取成功，开始渲染...');
-            
+
             const scale = 2.0; // 提高缩放比例，增加清晰度
             const viewport = page.getViewport({ scale });
             console.log('视口尺寸:', viewport.width, 'x', viewport.height);
-            
+
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            
+
             // 高DPI支持，提高清晰度
             const devicePixelRatio = window.devicePixelRatio || 1;
             const scaledViewport = page.getViewport({ scale: scale * devicePixelRatio });
-            
+
             canvas.height = scaledViewport.height;
             canvas.width = scaledViewport.width;
-            
+
             // 设置Canvas的显示尺寸（CSS像素）
             canvas.style.width = viewport.width + 'px';
             canvas.style.height = viewport.height + 'px';
-            
+
             // 强制设置Canvas的显示属性
             canvas.style.display = 'block';
             canvas.style.visibility = 'visible';
@@ -1012,43 +1009,43 @@ class ReaderApp {
             canvas.style.background = '#fff';
             canvas.style.maxWidth = '100%';
             canvas.style.height = 'auto';
-            
+
             // 确保Canvas有正确的尺寸
             canvas.setAttribute('width', canvas.width);
             canvas.setAttribute('height', canvas.height);
-            
+
             console.log('Canvas尺寸:', canvas.width, 'x', canvas.height);
-            
+
             // 缩放Canvas上下文以支持高DPI
             context.scale(devicePixelRatio, devicePixelRatio);
-            
+
             const renderContext = {
                 canvasContext: context,
                 viewport: viewport
             };
-            
+
             console.log('开始渲染到Canvas...');
             const renderTask = page.render(renderContext);
             await renderTask.promise;
             console.log('Canvas渲染完成');
-            
+
             // 验证Canvas是否有内容
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
             const hasContent = imageData.data.some(pixel => pixel !== 0);
             console.log('Canvas是否有内容:', hasContent);
             console.log('Canvas前几个像素:', Array.from(imageData.data.slice(0, 20)));
-            
+
             // 强制刷新Canvas尺寸
             canvas.style.width = canvas.width + 'px';
             canvas.style.height = canvas.height + 'px';
-            
+
             // 检查Canvas的显示属性
             console.log('Canvas display:', window.getComputedStyle(canvas).display);
             console.log('Canvas visibility:', window.getComputedStyle(canvas).visibility);
             console.log('Canvas opacity:', window.getComputedStyle(canvas).opacity);
             console.log('Canvas width/height:', canvas.width, 'x', canvas.height);
             console.log('Canvas offsetWidth/Height:', canvas.offsetWidth, 'x', canvas.offsetHeight);
-            
+
             // 如果offsetWidth/Height还是0，强制设置
             if (canvas.offsetWidth === 0 || canvas.offsetHeight === 0) {
                 console.log('Canvas尺寸为0，强制设置...');
@@ -1056,7 +1053,7 @@ class ReaderApp {
                 canvas.style.height = '1188px';
                 canvas.style.minWidth = '918px';
                 canvas.style.minHeight = '1188px';
-                
+
                 // 使用setTimeout延迟设置，确保DOM更新完成
                 setTimeout(() => {
                     console.log('延迟设置Canvas尺寸...');
@@ -1067,39 +1064,39 @@ class ReaderApp {
                     console.log('延迟设置后Canvas offsetWidth/Height:', canvas.offsetWidth, 'x', canvas.offsetHeight);
                 }, 100);
             }
-            
+
             const container = document.getElementById('documentContainer');
             console.log('文档容器元素:', container);
-            
+
             if (container) {
                 // 清空容器
                 container.innerHTML = '';
-                
+
                 // 创建包装div
                 const wrapper = document.createElement('div');
                 wrapper.style.cssText = 'padding: 20px; background: #f8f9fa; min-height: 100vh;';
-                
+
                 // 创建标题
                 const title = document.createElement('h2');
                 title.textContent = `📄 ${this.getFileName(this.currentFile)}`;
                 title.style.cssText = 'color: #2c3e50; margin-bottom: 20px; text-align: center;';
-                
+
                 // 创建内容区域
                 const contentArea = document.createElement('div');
                 contentArea.style.cssText = 'text-align: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);';
-                
+
                 // 创建页面信息
                 const pageInfo = document.createElement('p');
                 pageInfo.textContent = `PDF文档 - 第${pageNum}页，共${this.totalPages}页`;
                 pageInfo.style.cssText = 'margin-bottom: 15px; color: #666;';
-                
+
                 // 创建Canvas容器
                 const canvasContainer = document.createElement('div');
                 canvasContainer.style.cssText = 'display: inline-block; border: none; border-radius: 8px; overflow: hidden;';
-                
+
                 // 直接插入Canvas对象（不使用outerHTML）
                 canvasContainer.appendChild(canvas);
-                
+
                 // 组装DOM结构
                 contentArea.appendChild(pageInfo);
                 contentArea.appendChild(canvasContainer);
@@ -1110,14 +1107,14 @@ class ReaderApp {
                 console.log('容器内容长度:', container.innerHTML.length);
                 console.log('容器可见性:', window.getComputedStyle(container).display);
                 console.log('容器高度:', container.offsetHeight);
-                
+
                 // 验证Canvas是否正确插入DOM
                 console.log('Canvas已直接插入DOM，offsetWidth/Height:', canvas.offsetWidth, 'x', canvas.offsetHeight);
                 console.log('Canvas在DOM中的位置:', canvas.parentElement);
             } else {
                 console.error('找不到documentContainer元素');
             }
-            
+
         } catch (error) {
             console.error('PDF页面渲染失败:', error);
             console.error('渲染错误堆栈:', error.stack);
@@ -1139,7 +1136,7 @@ class ReaderApp {
                 </div>
             </div>
         `;
-        
+
         this.totalPages = 1;
         this.updatePageInfo();
     }
@@ -1149,14 +1146,14 @@ class ReaderApp {
             console.log('开始读取文本文件:', filePath);
             const result = await ipcRenderer.invoke('read-file', filePath);
             console.log('文件读取结果:', result);
-            
+
             if (result.success) {
                 const text = result.data.toString('utf8');
                 console.log('文本内容长度:', text.length);
-                
+
                 const container = document.getElementById('documentContainer');
                 console.log('文档容器元素:', container);
-                
+
                 if (container) {
                     container.innerHTML = `
                         <div style="max-width: 800px; margin: 0 auto; padding: 40px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px;">
@@ -1180,7 +1177,7 @@ class ReaderApp {
             console.error('读取文本文件失败:', error);
             throw new Error('读取文本文件失败: ' + error.message);
         }
-        
+
         this.totalPages = 1;
         this.updatePageInfo();
     }
@@ -1188,19 +1185,19 @@ class ReaderApp {
     handleTextSelection() {
         const selection = window.getSelection();
         const text = selection.toString().trim();
-        
+
         if (text.length > 0) {
             this.selectedText = text;
             this.currentSelection = selection; // 存储选择对象
-            
+
             // 获取选中的span并存储
             this.selectedSpans = this.getSelectedSpansFromSelection(selection);
-            
+
             console.log('🔍 文本选择事件:');
             console.log('选中文本:', text);
             console.log('选中span数量:', this.selectedSpans.length);
             console.log('选择范围数量:', selection.rangeCount);
-            
+
             // 详细调试信息
             for (let i = 0; i < selection.rangeCount; i++) {
                 const range = selection.getRangeAt(i);
@@ -1208,7 +1205,7 @@ class ReaderApp {
                 console.log(`范围起始:`, range.startContainer, range.startOffset);
                 console.log(`范围结束:`, range.endContainer, range.endOffset);
             }
-            
+
             this.showHighlightTools();
             // 🎯 不再添加额外的预览高亮层，直接使用浏览器的 ::selection 样式
             // 这样用户看到的就是默认的蓝色选择高亮，右键点击后会转换为自定义高亮
@@ -1217,7 +1214,7 @@ class ReaderApp {
             this.selectedSpans = null;
         }
     }
-    
+
     /**
      * 处理文本选择的右键菜单（重载方法）
      * @param {Event} e - 右键事件
@@ -1225,22 +1222,22 @@ class ReaderApp {
      */
     handleTextSelectionContextMenu(e, selection) {
         if (!selection || selection.rangeCount === 0) return;
-        
+
         const range = selection.getRangeAt(0);
         const selectedText = selection.toString().trim();
-        
+
         if (selectedText.length > 0) {
             // 存储当前选择，供高亮使用
             this.currentSelection = selection;
             this.selectedText = selectedText;
-            
+
             // 获取选中的span并存储
             this.selectedSpans = this.getSelectedSpansFromSelection(selection);
-            
+
             console.log('🔍 文本选择右键菜单:');
             console.log('选中文本:', selectedText);
             console.log('选中span数量:', this.selectedSpans.length);
-            
+
             // 显示右键菜单
             this.showContextMenu(e.clientX, e.clientY);
         }
@@ -1255,28 +1252,28 @@ class ReaderApp {
         const tools = document.getElementById('highlightTools');
         tools.style.display = 'none';
     }
-    
+
     /**
      * 显示选择高亮预览
      */
     showSelectionHighlight() {
         if (!this.currentSelection || this.currentSelection.rangeCount === 0) return;
-        
+
         const range = this.currentSelection.getRangeAt(0);
         const spans = this.getSpansInRange(range);
         if (spans.length === 0) return;
-        
+
         // 为选中的span添加预览高亮类
         spans.forEach(span => {
             span.classList.add('selection-preview');
         });
-        
+
         // 合并相邻的预览高亮
         if (spans.length > 1) {
             this.mergeAdjacentSelectionHighlights(spans[0]);
         }
     }
-    
+
     /**
      * 隐藏选择高亮预览
      */
@@ -1286,7 +1283,7 @@ class ReaderApp {
         previewSpans.forEach(span => {
             span.classList.remove('selection-preview');
         });
-        
+
         // 移除合并的预览高亮
         const mergedHighlights = document.querySelectorAll('.merged-selection-highlight');
         mergedHighlights.forEach(highlight => {
@@ -1302,7 +1299,7 @@ class ReaderApp {
 
         document.getElementById('originalText').textContent = this.selectedText;
         document.getElementById('translatedText').textContent = '正在翻译...';
-        
+
         const modal = document.getElementById('translationModal');
         modal.style.display = 'flex';
 
@@ -1333,7 +1330,7 @@ class ReaderApp {
     async saveTranslation() {
         const originalText = document.getElementById('originalText').textContent;
         const translatedText = document.getElementById('translatedText').textContent;
-        
+
         if (!originalText || !translatedText) {
             this.showError('翻译内容不完整');
             return;
@@ -1349,7 +1346,7 @@ class ReaderApp {
             };
 
             const result = await ipcRenderer.invoke('save-translation', translationData);
-            
+
             if (result.success) {
                 this.translations.push(translationData);
                 this.updateTranslationsList();
@@ -1380,7 +1377,7 @@ class ReaderApp {
 
         document.getElementById('selectedTextForNote').textContent = this.selectedText;
         document.getElementById('noteTextarea').value = '';
-        
+
         const modal = document.getElementById('noteModal');
         modal.style.display = 'flex';
     }
@@ -1393,7 +1390,7 @@ class ReaderApp {
     saveNote() {
         const selectedText = document.getElementById('selectedTextForNote').textContent;
         const noteText = document.getElementById('noteTextarea').value.trim();
-        
+
         if (!noteText) {
             this.showError('请输入注释内容');
             return;
@@ -1428,7 +1425,7 @@ class ReaderApp {
 
         this.highlights.push(highlight);
         this.updateStatus('已添加高亮');
-        
+
         // 这里应该实际高亮显示选中的文本
         this.highlightSelectedText();
     }
@@ -1437,18 +1434,18 @@ class ReaderApp {
         // 优先使用存储的选择对象，否则使用当前选择
         const selection = this.currentSelection || window.getSelection();
         if (selection.rangeCount === 0) return;
-        
+
         const selectedText = selection.toString().trim();
         if (!selectedText) return;
-        
+
         console.log('🎯 使用浏览器原生选择机制高亮');
-        
+
         // 获取选中的span
         const selectedSpans = this.getSelectedSpansFromSelection(selection);
         if (selectedSpans.length === 0) return;
-        
+
         const highlightId = this.generateHighlightId();
-        
+
         // 🎯 新方案：直接用背景色，让浏览器处理渲染
         const colorMap = {
             'yellow': 'rgba(255, 255, 200, 0.6)',
@@ -1460,27 +1457,27 @@ class ReaderApp {
             'red': 'rgba(255, 180, 180, 0.6)',
             'cyan': 'rgba(180, 240, 255, 0.6)'
         };
-        
+
         const bgColor = colorMap[color] || colorMap['yellow'];
-        
+
         // 标记选中的 span
         selectedSpans.forEach(span => {
             span.dataset.highlightId = highlightId;
             span.dataset.highlightColor = color;
-            
+
             const word = this.extractWord(span.textContent);
             if (word) {
                 this.highlightedWords.add(word.toLowerCase());
             }
         });
-        
+
         // 🎯 创建统一的高亮背景层（像 ::selection 那样连续）
         this.createUnifiedHighlight(selectedSpans, bgColor, highlightId);
-        
+
         // 清除选择状态
         selection.removeAllRanges();
         this.currentSelection = null;
-        
+
         // 添加到历史记录
         this.addToHistory('highlight', {
             highlightId: highlightId,
@@ -1488,14 +1485,14 @@ class ReaderApp {
             text: selectedText,
             spanCount: selectedSpans.length
         });
-        
+
         console.log('✅ 高亮完成（统一背景层）');
     }
 
     generateHighlightId() {
         return `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     }
-    
+
     /**
      * 创建统一的高亮背景层（像 ::selection 那样连续）
      * @param {HTMLElement[]} spans - 选中的span元素数组
@@ -1504,27 +1501,27 @@ class ReaderApp {
      */
     createUnifiedHighlight(spans, bgColor, highlightId) {
         if (spans.length === 0) return;
-        
+
         // 获取文本层容器
         const textLayer = spans[0].closest('.pdf-text-layer');
         if (!textLayer) return;
-        
+
         // 🎯 使用 offsetLeft/offsetTop 而不是 getBoundingClientRect
         // 这样在缩放时定位更准确
         const lines = [];
         let currentLine = null;
-        
+
         spans.forEach(span => {
             // 获取 span 的样式信息
             const computedStyle = window.getComputedStyle(span);
             const transform = computedStyle.transform;
-            
+
             // 解析 transform 矩阵获取实际位置
             let left = parseFloat(computedStyle.left) || 0;
             let top = parseFloat(computedStyle.top) || 0;
             const width = span.offsetWidth;
             const height = span.offsetHeight;
-            
+
             // 如果是新的一行（top 值变化超过阈值）
             if (!currentLine || Math.abs(top - currentLine.top) > 2) {
                 currentLine = {
@@ -1534,24 +1531,24 @@ class ReaderApp {
                 };
                 lines.push(currentLine);
             }
-            
+
             currentLine.spans.push({
                 left: left,
                 right: left + width,
                 top: top,
                 bottom: top + height
             });
-            
+
             // 更新行的边界
             currentLine.top = Math.min(currentLine.top, top);
             currentLine.bottom = Math.max(currentLine.bottom, top + height);
         });
-        
+
         // 为每一行创建一个连续的高亮背景
         lines.forEach((line, index) => {
             const minLeft = Math.min(...line.spans.map(s => s.left));
             const maxRight = Math.max(...line.spans.map(s => s.right));
-            
+
             const highlightDiv = document.createElement('div');
             highlightDiv.className = 'unified-highlight';
             highlightDiv.dataset.highlightId = highlightId;
@@ -1564,7 +1561,7 @@ class ReaderApp {
             highlightDiv.style.borderRadius = '4px'; // 圆角
             highlightDiv.style.pointerEvents = 'none';
             highlightDiv.style.zIndex = '1'; // 在文字下方
-            
+
             textLayer.appendChild(highlightDiv);
         });
     }
@@ -1576,27 +1573,27 @@ class ReaderApp {
      */
     createUnifiedUnderline(spans, underlineId) {
         if (spans.length === 0) return;
-        
+
         console.log('🔍 创建统一下划线，spans数量:', spans.length, 'underlineId:', underlineId);
-        
+
         // 获取文本层容器
         const textLayer = spans[0].closest('.pdf-text-layer');
         if (!textLayer) {
             console.error('❌ 找不到 textLayer');
             return;
         }
-        
+
         // 按行分组spans
         const lines = [];
         let currentLine = null;
-        
+
         spans.forEach(span => {
             const computedStyle = window.getComputedStyle(span);
             let left = parseFloat(computedStyle.left) || 0;
             let top = parseFloat(computedStyle.top) || 0;
             const width = span.offsetWidth;
             const height = span.offsetHeight;
-            
+
             // 如果是新的一行
             if (!currentLine || Math.abs(top - currentLine.top) > 2) {
                 currentLine = {
@@ -1606,26 +1603,26 @@ class ReaderApp {
                 };
                 lines.push(currentLine);
             }
-            
+
             currentLine.spans.push({
                 left: left,
                 right: left + width,
                 top: top,
                 bottom: top + height
             });
-            
+
             currentLine.top = Math.min(currentLine.top, top);
             currentLine.bottom = Math.max(currentLine.bottom, top + height);
         });
-        
+
         console.log('🔍 分组后的行数:', lines.length);
-        
+
         // 为每一行创建一个连续的下划线
         lines.forEach((line, index) => {
             const minLeft = Math.min(...line.spans.map(s => s.left));
             const maxRight = Math.max(...line.spans.map(s => s.right));
             const maxBottom = Math.max(...line.spans.map(s => s.bottom));
-            
+
             const underlineDiv = document.createElement('div');
             underlineDiv.className = 'unified-underline';
             underlineDiv.dataset.underlineId = underlineId;
@@ -1637,7 +1634,7 @@ class ReaderApp {
             underlineDiv.style.backgroundColor = '#333'; // 黑色下划线
             underlineDiv.style.pointerEvents = 'none';
             underlineDiv.style.zIndex = '10'; // 高z-index确保在高亮之上
-            
+
             console.log(`✅ 创建下划线 ${index + 1}:`, {
                 left: minLeft,
                 top: maxBottom,
@@ -1645,10 +1642,10 @@ class ReaderApp {
                 height: 2,
                 backgroundColor: '#333'
             });
-            
+
             textLayer.appendChild(underlineDiv);
         });
-        
+
         console.log('✅ 下划线创建完成');
     }
 
@@ -1660,7 +1657,7 @@ class ReaderApp {
         }
         return [span];
     }
-    
+
     /**
      * 从Selection对象获取选中的span元素（改进版）
      * @param {Selection} selection - 选择对象
@@ -1668,25 +1665,25 @@ class ReaderApp {
      */
     getSelectedSpansFromSelection(selection) {
         const selectedSpans = [];
-        
+
         // 遍历所有选择范围
         for (let i = 0; i < selection.rangeCount; i++) {
             const range = selection.getRangeAt(i);
             const spans = this.getSpansInRange(range);
             selectedSpans.push(...spans);
         }
-        
+
         // 去重并保持顺序
         const uniqueSpans = [];
         const seen = new Set();
-        
+
         selectedSpans.forEach(span => {
             if (!seen.has(span)) {
                 seen.add(span);
                 uniqueSpans.push(span);
             }
         });
-        
+
         // 按DOM顺序排序（确保文本顺序正确）
         uniqueSpans.sort((a, b) => {
             const position = a.compareDocumentPosition(b);
@@ -1697,12 +1694,12 @@ class ReaderApp {
             }
             return 0; // 相同位置
         });
-        
+
         console.log('🔍 最终选中的span数量:', uniqueSpans.length);
         uniqueSpans.forEach((span, index) => {
             console.log(`span ${index}: "${span.textContent}" (空格: ${/\s/.test(span.textContent)})`);
         });
-        
+
         return uniqueSpans;
     }
 
@@ -1713,12 +1710,12 @@ class ReaderApp {
      */
     getSpansInRange(range) {
         const spans = [];
-        
+
         // 直接遍历所有PDF文本层的span元素
         const allSpans = document.querySelectorAll('.pdf-text-layer span');
         console.log('🔍 页面中总span数量:', allSpans.length);
         console.log('🔍 选择范围:', range.toString());
-        
+
         // 🔍 调试：检查是否有重复的文本层
         const textLayers = document.querySelectorAll('.pdf-text-layer');
         console.log('🔍 文本层数量:', textLayers.length);
@@ -1726,7 +1723,7 @@ class ReaderApp {
             const layerSpans = layer.querySelectorAll('span');
             console.log(`文本层 ${index} 包含 ${layerSpans.length} 个span`);
         });
-        
+
         allSpans.forEach((span, index) => {
             // 检查这个span是否与选择范围相交
             if (range.intersectsNode(span)) {
@@ -1737,9 +1734,9 @@ class ReaderApp {
                 spans.push(span);
             }
         });
-        
+
         console.log('🔍 最终找到的span数量:', spans.length);
-        
+
         // 按DOM顺序排序
         spans.sort((a, b) => {
             const position = a.compareDocumentPosition(b);
@@ -1750,10 +1747,10 @@ class ReaderApp {
             }
             return 0; // 相同位置
         });
-        
+
         return spans;
     }
-    
+
     /**
      * 获取选择范围内的所有文本节点
      * @param {Range} range - 选择范围
@@ -1761,7 +1758,7 @@ class ReaderApp {
      */
     getTextNodesInRange(range) {
         const textNodes = [];
-        
+
         // 方法1：使用TreeWalker遍历
         const walker = document.createTreeWalker(
             range.commonAncestorContainer,
@@ -1769,19 +1766,19 @@ class ReaderApp {
             null,
             false
         );
-        
+
         let node;
         while (node = walker.nextNode()) {
             if (range.intersectsNode(node)) {
                 textNodes.push(node);
             }
         }
-        
+
         // 方法2：如果TreeWalker没有找到足够的节点，使用更广泛的搜索
         if (textNodes.length === 0) {
             const allTextNodes = [];
             const allSpans = document.querySelectorAll('.pdf-text-layer span');
-            
+
             allSpans.forEach(span => {
                 if (range.intersectsNode(span)) {
                     // 获取span内的文本节点
@@ -1791,7 +1788,7 @@ class ReaderApp {
                         null,
                         false
                     );
-                    
+
                     let spanNode;
                     while (spanNode = spanWalker.nextNode()) {
                         if (range.intersectsNode(spanNode)) {
@@ -1800,13 +1797,13 @@ class ReaderApp {
                     }
                 }
             });
-            
+
             return allTextNodes;
         }
-        
+
         return textNodes;
     }
-    
+
     /**
      * 检查span是否在选择范围内
      * @param {HTMLElement} span - span元素
@@ -1817,10 +1814,10 @@ class ReaderApp {
         try {
             const spanRange = document.createRange();
             spanRange.selectNodeContents(span);
-            
+
             // 检查范围是否相交
             return range.compareBoundaryPoints(Range.START_TO_END, spanRange) > 0 &&
-                   range.compareBoundaryPoints(Range.END_TO_START, spanRange) < 0;
+                range.compareBoundaryPoints(Range.END_TO_START, spanRange) < 0;
         } catch (e) {
             // 如果无法创建范围，使用文本内容检查
             const spanText = span.textContent;
@@ -1945,7 +1942,7 @@ class ReaderApp {
         // 检查是否有未保存的修改
         if (this.isDirty && !this.isClosing) {
             const action = await this.showSaveConfirmDialog();
-            
+
             if (action === 'cancel') {
                 return; // 用户取消，留在当前页面
             } else if (action === 'save') {
@@ -1977,19 +1974,19 @@ class ReaderApp {
             activeElement.tagName === 'TEXTAREA' ||
             activeElement.isContentEditable
         );
-        
+
         if (isInputElement) {
             // 在输入框中，只拦截应用特定的快捷键，允许标准编辑快捷键
             // Mac使用Cmd键（metaKey），Windows/Linux使用Ctrl键
             const isModifierKey = e.metaKey || e.ctrlKey;
-            
+
             // 允许标准编辑快捷键：全选、复制、粘贴、剪切、撤销
             // 这些快捷键应该由浏览器默认处理，我们完全不拦截
             if (isModifierKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
                 // 完全不处理，让浏览器默认行为生效
                 return;
             }
-            
+
             // Mac上Cmd+Shift+Z用于重做，Windows/Linux上Ctrl+Y用于重做
             if (isModifierKey && e.shiftKey && e.key.toLowerCase() === 'z') {
                 return; // 允许重做快捷键（Mac），不阻止默认行为
@@ -1997,18 +1994,18 @@ class ReaderApp {
             if (e.ctrlKey && e.key.toLowerCase() === 'y') {
                 return; // Windows/Linux的Ctrl+Y重做，不阻止默认行为
             }
-            
+
             // 只拦截应用特定的快捷键（如 Ctrl+S / Cmd+S 保存）
             if (isModifierKey && e.key.toLowerCase() === 's') {
                 e.preventDefault();
                 this.saveDocument();
                 return;
             }
-            
+
             // 其他快捷键在输入框中不拦截
             return;
         }
-        
+
         // 不在输入框中，处理全局快捷键
         if (e.ctrlKey || e.metaKey) {
             switch (e.key.toLowerCase()) {
@@ -2084,7 +2081,7 @@ class ReaderApp {
     showError(message) {
         console.error(message);
         this.updateStatus('错误: ' + message);
-        
+
         setTimeout(() => {
             this.updateStatus('就绪');
         }, 3000);
@@ -2128,7 +2125,7 @@ class ReaderApp {
     toggleWordTranslateMode() {
         this.wordTranslateMode = !this.wordTranslateMode;
         const btn = document.getElementById('wordTranslateBtn');
-        
+
         if (this.wordTranslateMode) {
             // 开启模式
             btn.classList.add('active');
@@ -2150,16 +2147,16 @@ class ReaderApp {
         const textLayers = document.querySelectorAll('.pdf-text-layer');
         textLayers.forEach(layer => {
             layer.classList.add('word-translate-mode');
-            
+
             // 给每个span绑定点击和hover事件
             const spans = layer.querySelectorAll('span');
             spans.forEach(span => {
                 // 点击事件
                 span.addEventListener('click', this.handleWordClick.bind(this));
-                
+
                 // 右键事件
                 span.addEventListener('contextmenu', this.handleWordContextMenu.bind(this));
-                
+
                 // hover事件
                 span.addEventListener('mouseenter', this.handleWordHover.bind(this));
                 span.addEventListener('mouseleave', this.handleWordLeave.bind(this));
@@ -2175,21 +2172,21 @@ class ReaderApp {
         const textLayers = document.querySelectorAll('.pdf-text-layer');
         textLayers.forEach(layer => {
             layer.classList.remove('word-translate-mode');
-            
+
             // 移除click事件，但保留hover事件以便查看已有翻译
             const spans = layer.querySelectorAll('span');
             spans.forEach(span => {
                 // 创建新的span保留内容和类名
                 const newSpan = span.cloneNode(true);
-                
+
                 // 重新绑定hover事件（用于显示已有翻译）
                 newSpan.addEventListener('mouseenter', this.handleWordHover.bind(this));
                 newSpan.addEventListener('mouseleave', this.handleWordLeave.bind(this));
-                
+
                 span.parentNode.replaceChild(newSpan, span);
             });
         });
-        
+
         // 隐藏悬浮框
         this.hideWordTooltip();
     }
@@ -2201,35 +2198,35 @@ class ReaderApp {
     async handleWordClick(e) {
         // 只在翻译模式开启时才处理点击
         if (!this.wordTranslateMode) return;
-        
+
         e.stopPropagation();
         const span = e.target;
         const rawText = span.textContent;
-        
+
         // 提取纯净单词（去除标点符号）
         const word = this.extractWord(rawText);
         if (!word) return;
-        
+
         console.log(`点击单词: "${word}"`);
-        
+
         // 🎯 使用统一背景层逻辑高亮单词
         const highlightId = this.generateHighlightId();
         span.dataset.highlightId = highlightId;
         span.dataset.highlightColor = 'custom';
         this.highlightedWords.add(word.toLowerCase());
-        
+
         // 创建统一的高亮背景层（上下3px、圆角）- 使用默认紫色
         const rgb = this.hexToRgb(this.defaultHighlightColor);
         const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
         this.createUnifiedHighlight([span], bgColor, highlightId);
-        
+
         // 添加到历史记录
         this.addToHistory('wordTranslate', {
             highlightId: highlightId,
             word: word,
             spanCount: 1
         });
-        
+
         // 如果已有翻译，不需要再次翻译；否则获取翻译
         if (!this.wordTranslationMap.has(word.toLowerCase())) {
             // 检查订阅限制
@@ -2259,7 +2256,7 @@ class ReaderApp {
                     translation: translation,
                     clickCount: 1
                 });
-                
+
                 // 保存翻译到translations目录（用于生词本）
                 // 先检查生词本限制
                 if (this.subscriptionHelper && this.currentUserId) {
@@ -2302,7 +2299,7 @@ class ReaderApp {
                 });
             }
         }
-        
+
         // 🎯 不在点击时显示悬浮框，只在hover时显示
         // 翻译会在用户hover到高亮区域时自动显示
     }
@@ -2315,19 +2312,19 @@ class ReaderApp {
         const span = e.target;
         const rawText = span.textContent;
         const word = this.extractWord(rawText);
-        
+
         if (!word) return;
-        
+
         this.currentHoverWord = word;
-        
+
         // 检查是否有高亮ID（包括点词翻译和句子翻译）
         const highlightId = span.dataset.highlightId;
-        
+
         if (highlightId) {
             // 从统一高亮层读取颜色
             const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
             let highlightColor = this.defaultHighlightColor;
-            
+
             if (highlightDiv) {
                 const bgColor = highlightDiv.style.backgroundColor;
                 // 将rgba转换为rgb
@@ -2336,7 +2333,7 @@ class ReaderApp {
                     highlightColor = `rgb(${rgbaMatch[1]}, ${rgbaMatch[2]}, ${rgbaMatch[3]})`;
                 }
             }
-            
+
             // 检查是否有单词翻译
             if (this.wordTranslationMap.has(word.toLowerCase())) {
                 const data = this.wordTranslationMap.get(word.toLowerCase());
@@ -2368,13 +2365,13 @@ class ReaderApp {
      */
     extractWord(text) {
         if (!text) return '';
-        
+
         // 去除标点符号，只保留字母、数字、连字符
         const cleaned = text.replace(/[^\w\s-]/g, '').trim();
-        
+
         // 如果是空或只有空格，返回空
         if (!cleaned || /^\s*$/.test(cleaned)) return '';
-        
+
         return cleaned;
     }
 
@@ -2388,11 +2385,11 @@ class ReaderApp {
      */
     showWordTooltip(word, translation, span, highlightColor, loading = false) {
         if (!this.wordTooltip || !span) return;
-        
+
         // 更新内容
         document.getElementById('tooltipWord').textContent = word;
         document.getElementById('tooltipTranslation').textContent = translation;
-        
+
         // 设置加载状态
         if (loading) {
             this.wordTooltip.classList.add('loading');
@@ -2406,10 +2403,10 @@ class ReaderApp {
             this.wordTooltip.style.minWidth = '';
             this.wordTooltip.style.maxWidth = '200px';
         }
-        
+
         // 🎯 关键改进：直接使用传入的高亮颜色，无需读取计算样式
         let bgColor = highlightColor;
-        
+
         // 如果颜色是rgba格式，转换为rgb格式（tooltip需要完全不透明）
         const rgbaMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
         if (rgbaMatch) {
@@ -2418,11 +2415,11 @@ class ReaderApp {
             const b = rgbaMatch[3];
             bgColor = `rgb(${r}, ${g}, ${b})`;
         }
-        
+
         console.log('🎨 使用高亮颜色:', bgColor);
-        
+
         this.wordTooltip.style.background = bgColor;
-        
+
         // 更新箭头颜色
         const style = document.createElement('style');
         style.textContent = `.word-tooltip::after { border-top-color: ${bgColor}; }`;
@@ -2431,23 +2428,23 @@ class ReaderApp {
         if (oldStyle) oldStyle.remove();
         style.setAttribute('data-tooltip-arrow', 'true');
         document.head.appendChild(style);
-        
+
         // 显示悬浮框
         this.wordTooltip.style.display = 'block';
-        
+
         // 获取span的位置
         const spanRect = span.getBoundingClientRect();
         const tooltipRect = this.wordTooltip.getBoundingClientRect();
-        
+
         // 计算位置：在span正上方，水平居中
         const margin = 12; // tooltip和span之间的间距（包含箭头）
-        
+
         // 水平居中对齐
         let left = spanRect.left + (spanRect.width / 2) - (tooltipRect.width / 2);
-        
+
         // 垂直位置：在span上方
         let top = spanRect.top - tooltipRect.height - margin;
-        
+
         // 边界检查 - 左右
         if (left < 5) {
             left = 5;
@@ -2455,12 +2452,12 @@ class ReaderApp {
         if (left + tooltipRect.width > window.innerWidth - 5) {
             left = window.innerWidth - tooltipRect.width - 5;
         }
-        
+
         // 边界检查 - 上下
         if (top < 5) {
             top = spanRect.bottom + margin; // 如果上方空间不够，显示在下方
         }
-        
+
         this.wordTooltip.style.left = left + 'px';
         this.wordTooltip.style.top = top + 'px';
     }
@@ -2474,16 +2471,16 @@ class ReaderApp {
      */
     showWordTooltipAtHighlightCenter(word, translation, highlightId, highlightColor) {
         if (!this.wordTooltip) return;
-        
+
         // 更新内容
         document.getElementById('tooltipWord').textContent = word;
         document.getElementById('tooltipTranslation').textContent = translation;
-        
+
         // 设置样式
         this.wordTooltip.classList.remove('loading');
         this.wordTooltip.style.minWidth = '';
         this.wordTooltip.style.maxWidth = '300px';
-        
+
         // 设置颜色
         let bgColor = highlightColor;
         const rgbaMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
@@ -2493,9 +2490,9 @@ class ReaderApp {
             const b = rgbaMatch[3];
             bgColor = `rgb(${r}, ${g}, ${b})`;
         }
-        
+
         this.wordTooltip.style.background = bgColor;
-        
+
         // 更新箭头颜色
         const style = document.createElement('style');
         style.textContent = `.word-tooltip::after { border-top-color: ${bgColor}; }`;
@@ -2503,22 +2500,22 @@ class ReaderApp {
         if (oldStyle) oldStyle.remove();
         style.setAttribute('data-tooltip-arrow', 'true');
         document.head.appendChild(style);
-        
+
         // 显示悬浮框
         this.wordTooltip.style.display = 'block';
-        
+
         // 🎯 计算整个高亮区域的边界
         // 获取所有相同highlightId的unified-highlight div
         const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
-        
+
         if (highlightDivs.length === 0) return;
-        
+
         // 计算所有高亮div的总边界
         let minLeft = Infinity;
         let maxRight = -Infinity;
         let minTop = Infinity;
         let maxBottom = -Infinity;
-        
+
         highlightDivs.forEach(div => {
             const rect = div.getBoundingClientRect();
             minLeft = Math.min(minLeft, rect.left);
@@ -2526,19 +2523,19 @@ class ReaderApp {
             minTop = Math.min(minTop, rect.top);
             maxBottom = Math.max(maxBottom, rect.bottom);
         });
-        
+
         // 计算高亮区域的中心点
         const centerX = (minLeft + maxRight) / 2;
         const topY = minTop;
-        
+
         // 获取悬浮框尺寸
         const tooltipRect = this.wordTooltip.getBoundingClientRect();
-        
+
         // 计算悬浮框位置：水平居中，垂直在高亮区域上方
         const margin = 12;
         let left = centerX - (tooltipRect.width / 2);
         let top = topY - tooltipRect.height - margin;
-        
+
         // 边界检查 - 左右
         if (left < 5) {
             left = 5;
@@ -2546,12 +2543,12 @@ class ReaderApp {
         if (left + tooltipRect.width > window.innerWidth - 5) {
             left = window.innerWidth - tooltipRect.width - 5;
         }
-        
+
         // 边界检查 - 上下
         if (top < 5) {
             top = maxBottom + margin; // 如果上方空间不够，显示在下方
         }
-        
+
         this.wordTooltip.style.left = left + 'px';
         this.wordTooltip.style.top = top + 'px';
     }
@@ -2572,14 +2569,14 @@ class ReaderApp {
      */
     async translateWord(word) {
         console.log(`开始翻译单词: ${word}`);
-        
+
         // TODO: 这里需要集成真实的AI API
         // 目前使用模拟翻译
         const translation = await this.callTranslationAPI(word);
-        
+
         return translation;
     }
-    
+
     /**
      * 翻译句子（调用AI API）
      * @param {string} sentence - 要翻译的句子
@@ -2587,19 +2584,19 @@ class ReaderApp {
      */
     async translateWithAI(sentence) {
         console.log(`开始翻译句子: ${sentence}`);
-        
+
         try {
             // 等待限流器允许
             await this.waitForRateLimit();
-            
+
             // 记录请求时间
             const now = Date.now();
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
-            
+
             const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
             console.log(`📡 调用Gemini API翻译句子: ${sentence} (队列: ${this.apiRequestQueue.length}/${this.maxRequestsPerMinute})`);
-            
+
             const response = await fetch(fullUrl, {
                 method: 'POST',
                 headers: {
@@ -2613,39 +2610,39 @@ class ReaderApp {
                     }]
                 })
             });
-            
+
             console.log(`📊 响应状态: ${response.status} ${response.statusText}`);
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
-                
+
                 // 如果是429错误（配额超限），显示友好提示
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
                 }
-                
+
                 throw new Error(`API请求失败: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
+
             // 提取翻译结果
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const translation = data.candidates[0].content.parts[0].text.trim();
                 console.log(`✅ 句子翻译结果: ${translation}`);
                 return translation;
             }
-            
+
             throw new Error('API返回格式异常');
-            
+
         } catch (error) {
             console.error('句子翻译API调用失败:', error);
-            
+
             if (error.message === 'API_RATE_LIMIT') {
                 throw new Error('API请求过于频繁，请稍后再试');
             }
-            
+
             throw error;
         }
     }
@@ -2657,26 +2654,26 @@ class ReaderApp {
     canMakeRequest() {
         const now = Date.now();
         const oneMinuteAgo = now - 60000;
-        
+
         // 清理1分钟前的请求记录
         this.apiRequestQueue = this.apiRequestQueue.filter(time => time > oneMinuteAgo);
-        
+
         // 检查1分钟内的请求数
         if (this.apiRequestQueue.length >= this.maxRequestsPerMinute) {
             console.warn(`⚠️ 已达到每分钟请求上限 (${this.maxRequestsPerMinute}次)`);
             return false;
         }
-        
+
         // 检查距离上次请求的时间间隔
         const timeSinceLastRequest = now - this.lastRequestTime;
         if (timeSinceLastRequest < this.requestDelayMs) {
             console.warn(`⚠️ 请求过快，需等待 ${Math.ceil((this.requestDelayMs - timeSinceLastRequest) / 1000)} 秒`);
             return false;
         }
-        
+
         return true;
     }
-    
+
     /**
      * 等待直到可以发送请求
      * @returns {Promise<void>}
@@ -2684,7 +2681,7 @@ class ReaderApp {
     async waitForRateLimit() {
         const now = Date.now();
         const timeSinceLastRequest = now - this.lastRequestTime;
-        
+
         if (timeSinceLastRequest < this.requestDelayMs) {
             const waitTime = this.requestDelayMs - timeSinceLastRequest;
             console.log(`⏳ 等待 ${Math.ceil(waitTime / 1000)} 秒后继续...`);
@@ -2701,15 +2698,15 @@ class ReaderApp {
         try {
             // 等待限流器允许
             await this.waitForRateLimit();
-            
+
             // 记录请求时间
             const now = Date.now();
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
-            
+
             const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
             console.log(`📡 调用Gemini API翻译: ${word} (队列: ${this.apiRequestQueue.length}/${this.maxRequestsPerMinute})`);
-            
+
             const response = await fetch(fullUrl, {
                 method: 'POST',
                 headers: {
@@ -2723,40 +2720,40 @@ class ReaderApp {
                     }]
                 })
             });
-            
+
             console.log(`📊 响应状态: ${response.status} ${response.statusText}`);
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
-                
+
                 // 如果是429错误（配额超限），显示友好提示
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
                 }
-                
+
                 throw new Error(`API请求失败: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
+
             // 提取翻译结果
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const translation = data.candidates[0].content.parts[0].text.trim();
                 console.log(`✅ 翻译结果: ${translation}`);
                 return translation;
             }
-            
+
             throw new Error('API返回格式异常');
-            
+
         } catch (error) {
             console.error('Gemini API调用失败:', error);
-            
+
             // 如果是速率限制错误，返回特殊提示
             if (error.message === 'API_RATE_LIMIT') {
                 return '⏳ API请求过快，请稍后再试';
             }
-            
+
             // 降级到本地词典（扩展版）
             const mockTranslations = {
                 // 基础词汇
@@ -2781,7 +2778,7 @@ class ReaderApp {
                 'might': '可能',
                 'must': '必须',
                 'should': '应该',
-                
+
                 // 学术常用词
                 'introduction': '介绍；引言；序言',
                 'book': '书；书籍',
@@ -2802,7 +2799,7 @@ class ReaderApp {
                 'paper': '论文；纸',
                 'article': '文章',
                 'journal': '期刊；杂志',
-                
+
                 // 动词
                 'analyze': '分析',
                 'compare': '比较',
@@ -2824,7 +2821,7 @@ class ReaderApp {
                 'develop': '发展',
                 'establish': '建立',
                 'determine': '确定',
-                
+
                 // 名词
                 'approach': '方法；途径',
                 'concept': '概念',
@@ -2846,7 +2843,7 @@ class ReaderApp {
                 'case': '案例；情况',
                 'issue': '问题',
                 'problem': '问题',
-                
+
                 // 形容词
                 'significant': '重要的；显著的',
                 'important': '重要的',
@@ -2868,7 +2865,7 @@ class ReaderApp {
                 'recent': '最近的',
                 'current': '当前的',
                 'previous': '以前的',
-                
+
                 // 副词和连词
                 'however': '然而',
                 'therefore': '因此',
@@ -2890,7 +2887,7 @@ class ReaderApp {
                 'significantly': '显著地',
                 'relatively': '相对地',
                 'specifically': '具体地',
-                
+
                 // 其他常用词
                 'between': '之间',
                 'among': '在...之中',
@@ -2929,13 +2926,13 @@ class ReaderApp {
                 'how': '如何',
                 'why': '为什么'
             };
-            
+
             const lowerWord = word.toLowerCase();
             if (mockTranslations[lowerWord]) {
                 console.log(`📚 使用本地词典: ${word} -> ${mockTranslations[lowerWord]}`);
                 return mockTranslations[lowerWord];
             }
-            
+
             // 返回友好的错误提示
             return `[词典未收录]`;
         }
@@ -2948,27 +2945,27 @@ class ReaderApp {
     async preTranslateDocument() {
         console.log('开始预翻译文档...');
         this.updateStatus('正在进行AI全文翻译...');
-        
+
         try {
             // 提取所有文本
             const allText = this.extractAllText();
-            
+
             if (!allText || allText.length === 0) {
                 console.log('没有可翻译的文本');
                 return;
             }
-            
+
             // 提取所有唯一单词
             const words = this.extractUniqueWords(allText);
             console.log(`提取到 ${words.size} 个唯一单词`);
-            
+
             // TODO: 批量翻译所有单词（需要AI API支持）
             // 目前先不执行预翻译，点击时再翻译
             // 实际应用中应该在这里调用AI进行批量翻译
-            
+
             this.updateStatus('文档加载完成');
             console.log('预翻译准备完成');
-            
+
         } catch (error) {
             console.error('预翻译失败:', error);
             this.updateStatus('预翻译失败');
@@ -2982,7 +2979,7 @@ class ReaderApp {
     extractAllText() {
         const textLayers = document.querySelectorAll('.pdf-text-layer');
         const allText = [];
-        
+
         textLayers.forEach(layer => {
             const spans = layer.querySelectorAll('span');
             spans.forEach(span => {
@@ -2992,7 +2989,7 @@ class ReaderApp {
                 }
             });
         });
-        
+
         return allText;
     }
 
@@ -3003,19 +3000,19 @@ class ReaderApp {
      */
     extractUniqueWords(textArray) {
         const words = new Set();
-        
+
         textArray.forEach(text => {
             // 分词并清理
             const cleaned = text.replace(/[^\w\s-]/g, ' ');
             const wordList = cleaned.split(/\s+/).filter(w => w.length > 0);
-            
+
             wordList.forEach(word => {
                 if (word.length > 0) {
                     words.add(word.toLowerCase());
                 }
             });
         });
-        
+
         return words;
     }
 
@@ -3032,14 +3029,14 @@ class ReaderApp {
         this.currentColorCircle = document.getElementById('currentColorCircle');
         this.currentColorFill = this.currentColorCircle?.querySelector('.current-color-fill');
         this.currentOpacity = 0.5; // 默认透明度50%
-        
+
         console.log('🔍 右键菜单元素查找结果:');
         console.log('- contextMenu:', this.contextMenu);
         console.log('- colorPickerPanel:', this.colorPickerPanel);
         console.log('- opacitySliderPanel:', this.opacitySliderPanel);
         console.log('- currentColorCircle:', this.currentColorCircle);
         console.log('- currentColorFill:', this.currentColorFill);
-        
+
         if (!this.contextMenu) {
             console.error('❌ 右键菜单元素未找到');
             return;
@@ -3097,8 +3094,8 @@ class ReaderApp {
                 this.handleContextMenuAction('translate-sentence');
             });
         }
-        
-        
+
+
         // 绑定复制文本按钮
         const copyTextBtn = document.getElementById('copyTextBtn');
         if (copyTextBtn) {
@@ -3140,7 +3137,7 @@ class ReaderApp {
 
         // 点击其他地方关闭菜单和所有面板
         document.addEventListener('click', (e) => {
-            if (!this.contextMenu.contains(e.target) && 
+            if (!this.contextMenu.contains(e.target) &&
                 !this.colorPickerPanel?.contains(e.target) &&
                 !this.opacitySliderPanel?.contains(e.target)) {
                 this.hideContextMenu();
@@ -3153,22 +3150,22 @@ class ReaderApp {
         document.addEventListener('contextmenu', (e) => {
             console.log('🔍 右键菜单事件触发');
             const pdfTextLayer = e.target.closest('.pdf-text-layer');
-            
+
             if (pdfTextLayer) {
                 console.log('🔍 在PDF文本层内右键');
                 e.preventDefault(); // 始终阻止默认右键菜单
-                
+
                 // 检查是否点击了单词span或选择了文本
                 const span = e.target.closest('span');
                 const selection = window.getSelection();
                 const selectedText = selection.toString().trim();
-                
+
                 console.log('🔍 右键菜单检查:');
                 console.log('- span:', span);
                 console.log('- span内容:', span?.textContent);
                 console.log('- 选中文本:', selectedText);
                 console.log('- 选择范围数量:', selection.rangeCount);
-                
+
                 if (selectedText) {
                     // 优先处理选中的文本（多单词选择）
                     console.log('🔍 选择了文本，显示右键菜单');
@@ -3196,7 +3193,7 @@ class ReaderApp {
         e.stopPropagation();
 
         const span = e.target;
-        
+
         // 所有单词都可以右键打开菜单（不再限制只有高亮的单词）
         this.currentContextTarget = span;
         this.showContextMenu(e.clientX, e.clientY);
@@ -3221,7 +3218,7 @@ class ReaderApp {
                 // 如果是已有高亮，读取高亮的实际颜色
                 const highlightId = this.currentContextTarget.dataset.highlightId;
                 const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
-                
+
                 if (highlightDiv) {
                     const bgColor = highlightDiv.style.backgroundColor;
                     console.log('🔍 读取到的高亮颜色:', bgColor);
@@ -3276,15 +3273,15 @@ class ReaderApp {
      */
     handleColorButtonClick() {
         console.log('🔍 处理颜色按钮点击');
-        
+
         // 判断是否有选中的文本或者点击的是已有高亮
         const hasSelection = this.selectedSpans && this.selectedSpans.length > 0;
-        const hasHighlight = this.currentContextTarget && 
-                           this.currentContextTarget.dataset.highlightId;
-        
+        const hasHighlight = this.currentContextTarget &&
+            this.currentContextTarget.dataset.highlightId;
+
         console.log('🔍 hasSelection:', hasSelection);
         console.log('🔍 hasHighlight:', hasHighlight);
-        
+
         if (hasHighlight) {
             // 已有高亮：显示颜色选择框
             console.log('🔍 已有高亮，显示颜色选择框');
@@ -3305,13 +3302,13 @@ class ReaderApp {
      */
     applyDefaultColorHighlight() {
         console.log('🔍 应用默认颜色高亮:', this.defaultHighlightColor);
-        
+
         // 使用默认颜色进行高亮
         this.highlightSelectedTextWithColor('custom', this.defaultHighlightColor);
-        
+
         // 清空当前上下文目标，避免下次判断错误
         this.currentContextTarget = null;
-        
+
         // 隐藏菜单
         this.hideContextMenu();
     }
@@ -3321,18 +3318,18 @@ class ReaderApp {
      */
     applyCurrentColorFromBox() {
         console.log('🔍 应用当前颜色框颜色');
-        
+
         if (!this.currentColorFill) {
             console.error('❌ 当前颜色填充元素未找到');
             return;
         }
-        
+
         // 获取当前颜色
-        const currentColor = this.currentColorFill.style.background || 
-                           window.getComputedStyle(this.currentColorFill).backgroundColor;
-        
+        const currentColor = this.currentColorFill.style.background ||
+            window.getComputedStyle(this.currentColorFill).backgroundColor;
+
         console.log('🔍 当前颜色:', currentColor);
-        
+
         if (!currentColor || currentColor === 'rgba(0, 0, 0, 0)' || currentColor === 'transparent') {
             console.log('🔍 使用默认颜色');
             this.highlightSelectedTextWithColor('yellow');
@@ -3342,7 +3339,7 @@ class ReaderApp {
             console.log('🔍 转换后的十六进制颜色:', hexColor);
             this.highlightSelectedTextWithColor('custom', hexColor);
         }
-        
+
         // 隐藏菜单
         this.hideContextMenu();
     }
@@ -3354,7 +3351,7 @@ class ReaderApp {
      */
     rgbToHex(rgb) {
         if (!rgb) return '#FFFFC8';
-        
+
         // 处理rgba格式
         const rgbaMatch = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
         if (rgbaMatch) {
@@ -3363,7 +3360,7 @@ class ReaderApp {
             const b = parseInt(rgbaMatch[3]);
             return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
         }
-        
+
         // 处理rgb格式
         const rgbMatch = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
         if (rgbMatch) {
@@ -3372,12 +3369,12 @@ class ReaderApp {
             const b = parseInt(rgbMatch[3]);
             return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
         }
-        
+
         // 如果已经是十六进制格式，直接返回
         if (rgb.startsWith('#')) {
             return rgb;
         }
-        
+
         return '#FFFFC8'; // 默认颜色
     }
 
@@ -3392,14 +3389,14 @@ class ReaderApp {
             this.hideContextMenu();
             return;
         }
-        
+
         if (action === 'highlight-selection') {
             // 高亮选中的文本
             this.highlightSelectedText();
             this.hideContextMenu();
             return;
         }
-        
+
         if (!this.currentContextTarget) return;
 
         const span = this.currentContextTarget;
@@ -3411,7 +3408,7 @@ class ReaderApp {
             });
 
             const spansToRemove = Array.from(spansToRemoveSet);
-            
+
             // 保存被删除的高亮信息（用于历史记录）
             const removedInfo = spansToRemove.map(span => ({
                 highlightId: span.dataset.highlightId,
@@ -3439,13 +3436,13 @@ class ReaderApp {
         } else if (action.startsWith('color-')) {
             // 更改高亮颜色
             const color = action.replace('color-', '');
-            
+
             console.log('🔍 右键菜单颜色高亮:');
             console.log('- 颜色:', color);
             console.log('- currentSelection:', this.currentSelection);
             console.log('- selectedSpans:', this.selectedSpans);
             console.log('- selectedSpans长度:', this.selectedSpans?.length);
-            
+
             // 优先使用存储的选中spans（多单词选择）
             if (this.selectedSpans && this.selectedSpans.length > 0) {
                 console.log('🔍 使用存储的selectedSpans进行高亮');
@@ -3475,35 +3472,35 @@ class ReaderApp {
             this.showError('请先选择要翻译的句子');
             return;
         }
-        
+
         const selectedText = this.currentSelection.toString().trim();
         if (!selectedText) {
             this.showError('请先选择要翻译的句子');
             return;
         }
-        
+
         try {
             // 显示加载状态
             this.updateStatus('正在翻译...');
-            
+
             // 调用AI翻译API
             const translation = await this.translateWithAI(selectedText);
-            
+
             if (translation) {
                 // 高亮选中的句子（使用特殊的翻译高亮样式），返回highlightId
                 const highlightId = this.highlightSelectedSentenceForTranslation();
-                
+
                 // 保存翻译到Map中（用于hover显示）
                 if (highlightId) {
                     this.sentenceTranslationMap.set(highlightId, translation);
                 }
-                
+
                 // 🎯 不在翻译完成时显示悬浮框，只在hover时显示
                 // 翻译会在用户hover到高亮区域时自动显示
-                
+
                 // 保存翻译到本地存储
                 this.saveSentenceTranslation(selectedText, translation);
-                
+
                 this.updateStatus('翻译完成 - 将光标移到高亮区域查看翻译');
             } else {
                 this.showError('翻译失败，请重试');
@@ -3513,40 +3510,40 @@ class ReaderApp {
             this.showError('翻译失败: ' + error.message);
         }
     }
-    
+
     /**
      * 为翻译的句子添加特殊高亮
      * @returns {string} highlightId - 高亮ID
      */
     highlightSelectedSentenceForTranslation() {
         if (!this.currentSelection || this.currentSelection.rangeCount === 0) return null;
-        
+
         const range = this.currentSelection.getRangeAt(0);
         const spans = this.getSpansInRange(range);
         if (spans.length === 0) return null;
-        
+
         // 先清除预览高亮
         this.hideSelectionHighlight();
-        
+
         // 🎯 使用统一背景层逻辑高亮句子 - 使用默认紫色
         const highlightId = this.generateHighlightId();
         const rgb = this.hexToRgb(this.defaultHighlightColor);
         const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
-        
+
         // 标记选中的 span
         spans.forEach(span => {
             span.dataset.highlightId = highlightId;
             span.dataset.highlightColor = 'custom';
-            
+
             const word = this.extractWord(span.textContent);
             if (word) {
                 this.highlightedWords.add(word.toLowerCase());
             }
         });
-        
+
         // 🎯 创建统一的高亮背景层（上下3px、圆角）
         this.createUnifiedHighlight(spans, bgColor, highlightId);
-        
+
         // 添加到历史记录
         const selectedText = spans.map(s => s.textContent).join('');
         this.addToHistory('sentenceTranslate', {
@@ -3554,15 +3551,15 @@ class ReaderApp {
             text: selectedText,
             spanCount: spans.length
         });
-        
+
         // 清除选择
         this.currentSelection.removeAllRanges();
         this.currentSelection = null;
-        
+
         // 返回highlightId供保存翻译使用
         return highlightId;
     }
-    
+
     /**
      * 显示句子翻译结果
      * @param {string} originalText - 原文
@@ -3578,12 +3575,12 @@ class ReaderApp {
                 <div class="word-tooltip-translation">${translation}</div>
             </div>
         `;
-        
+
         // 设置背景颜色为默认紫色（和句子高亮颜色一致）
         const rgb = this.hexToRgb(this.defaultHighlightColor);
         const bgColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
         tooltip.style.background = bgColor;
-        
+
         // 更新箭头颜色
         const style = document.createElement('style');
         style.textContent = `.sentence-tooltip::after { border-top-color: ${bgColor}; }`;
@@ -3591,24 +3588,24 @@ class ReaderApp {
         if (oldStyle) oldStyle.remove();
         style.setAttribute('data-sentence-tooltip-arrow', 'true');
         document.head.appendChild(style);
-        
+
         // 定位到选择区域的中心
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
-            
+
             // 显示悬浮框以获取其尺寸
             tooltip.style.display = 'block';
             tooltip.style.visibility = 'hidden';
             document.body.appendChild(tooltip);
-            
+
             const tooltipRect = tooltip.getBoundingClientRect();
-            
+
             // 计算位置（居中显示在选中文本上方）
             let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
             let top = rect.top - tooltipRect.height - 10;
-            
+
             // 确保不超出屏幕
             if (left < 10) left = 10;
             if (left + tooltipRect.width > window.innerWidth - 10) {
@@ -3618,7 +3615,7 @@ class ReaderApp {
                 // 如果上方空间不够，显示在下方
                 top = rect.bottom + 10;
             }
-            
+
             tooltip.style.left = left + 'px';
             tooltip.style.top = top + 'px';
             tooltip.style.visibility = 'visible';
@@ -3629,7 +3626,7 @@ class ReaderApp {
             tooltip.style.top = '50%';
             tooltip.style.transform = 'translate(-50%, -50%)';
         }
-        
+
         // 5秒后自动消失
         setTimeout(() => {
             if (tooltip.parentElement) {
@@ -3637,7 +3634,7 @@ class ReaderApp {
             }
         }, 5000);
     }
-    
+
     /**
      * 保存句子翻译到本地存储
      * @param {string} originalText - 原文
@@ -3661,7 +3658,7 @@ class ReaderApp {
     highlightSelectedTextWithColor(color, customColor = null) {
         // 优先使用存储的选中span
         let spans = this.selectedSpans;
-        
+
         // 如果没有存储的span，尝试从当前选择获取
         if (!spans || spans.length === 0) {
             const selection = this.currentSelection || window.getSelection();
@@ -3669,16 +3666,16 @@ class ReaderApp {
                 spans = this.getSelectedSpansFromSelection(selection);
             }
         }
-        
+
         if (!spans || spans.length === 0) {
             console.warn('没有找到选中的span元素');
             return;
         }
-        
+
         console.log('🎯 使用原生背景色高亮');
-        
+
         const highlightId = this.generateHighlightId();
-        
+
         // 颜色映射
         const colorMap = {
             'yellow': 'rgba(255, 255, 200, 0.6)',
@@ -3690,7 +3687,7 @@ class ReaderApp {
             'red': 'rgba(255, 180, 180, 0.6)',
             'cyan': 'rgba(180, 240, 255, 0.6)'
         };
-        
+
         let bgColor;
         if (color === 'custom' && customColor) {
             const rgb = this.hexToRgb(customColor);
@@ -3699,30 +3696,30 @@ class ReaderApp {
         } else {
             bgColor = colorMap[color] || colorMap['yellow'];
         }
-        
+
         // 标记选中的 span
         spans.forEach(span => {
             span.dataset.highlightId = highlightId;
             span.dataset.highlightColor = color;
-            
+
             const word = this.extractWord(span.textContent);
             if (word) {
                 this.highlightedWords.add(word.toLowerCase());
             }
         });
-        
+
         // 🎯 创建统一的高亮背景层（像 ::selection 那样连续）
         this.createUnifiedHighlight(spans, bgColor, highlightId);
-        
+
         // 清除选择状态
         const selection = this.currentSelection || window.getSelection();
         if (selection && selection.rangeCount > 0) {
             selection.removeAllRanges();
         }
-        
+
         this.currentSelection = null;
         this.selectedSpans = null;
-        
+
         // 添加到历史记录
         const selectedText = spans.map(s => s.textContent).join('');
         this.addToHistory('highlight', {
@@ -3731,7 +3728,7 @@ class ReaderApp {
             text: selectedText,
             spanCount: spans.length
         });
-        
+
         console.log('✅ 高亮完成（统一背景层）');
     }
 
@@ -3771,7 +3768,7 @@ class ReaderApp {
     removeHighlightFromSpan(span) {
         // 获取 highlightId
         const highlightId = span.dataset.highlightId;
-        
+
         // 移除标记
         delete span.dataset.highlightId;
         delete span.dataset.highlightColor;
@@ -3780,14 +3777,14 @@ class ReaderApp {
         if (word) {
             this.highlightedWords.delete(word.toLowerCase());
         }
-        
+
         // 🎯 删除对应的统一高亮背景层
         if (highlightId) {
             const highlights = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
             highlights.forEach(h => h.remove());
         }
     }
-    
+
     /**
      * 用指定颜色高亮单个单词
      * @param {HTMLElement} span - span元素
@@ -3806,7 +3803,7 @@ class ReaderApp {
             'red': 'rgba(255, 180, 180, 0.6)',
             'cyan': 'rgba(180, 240, 255, 0.6)'
         };
-        
+
         let bgColor;
         if (color === 'custom' && customColor) {
             const rgb = this.hexToRgb(customColor);
@@ -3815,7 +3812,7 @@ class ReaderApp {
         } else {
             bgColor = colorMap[color] || colorMap['yellow'];
         }
-        
+
         const highlightId = this.generateHighlightId();
         span.dataset.highlightId = highlightId;
         span.dataset.highlightColor = color;
@@ -3824,10 +3821,10 @@ class ReaderApp {
         if (word) {
             this.highlightedWords.add(word.toLowerCase());
         }
-        
+
         // 🎯 创建统一的高亮背景层
         this.createUnifiedHighlight([span], bgColor, highlightId);
-        
+
         // 添加到历史记录
         this.addToHistory('highlight', {
             highlightId: highlightId,
@@ -3845,12 +3842,12 @@ class ReaderApp {
     hexToRgb(hex) {
         // 移除#号
         hex = hex.replace(/^#/, '');
-        
+
         // 处理3位简写形式
         if (hex.length === 3) {
             hex = hex.split('').map(char => char + char).join('');
         }
-        
+
         const bigint = parseInt(hex, 16);
         return {
             r: (bigint >> 16) & 255,
@@ -3866,20 +3863,20 @@ class ReaderApp {
         if (!this.colorPickerPanel) return;
 
         const isVisible = this.colorPickerPanel.style.display === 'block';
-        
+
         if (isVisible) {
             this.hideColorPicker();
         } else {
             // 显示调色板
             this.colorPickerPanel.style.display = 'block';
-            
+
             // 定位到右键菜单下方
             const menuRect = this.contextMenu.getBoundingClientRect();
             const panelRect = this.colorPickerPanel.getBoundingClientRect();
-            
+
             let left = menuRect.left;
             let top = menuRect.bottom + 5;
-            
+
             // 避免超出屏幕
             if (left + panelRect.width > window.innerWidth) {
                 left = window.innerWidth - panelRect.width - 5;
@@ -3887,7 +3884,7 @@ class ReaderApp {
             if (top + panelRect.height > window.innerHeight) {
                 top = menuRect.top - panelRect.height - 5;
             }
-            
+
             this.colorPickerPanel.style.left = left + 'px';
             this.colorPickerPanel.style.top = top + 'px';
         }
@@ -3909,23 +3906,23 @@ class ReaderApp {
         if (!this.opacitySliderPanel) return;
 
         const isVisible = this.opacitySliderPanel.style.display === 'block';
-        
+
         if (isVisible) {
             this.hideOpacitySlider();
         } else {
             // 显示透明度滑块
             this.opacitySliderPanel.style.display = 'block';
-            
+
             // 获取当前高亮的透明度（从CSS变量或伪元素）
             if (this.currentContextTarget) {
                 // 优先从CSS变量读取
                 let bgColor = this.currentContextTarget.style.getPropertyValue('--highlight-color');
-                
+
                 // 如果没有CSS变量，从::before伪元素读取
                 if (!bgColor) {
                     bgColor = window.getComputedStyle(this.currentContextTarget, '::before').backgroundColor;
                 }
-                
+
                 const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
                 if (match && match[4]) {
                     const opacity = parseFloat(match[4]);
@@ -3947,14 +3944,14 @@ class ReaderApp {
                     }
                 }
             }
-            
+
             // 定位到右键菜单下方
             const menuRect = this.contextMenu.getBoundingClientRect();
             const panelRect = this.opacitySliderPanel.getBoundingClientRect();
-            
+
             let left = menuRect.left;
             let top = menuRect.bottom + 5;
-            
+
             // 避免超出屏幕
             if (left + panelRect.width > window.innerWidth) {
                 left = window.innerWidth - panelRect.width - 5;
@@ -3962,7 +3959,7 @@ class ReaderApp {
             if (top + panelRect.height > window.innerHeight) {
                 top = menuRect.top - panelRect.height - 5;
             }
-            
+
             this.opacitySliderPanel.style.left = left + 'px';
             this.opacitySliderPanel.style.top = top + 'px';
         }
@@ -3989,15 +3986,15 @@ class ReaderApp {
         });
 
         spansToUpdate.forEach((span) => {
-            let bgColor = span.style.getPropertyValue('--highlight-color') || 
-                         window.getComputedStyle(span, '::before').backgroundColor;
-            
+            let bgColor = span.style.getPropertyValue('--highlight-color') ||
+                window.getComputedStyle(span, '::before').backgroundColor;
+
             const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
             if (match) {
                 const r = match[1];
                 const g = match[2];
                 const b = match[3];
-                
+
                 if (!span.dataset.highlightId) {
                     span.dataset.highlightId = this.generateHighlightId();
                 }
@@ -4005,8 +4002,8 @@ class ReaderApp {
                 if (span.classList.contains('color-custom')) {
                     span.style.setProperty('--highlight-color', `rgba(${r}, ${g}, ${b}, ${this.currentOpacity})`);
                 } else {
-                    span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink', 
-                                        'color-orange', 'color-purple', 'color-red', 'color-cyan');
+                    span.classList.remove('color-yellow', 'color-green', 'color-blue', 'color-pink',
+                        'color-orange', 'color-purple', 'color-red', 'color-cyan');
                     span.classList.add('color-custom');
                     span.style.setProperty('--highlight-color', `rgba(${r}, ${g}, ${b}, ${this.currentOpacity})`);
                 }
@@ -4031,20 +4028,20 @@ class ReaderApp {
         const rgb = this.hexToRgb(color);
         const opacity = this.currentOpacity || 0.5;
         const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
-        
+
         // 检查当前目标是否已有高亮
         const highlightId = this.currentContextTarget.dataset.highlightId;
-        
+
         if (highlightId) {
             // 已有高亮：直接改变颜色
             console.log('🔍 改变已有高亮的颜色:', highlightId);
-            
+
             // 找到所有相同highlightId的unified-highlight div
             const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
             highlightDivs.forEach(div => {
                 div.style.backgroundColor = bgColor;
             });
-            
+
             // 找到所有相同highlightId的span（用于后续操作）
             const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
             spans.forEach(span => {
@@ -4075,16 +4072,16 @@ class ReaderApp {
             // 创建统一高亮背景层
             this.createUnifiedHighlight(spansToApply, bgColor, newHighlightId);
         }
-        
+
         // 更新默认颜色和颜色圆形显示
         this.defaultHighlightColor = color;
         if (this.currentColorFill) {
             this.currentColorFill.style.background = color;
         }
-        
+
         // 清空当前上下文目标，避免下次判断错误
         this.currentContextTarget = null;
-        
+
         console.log('🔍 更新默认高亮颜色为:', color);
     }
 
@@ -4093,10 +4090,10 @@ class ReaderApp {
      */
     toggleUnderline() {
         console.log('🔍 切换下划线');
-        
+
         // 获取要操作的spans
         const spansToToggle = new Set();
-        
+
         // 优先使用选中的spans（文本选择）
         if (this.selectedSpans && this.selectedSpans.length > 0) {
             console.log('🔍 使用selectedSpans:', this.selectedSpans.length);
@@ -4123,7 +4120,7 @@ class ReaderApp {
         // 检查是否已有下划线（检查第一个span）
         const firstSpan = Array.from(spansToToggle)[0];
         const hasUnderline = firstSpan.classList.contains('word-underlined');
-        
+
         console.log('🔍 hasUnderline:', hasUnderline, 'spans数量:', spansToToggle.size);
 
         if (hasUnderline) {
@@ -4142,15 +4139,15 @@ class ReaderApp {
             // 添加下划线 - 使用统一下划线层
             const underlineId = this.generateHighlightId(); // 复用ID生成方法
             const spansArray = Array.from(spansToToggle);
-            
+
             spansArray.forEach((span) => {
                 span.classList.add('word-underlined');
                 span.dataset.underlineId = underlineId;
             });
-            
+
             // 创建统一的下划线层
             this.createUnifiedUnderline(spansArray, underlineId);
-            
+
             // 添加到历史记录
             const text = spansArray.map(s => s.textContent).join('');
             this.addToHistory('underline', {
@@ -4159,7 +4156,7 @@ class ReaderApp {
                 spanCount: spansArray.length
             });
         }
-        
+
         this.hideContextMenu();
         this.hideColorPicker();
     }
@@ -4169,27 +4166,27 @@ class ReaderApp {
      */
     copyWordText() {
         let text = '';
-        
+
         // 优先使用当前选择
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
             text = selection.toString().trim();
             console.log('🔍 从当前选择复制文本:', text);
         }
-        
+
         // 如果没有选择，尝试使用存储的选中span
         if (!text && this.selectedSpans && this.selectedSpans.length > 0) {
             // 正确拼接span内容，保持原始格式
             text = this.reconstructTextFromSpans(this.selectedSpans);
             console.log('🔍 从存储的span复制文本:', text);
         }
-        
+
         // 如果还是没有，尝试使用右键目标
         if (!text && this.currentContextTarget) {
             text = this.extractWord(this.currentContextTarget.textContent);
             console.log('🔍 从右键目标复制文本:', text);
         }
-        
+
         if (text) {
             // 使用Clipboard API复制文本
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -4208,11 +4205,11 @@ class ReaderApp {
             console.warn('没有可复制的文本');
             this.showToast('没有选中文本');
         }
-        
+
         this.selectedSpans = null; // 清空选择
         this.hideContextMenu();
     }
-    
+
     /**
      * 从span数组重构文本（保持原始格式和空格）
      * @param {HTMLElement[]} spans - span元素数组
@@ -4220,7 +4217,7 @@ class ReaderApp {
      */
     reconstructTextFromSpans(spans) {
         if (!spans || spans.length === 0) return '';
-        
+
         // 按DOM顺序排序
         const sortedSpans = [...spans].sort((a, b) => {
             const position = a.compareDocumentPosition(b);
@@ -4231,17 +4228,17 @@ class ReaderApp {
             }
             return 0; // 相同位置
         });
-        
+
         // 拼接所有span的内容
         const text = sortedSpans.map(span => span.textContent).join('');
-        
+
         console.log('🔍 重构文本:');
         console.log('span数量:', sortedSpans.length);
         console.log('重构结果:', text);
         sortedSpans.forEach((span, index) => {
             console.log(`  ${index}: "${span.textContent}"`);
         });
-        
+
         return text;
     }
 
@@ -4256,7 +4253,7 @@ class ReaderApp {
         textarea.style.opacity = '0';
         document.body.appendChild(textarea);
         textarea.select();
-        
+
         try {
             document.execCommand('copy');
             console.log('文本已复制（降级方案）:', text);
@@ -4264,7 +4261,7 @@ class ReaderApp {
         } catch (err) {
             console.error('复制失败（降级方案）:', err);
         }
-        
+
         document.body.removeChild(textarea);
     }
 
@@ -4289,9 +4286,9 @@ class ReaderApp {
             z-index: 10003;
             animation: fadeInOut 2s ease;
         `;
-        
+
         document.body.appendChild(toast);
-        
+
         // 2秒后移除
         setTimeout(() => {
             if (toast.parentNode) {
@@ -4315,7 +4312,7 @@ class ReaderApp {
         spansToRemove.forEach(spanEl => {
             this.removeHighlightFromSpan(spanEl);
             spanEl.classList.remove('word-underlined');
-            
+
             // 删除统一下划线层
             const underlineId = spanEl.dataset.underlineId;
             if (underlineId) {
@@ -4341,13 +4338,13 @@ class ReaderApp {
      */
     handleTextSelection(e, selection) {
         if (!selection || selection.rangeCount === 0) return;
-        
+
         const range = selection.getRangeAt(0);
-        
+
         // 获取选择范围内的所有span元素
         const container = range.commonAncestorContainer;
         let spans = [];
-        
+
         if (container.nodeType === Node.TEXT_NODE) {
             // 如果是文本节点，获取其父span
             const parentSpan = container.parentElement;
@@ -4363,7 +4360,7 @@ class ReaderApp {
                 }
             });
         }
-        
+
         // 如果没有找到span，尝试获取起始节点的父span
         if (spans.length === 0) {
             const startSpan = range.startContainer.parentElement?.closest('span');
@@ -4371,11 +4368,11 @@ class ReaderApp {
                 spans.push(startSpan);
             }
         }
-        
+
         // 保存选中的spans，用于批量操作
         this.selectedSpans = spans;
         this.currentContextTarget = spans[0]; // 用第一个span作为当前目标
-        
+
         this.showContextMenu(e.clientX, e.clientY);
     }
 
@@ -4421,7 +4418,7 @@ class ReaderApp {
         for (let i = 1; i < previewSpans.length; i++) {
             const prev = previewSpans[i - 1];
             const curr = previewSpans[i];
-            
+
             if (this.areAdjacent(prev, curr)) {
                 currentGroup.push(curr);
             } else {
@@ -4437,7 +4434,7 @@ class ReaderApp {
             }
         });
     }
-    
+
     /**
      * 创建合并的选择预览高亮
      * @param {HTMLElement[]} spans - 要合并的span元素数组
@@ -4447,17 +4444,17 @@ class ReaderApp {
 
         const firstSpan = spans[0];
         const lastSpan = spans[spans.length - 1];
-        
+
         const firstRect = firstSpan.getBoundingClientRect();
         const lastRect = lastSpan.getBoundingClientRect();
-        
+
         const containerRect = firstSpan.parentElement.getBoundingClientRect();
-        
+
         const left = firstRect.left - containerRect.left;
         const top = firstRect.top - containerRect.top;
         const width = lastRect.right - firstRect.left;
         const height = Math.max(firstRect.height, lastRect.height);
-        
+
         const mergedHighlight = document.createElement('div');
         mergedHighlight.className = 'merged-selection-highlight';
         mergedHighlight.style.cssText = `
@@ -4470,9 +4467,9 @@ class ReaderApp {
             pointer-events: none;
             z-index: 1;
         `;
-        
+
         firstSpan.parentElement.appendChild(mergedHighlight);
-        
+
         // 为合并的span添加标记类
         spans.forEach(span => {
             span.classList.add('merged-selection-preview');
@@ -4505,7 +4502,7 @@ class ReaderApp {
         highlightedSpans.sort((a, b) => {
             const rectA = a.getBoundingClientRect();
             const rectB = b.getBoundingClientRect();
-            
+
             // 先按行排序，再按列排序
             if (Math.abs(rectA.top - rectB.top) > 5) {
                 return rectA.top - rectB.top;
@@ -4520,7 +4517,7 @@ class ReaderApp {
         for (let i = 1; i < highlightedSpans.length; i++) {
             const prev = highlightedSpans[i - 1];
             const curr = highlightedSpans[i];
-            
+
             if (this.areAdjacent(prev, curr)) {
                 currentGroup.push(curr);
             } else {
@@ -4547,11 +4544,11 @@ class ReaderApp {
     areAdjacent(span1, span2) {
         const rect1 = span1.getBoundingClientRect();
         const rect2 = span2.getBoundingClientRect();
-        
+
         // 检查是否在同一行（垂直位置相近）
         const verticalDiff = Math.abs(rect1.top - rect2.top);
         if (verticalDiff > 5) return false;
-        
+
         // 检查是否水平相邻（右边界接近左边界）
         const horizontalDiff = Math.abs(rect1.right - rect2.left);
         return horizontalDiff <= 10; // 允许10px的间距
@@ -4628,7 +4625,7 @@ class ReaderApp {
             highlightedSpans.sort((a, b) => {
                 const rectA = a.getBoundingClientRect();
                 const rectB = b.getBoundingClientRect();
-                
+
                 if (Math.abs(rectA.top - rectB.top) > 5) {
                     return rectA.top - rectB.top;
                 }
@@ -4642,7 +4639,7 @@ class ReaderApp {
             for (let i = 1; i < highlightedSpans.length; i++) {
                 const prev = highlightedSpans[i - 1];
                 const curr = highlightedSpans[i];
-                
+
                 if (this.areAdjacent(prev, curr)) {
                     currentGroup.push(curr);
                 } else {
@@ -4769,7 +4766,7 @@ class ReaderApp {
             redoBtn.disabled = shouldDisable;
             redoBtn.classList.toggle('btn-disabled', shouldDisable);
         }
-        
+
         console.log('按钮状态更新:', {
             historyIndex: this.historyIndex,
             stackLength: this.historyStack.length,
@@ -4792,12 +4789,12 @@ class ReaderApp {
 
         // 收集所有高亮的span（按highlightId分组）
         const highlightGroups = new Map(); // highlightId -> { spans, color, rects }
-        
+
         const highlightedSpans = document.querySelectorAll('.pdf-text-layer span[data-highlight-id]');
         highlightedSpans.forEach(span => {
             const highlightId = span.dataset.highlightId;
             if (!highlightId) return;
-            
+
             if (!highlightGroups.has(highlightId)) {
                 highlightGroups.set(highlightId, {
                     spans: [],
@@ -4807,38 +4804,38 @@ class ReaderApp {
             }
             highlightGroups.get(highlightId).spans.push(span);
         });
-        
+
         // 为每个highlightId收集位置信息
         highlightGroups.forEach((group, highlightId) => {
             if (group.spans.length === 0) return;
-            
+
             const firstSpan = group.spans[0];
             const pageIndex = this.getPageIndexOfSpan(firstSpan);
             const pageInfo = this.pdfPageInfo ? this.pdfPageInfo.get(pageIndex) : null;
-            
+
             // 获取该highlightId的所有背景div
             const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
             const rects = [];
             let actualColor = group.color; // 默认使用group中的颜色
-            
+
             highlightDivs.forEach(div => {
                 // 从div获取实际颜色（这是真正的颜色值）
                 if (div.style.backgroundColor) {
                     actualColor = div.style.backgroundColor;
                 }
-                
+
                 // 前端坐标（基于scale=2.0的viewport）
                 const frontendX = parseFloat(div.style.left) || 0;
                 const frontendY = parseFloat(div.style.top) || 0;
                 const frontendWidth = parseFloat(div.style.width) || 0;
                 const frontendHeight = parseFloat(div.style.height) || 0;
-                
+
                 // 转换为PDF原始坐标
                 let pdfRect;
                 if (pageInfo) {
                     const scale = pageInfo.scale; // 2.0
                     const pdfHeight = pageInfo.height; // PDF原始高度
-                    
+
                     pdfRect = {
                         x: frontendX / scale,
                         y: pdfHeight - (frontendY / scale) - (frontendHeight / scale),
@@ -4855,12 +4852,12 @@ class ReaderApp {
                 }
                 rects.push(pdfRect);
             });
-            
+
             // 如果还是没有颜色，使用默认颜色
             if (!actualColor || actualColor === 'custom' || actualColor === 'transparent') {
                 actualColor = 'rgba(255, 255, 200, 0.6)'; // 默认黄色
             }
-            
+
             // 保存这个高亮组（一个highlightId对应一个条目）
             state.highlights.push({
                 highlightId: highlightId,
@@ -4875,17 +4872,17 @@ class ReaderApp {
 
         // 收集所有下划线（按underlineId分组）
         const underlineGroups = new Map(); // underlineId -> { spans }
-        
+
         const underlinedSpans = document.querySelectorAll('.pdf-text-layer span[data-underline-id]');
         console.log('📝 收集下划线，找到span数量:', underlinedSpans.length);
-        
+
         underlinedSpans.forEach(span => {
             const underlineId = span.dataset.underlineId;
             if (!underlineId) {
                 console.warn('⚠️ span没有underlineId:', span);
                 return;
             }
-            
+
             if (!underlineGroups.has(underlineId)) {
                 underlineGroups.set(underlineId, {
                     spans: []
@@ -4893,16 +4890,16 @@ class ReaderApp {
             }
             underlineGroups.get(underlineId).spans.push(span);
         });
-        
+
         console.log('📝 下划线分组数量:', underlineGroups.size);
-        
+
         // 为每个underlineId保存数据
         underlineGroups.forEach((group, underlineId) => {
             if (group.spans.length === 0) return;
-            
+
             const firstSpan = group.spans[0];
             const pageIndex = this.getPageIndexOfSpan(firstSpan);
-            
+
             state.underlines.push({
                 underlineId: underlineId,
                 text: group.spans.map(s => s.textContent).join(''),
@@ -4910,7 +4907,7 @@ class ReaderApp {
                 spanIndices: group.spans.map(s => this.getSpanIndexInPage(s))
             });
         });
-        
+
         console.log('📝 保存的下划线数量:', state.underlines.length);
 
         // 收集翻译数据
@@ -4940,7 +4937,7 @@ class ReaderApp {
         // 恢复高亮
         state.highlights.forEach(highlight => {
             const spans = [];
-            
+
             // 支持新旧两种格式
             if (highlight.spanIndices && Array.isArray(highlight.spanIndices)) {
                 // 新格式：spanIndices数组
@@ -4957,7 +4954,7 @@ class ReaderApp {
                     spans.push(span);
                 }
             }
-            
+
             // 为所有span设置高亮属性（但不设置backgroundColor，由unified-highlight div处理）
             spans.forEach(span => {
                 // 不设置span.style.backgroundColor，避免与unified-highlight重复
@@ -4968,7 +4965,7 @@ class ReaderApp {
                     span.dataset.highlightColor = highlight.highlightColor;
                 }
             });
-            
+
             // 重建统一高亮背景（这是唯一的高亮层）
             if (spans.length > 0) {
                 this.createUnifiedHighlight(
@@ -4983,7 +4980,7 @@ class ReaderApp {
         if (state.underlines && state.underlines.length > 0) {
             state.underlines.forEach(underline => {
                 const spans = [];
-                
+
                 if (underline.spanIndices && Array.isArray(underline.spanIndices)) {
                     underline.spanIndices.forEach(spanIndex => {
                         const span = this.findSpanByPosition(underline.pageIndex, spanIndex);
@@ -4992,13 +4989,13 @@ class ReaderApp {
                         }
                     });
                 }
-                
+
                 // 为所有span设置下划线属性
                 spans.forEach(span => {
                     span.dataset.underlineId = underline.underlineId;
                     span.classList.add('word-underlined');
                 });
-                
+
                 // 重建统一下划线
                 if (spans.length > 0) {
                     this.createUnifiedUnderline(spans, underline.underlineId);
@@ -5029,18 +5026,18 @@ class ReaderApp {
             delete span.dataset.highlightId;
             delete span.dataset.highlightColor;
         });
-        
+
         // 清除所有统一高亮背景层
         const highlightDivs = document.querySelectorAll('.unified-highlight');
         highlightDivs.forEach(div => div.remove());
-        
+
         // 清除span上的下划线属性
         const underlinedSpans = document.querySelectorAll('.pdf-text-layer span[data-underline-id]');
         underlinedSpans.forEach(span => {
             delete span.dataset.underlineId;
             span.classList.remove('word-underlined');
         });
-        
+
         // 清除所有统一下划线层
         const underlineDivs = document.querySelectorAll('.unified-underline');
         underlineDivs.forEach(div => div.remove());
@@ -5123,7 +5120,7 @@ class ReaderApp {
                 wordTranslations: state.wordTranslations,
                 sentenceTranslations: state.sentenceTranslations
             };
-            
+
             // 验证保存数据
             console.log('💾 保存数据验证:', {
                 高亮数量: annotations.highlights.length,
@@ -5131,7 +5128,7 @@ class ReaderApp {
                 单词翻译数量: Object.keys(annotations.wordTranslations).length,
                 句子翻译数量: Object.keys(annotations.sentenceTranslations).length
             });
-            
+
             // 如果应该有下划线但没收集到，给出警告
             const actualUnderlinedSpans = document.querySelectorAll('.pdf-text-layer span[data-underline-id]');
             if (actualUnderlinedSpans.length > 0 && annotations.underlines.length === 0) {
@@ -5280,7 +5277,7 @@ class ReaderApp {
             // 允许标准快捷键（Ctrl/Cmd + A, C, V, X, Z, Y）
             // Mac使用Cmd键（metaKey），Windows/Linux使用Ctrl键
             const isModifierKey = e.metaKey || e.ctrlKey;
-            
+
             // 标准编辑快捷键：全选、复制、粘贴、剪切、撤销
             if (isModifierKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
                 // 不阻止默认行为，让浏览器处理
@@ -5288,7 +5285,7 @@ class ReaderApp {
                 e.stopImmediatePropagation(); // 阻止同一元素上的其他监听器
                 return;
             }
-            
+
             // Mac上Cmd+Shift+Z用于重做，Windows/Linux上Ctrl+Y用于重做
             if (isModifierKey && e.shiftKey && e.key.toLowerCase() === 'z') {
                 // 允许重做快捷键（Mac）
@@ -5302,7 +5299,7 @@ class ReaderApp {
                 e.stopImmediatePropagation();
                 return;
             }
-            
+
             // 应用特定的快捷键
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -5310,7 +5307,7 @@ class ReaderApp {
                 this.sendAiMessage();
             }
         };
-        
+
         // 在捕获阶段添加监听器，确保优先处理
         chatInput.addEventListener('keydown', handleChatKeydown, { capture: true });
 
@@ -5366,11 +5363,11 @@ class ReaderApp {
             const visiblePageNum = this.getVisiblePageNumber();
             const page = await this.pdfDocument.getPage(visiblePageNum);
             const textContent = await page.getTextContent();
-            
+
             // 提取所有文本项并合并
             const textItems = textContent.items.map(item => item.str).filter(str => str && str.trim());
             const pageText = textItems.join(' ');
-            
+
             return pageText || `第${visiblePageNum}页没有文本内容`;
         } catch (error) {
             console.error('获取页面文本失败:', error);
@@ -5487,7 +5484,7 @@ class ReaderApp {
     async callAiChatAPI(userMessage, pageText, pageNum = 1) {
         // 等待限流器允许
         await this.waitForRateLimit();
-        
+
         // 记录请求时间
         const now = Date.now();
         this.apiRequestQueue.push(now);
@@ -5524,16 +5521,16 @@ ${userMessage}
         if (!response.ok) {
             const errorData = await response.json();
             console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
-            
+
             if (response.status === 429) {
                 throw new Error('API_RATE_LIMIT');
             }
-            
+
             throw new Error(`API请求失败: ${response.status}`);
         }
 
         const data = await response.json();
-        
+
         if (data.candidates && data.candidates[0] && data.candidates[0].content) {
             const text = data.candidates[0].content.parts[0].text;
             return text.trim();
@@ -5670,7 +5667,7 @@ ${userMessage}
 
         messageDiv.className = `ai-chat-message ${role}`;
         const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-        
+
         messageDiv.innerHTML = `
             <div class="ai-chat-message-bubble">${this.escapeHtml(content)}</div>
             <div class="ai-chat-message-time">${time}</div>
