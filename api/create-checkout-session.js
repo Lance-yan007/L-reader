@@ -1,7 +1,13 @@
 module.exports = async (req, res) => {
+    // Debug: Log available env vars (keys only)
+    console.log('Available Env Vars:', Object.keys(process.env));
+
     if (!process.env.STRIPE_SECRET_KEY) {
         console.error('Stripe Secret Key is missing');
-        return res.status(500).json({ message: 'Server config error: Missing Stripe Key' });
+        return res.status(500).json({
+            message: 'Server config error: Missing Stripe Key',
+            availableEnvVars: Object.keys(process.env) // Return keys to frontend for debugging
+        });
     }
     const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
