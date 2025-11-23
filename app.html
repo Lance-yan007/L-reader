@@ -7,26 +7,38 @@
     <title>L-reader - 智能英文阅读器</title>
     <link rel="stylesheet" href="src/styles/main.css">
     <link rel="stylesheet" href="src/styles/reader.css">
-    <!-- Supabase Removed for Web Version -->
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="src/scripts/config.js"></script>
     <script>
-        // Mock Supabase client to prevent errors
-        window.supabaseClient = {
-            auth: {
-                getUser: async () => ({ data: { user: null }, error: null }),
-                onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-                signOut: async () => ({ error: null })
-            },
-            from: () => ({
-                select: () => ({
-                    eq: () => ({
-                        single: async () => ({ data: null, error: null }),
-                        data: [],
-                        error: null
+        // Initialize Supabase client
+        if (typeof supabase !== 'undefined' && supabase.createClient && window.AppConfig) {
+            window.supabaseClient = supabase.createClient(
+                window.AppConfig.supabase.url,
+                window.AppConfig.supabase.anonKey
+            );
+            console.log('✅ Supabase client initialized');
+        } else {
+            console.warn('⚠️ Supabase SDK not loaded, running in offline mode');
+            // Fallback to mock client for offline mode
+            window.supabaseClient = {
+                auth: {
+                    getUser: async () => ({ data: { user: null }, error: null }),
+                    getSession: async () => ({ data: { session: null }, error: null }),
+                    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+                    signOut: async () => ({ error: null })
+                },
+                from: () => ({
+                    select: () => ({
+                        eq: () => ({
+                            single: async () => ({ data: null, error: null }),
+                            data: [],
+                            error: null
+                        })
                     })
                 })
-            })
-        };
-        console.log('Supabase disabled for web version');
+            };
+        }
     </script>
 </head>
 

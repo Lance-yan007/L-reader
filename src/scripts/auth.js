@@ -358,13 +358,13 @@ class AuthManager {
 
             // 登录成功，跳转到主界面
             if (window.location.pathname.includes('auth.html')) {
-                window.location.href = 'main.html';
+                window.location.href = '/app.html';
             } else {
                 // 在 Electron 中，使用 IPC 通知主进程
                 if (window.electron && window.electron.ipcRenderer) {
                     window.electron.ipcRenderer.send('auth-success', data);
                 } else {
-                    window.location.href = 'main.html';
+                    window.location.href = '/app.html';
                 }
             }
         } catch (error) {
@@ -442,12 +442,12 @@ class AuthManager {
                 // 注册成功且已登录，跳转到主界面
                 // 注意：用户记录应该由数据库触发器自动创建，不需要手动插入
                 if (window.location.pathname.includes('auth.html')) {
-                    window.location.href = 'main.html';
+                    window.location.href = '/app.html';
                 } else {
                     if (window.electron && window.electron.ipcRenderer) {
                         window.electron.ipcRenderer.send('auth-success', authData);
                     } else {
-                        window.location.href = 'main.html';
+                        window.location.href = '/app.html';
                     }
                 }
                 return; // 直接返回，不执行后续代码
@@ -495,7 +495,7 @@ class AuthManager {
             if (session) {
                 // 已登录，跳转到主界面
                 if (window.location.pathname.includes('auth.html')) {
-                    window.location.href = 'main.html';
+                    window.location.href = '/app.html';
                 }
             }
         } catch (error) {
