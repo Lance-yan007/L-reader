@@ -12,6 +12,10 @@
                     "value": "frame-ancestors 'self' https://l-reader.com https://www.l-reader.com;"
                 },
                 {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                },
+                {
                     "key": "X-XSS-Protection",
                     "value": "1; mode=block"
                 }

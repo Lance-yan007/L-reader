@@ -153,7 +153,10 @@ class MainApp {
 
         const iframe = document.createElement('iframe');
         iframe.className = 'document-frame';
-        iframe.setAttribute('src', 'src/reader.html');
+        // Use absolute URL to prevent relative path issues and log it
+        const readerUrl = new URL('src/reader.html', window.location.origin).href;
+        console.log('[Main] Loading iframe src:', readerUrl);
+        iframe.src = readerUrl;
         // iframe.setAttribute('nodeintegration', ''); // Not needed for iframe
         // iframe.setAttribute('webpreferences', 'contextIsolation=false'); // Not needed for iframe
         iframe.style.border = 'none';
