@@ -13,6 +13,11 @@ module.exports = async (req, res) => {
             // 创建 Stripe Checkout Session
             const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card', 'alipay', 'wechat_pay'], // 支持银行卡、支付宝、微信
+                payment_method_options: {
+                    wechat_pay: {
+                        client: 'web',
+                    },
+                },
                 line_items: [
                     {
                         price: priceId,
@@ -32,13 +37,9 @@ module.exports = async (req, res) => {
             res.status(200).json({ sessionId: session.id, url: session.url });
         } catch (err) {
             console.error('Stripe Error:', err);
-            // Return detailed error to frontend for debugging
             res.status(500).json({
                 statusCode: 500,
-                message: err.message,
-                type: err.type,
-                code: err.code,
-                param: err.param
+                message: err.message
             });
         }
     } else {
