@@ -39,6 +39,31 @@ class StorageAdapter {
     }
 
     /**
+     * 获取用户档案（包含会员状态）
+     */
+    async getUserProfile() {
+        try {
+            const userId = await this.getCurrentUserId();
+            if (!userId) return null;
+
+            const { data, error } = await window.supabaseClient
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (error) {
+                console.warn('获取用户档案失败:', error);
+                return null;
+            }
+            return data;
+        } catch (error) {
+            console.warn('获取用户档案异常:', error);
+            return null;
+        }
+    }
+
+    /**
      * 初始化IndexedDB
      */
     async initDB() {

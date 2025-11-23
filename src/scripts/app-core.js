@@ -26,6 +26,30 @@ class MainApp {
         this.bindEvents();
         this.loadRecentFiles();
         this.setupWindowStateListener();
+        this.checkSubscriptionStatus();
+    }
+
+    async checkSubscriptionStatus() {
+        try {
+            // 仅在Web环境下检查
+            if (window.StorageAdapter && window.StorageAdapter.getUserProfile) {
+                const profile = await window.StorageAdapter.getUserProfile();
+                const badge = document.getElementById('subscriptionBadge');
+
+                if (badge) {
+                    badge.style.display = 'inline-block';
+                    if (profile && profile.subscription_tier === 'pro') {
+                        badge.textContent = 'PRO';
+                        badge.className = 'subscription-badge pro';
+                    } else {
+                        badge.textContent = 'FREE';
+                        badge.className = 'subscription-badge free';
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('检查订阅状态失败:', error);
+        }
     }
 
     async loadPDFJS() {

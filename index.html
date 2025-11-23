@@ -8,6 +8,73 @@
     <meta name="description" content="L-reader是一款专为中国留学生设计的智能PDF阅读器，支持AI翻译、点词翻译、注释高亮等功能，让阅读英文文献像母语一样轻松。">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="src/scripts/config.js"></script>
+    <script>
+        // Check login status and update UI
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof supabase !== 'undefined' && window.AppConfig) {
+                const client = supabase.createClient(window.AppConfig.supabase.url, window.AppConfig.supabase.anonKey);
+                const { data: { session } } = await client.auth.getSession();
+
+                const loginBtn = document.querySelector('.btn-login');
+                if (session && loginBtn) {
+                    // User is logged in, show email
+                    const email = session.user.email;
+                    loginBtn.textContent = email.split('@')[0]; // Show username part
+                    loginBtn.href = '#'; // Optional: link to profile or do nothing
+                    loginBtn.style.background = 'transparent';
+                    loginBtn.style.color = '#333';
+                    loginBtn.style.border = '1px solid #ddd';
+                }
+
+                // Handle Buy Button Click
+                const buyBtn = document.getElementById('buyProBtn');
+                if (buyBtn) {
+                    buyBtn.addEventListener('click', async () => {
+                        if (!session) {
+                            // Not logged in, redirect to login
+                            window.location.href = 'src/auth.html';
+                            return;
+                        }
+
+                        // Logged in, start checkout
+                        buyBtn.textContent = '处理中...';
+                        buyBtn.disabled = true;
+
+                        try {
+                            const response = await fetch('/api/create-checkout-session', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    priceId: window.AppConfig.stripe.prices.lifetime,
+                                    userId: session.user.id,
+                                    userEmail: session.user.email
+                                }),
+                            });
+
+                            const data = await response.json();
+                            if (data.url) {
+                                window.location.href = data.url;
+                            } else {
+                                alert('支付初始化失败，请稍后再试');
+                                buyBtn.textContent = '立即购买';
+                                buyBtn.disabled = false;
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('支付服务暂时不可用');
+                            buyBtn.textContent = '立即购买';
+                            buyBtn.disabled = false;
+                        }
+                    });
+                }
+            }
+        });
+    </script>
 </head>
 
 <body>
@@ -26,8 +93,9 @@
                     <li><a href="#support">支持</a></li>
                 </ul>
                 <div class="nav-actions">
-                    <button class="btn-login">登录</button>
-                    <a href="app.html" class="btn-online-nav">
+                    <a href="src/auth.html" class="btn-login"
+                        style="text-decoration: none; line-height: 36px; text-align: center;">登录</a>
+                    <a href="src/auth.html" class="btn-online-nav">
                         <i class="fas fa-globe"></i>
                         <span>在线使用</span>
                     </a>
@@ -58,7 +126,7 @@
                     让您专注于学习，而不是查字典。
                 </p>
                 <div class="hero-actions">
-                    <a href="app.html" class="btn-primary btn-large">
+                    <a href="src/auth.html" class="btn-primary btn-large">
                         <i class="fas fa-globe"></i>
                         立即使用
                     </a>
@@ -307,7 +375,7 @@
                 <p class="section-subtitle">免费版即可体验核心功能，订阅解锁更多</p>
             </div>
 
-            <div class="pricing-grid">
+            <div class="pricing-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 900px; margin: 0 auto;">
                 <div class="pricing-card">
                     <div class="pricing-header">
                         <h3 class="pricing-name">免费版</h3>
@@ -324,47 +392,28 @@
                         <li><i class="fas fa-check"></i> AI助手：每日10次</li>
                         <li><i class="fas fa-check"></i> 生词本：最多100个单词</li>
                     </ul>
-                    <button class="btn-pricing">开始使用</button>
+                    <a href="src/auth.html" class="btn-pricing">开始使用</a>
                 </div>
 
                 <div class="pricing-card featured">
-                    <div class="pricing-badge">推荐</div>
+                    <div class="pricing-badge">终身版</div>
                     <div class="pricing-header">
-                        <h3 class="pricing-name">月订阅</h3>
+                        <h3 class="pricing-name">L-reader Pro</h3>
                         <div class="pricing-price">
-                            <span class="price-amount">¥39.9</span>
-                            <span class="price-period">/月</span>
+                            <span class="price-amount">$39.9</span>
+                            <span class="price-period">/终身</span>
                         </div>
+                        <div class="pricing-savings">一次付费，永久更新</div>
                     </div>
                     <ul class="pricing-features">
                         <li><i class="fas fa-check"></i> 免费版所有功能</li>
-                        <li><i class="fas fa-check"></i> 点词翻译：每日200次</li>
-                        <li><i class="fas fa-check"></i> AI助手：每日50次</li>
-                        <li><i class="fas fa-check"></i> 生词本：最多500个单词</li>
+                        <li><i class="fas fa-check"></i> <strong>无限</strong> 点词翻译</li>
+                        <li><i class="fas fa-check"></i> <strong>无限</strong> AI助手</li>
+                        <li><i class="fas fa-check"></i> <strong>无限</strong> 生词本容量</li>
                         <li><i class="fas fa-check"></i> 优先客服支持</li>
-                        <li><i class="fas fa-check"></i> 新功能优先体验</li>
+                        <li><i class="fas fa-check"></i> 支持支付宝/微信支付</li>
                     </ul>
-                    <button class="btn-pricing btn-primary">选择月订阅</button>
-                </div>
-
-                <div class="pricing-card">
-                    <div class="pricing-header">
-                        <h3 class="pricing-name">年订阅</h3>
-                        <div class="pricing-price">
-                            <span class="price-amount">¥299</span>
-                            <span class="price-period">/年</span>
-                        </div>
-                        <div class="pricing-savings">节省 ¥180</div>
-                    </div>
-                    <ul class="pricing-features">
-                        <li><i class="fas fa-check"></i> 免费版所有功能</li>
-                        <li><i class="fas fa-check"></i> 点词翻译：无限</li>
-                        <li><i class="fas fa-check"></i> AI助手：无限</li>
-                        <li><i class="fas fa-check"></i> 生词本：无限</li>
-                        <li><i class="fas fa-check"></i> 优先客服支持</li>
-                        <li><i class="fas fa-check"></i> 新功能优先体验</li>
-                    </ul>
-                    <button class="btn-pricing btn-primary">选择年订阅</button>
+                    <button class="btn-pricing btn-primary" id="buyProBtn">立即购买</button>
                 </div>
             </div>
         </div>
@@ -377,7 +426,7 @@
                 <h2 class="download-title">立即开始使用 L-reader</h2>
                 <p class="download-description">支持在线使用或下载桌面版，免费体验所有功能</p>
                 <div class="download-buttons">
-                    <a href="web-app.html" class="btn-download-platform btn-online-primary"
+                    <a href="src/auth.html" class="btn-download-platform btn-online-primary"
                         style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5); text-decoration: none;">
                         <i class="fas fa-globe"></i>
                         <div>

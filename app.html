@@ -18,6 +18,21 @@
                 window.AppConfig.supabase.anonKey
             );
             console.log('✅ Supabase client initialized');
+
+            // Enforce login: check session and redirect if needed
+            window.supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (!session) {
+                    console.log('⚠️ No active session, redirecting to login...');
+                    window.location.href = 'src/auth.html';
+                }
+            });
+
+            // Listen for auth state changes
+            window.supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT' || !session) {
+                    window.location.href = 'src/auth.html';
+                }
+            });
         } else {
             console.warn('⚠️ Supabase SDK not loaded, running in offline mode');
             // Fallback to mock client for offline mode
