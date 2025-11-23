@@ -21,7 +21,8 @@
     --action-secondary-hover: rgba(118, 118, 128, 0.18);
 }
 
-html, body {
+html,
+body {
     height: 100%;
 }
 
@@ -43,6 +44,8 @@ body {
 
 
 .window-chrome {
+    display: none !important;
+    /*
     display: grid;
     grid-template-columns: 120px 1fr 160px;
     align-items: center;
@@ -52,6 +55,7 @@ body {
     border-bottom: 1px solid var(--sidebar-border);
     position: relative;
     z-index: 6;
+    */
 }
 
 .window-chrome-left,

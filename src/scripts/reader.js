@@ -1,13 +1,42 @@
+console.log('✅ Reader script loaded (Version: cachebust1)');
 let ipcRenderer;
 try {
     // Try to load from Electron
-    const electron = require('electron');
-    ipcRenderer = electron.ipcRenderer;
+    if (window.require && window.require.name !== 'require') { // Check if it's real Electron require or our mock? 
+        // Actually, our mock require works fine.
+        const electron = require('electron');
+        ipcRenderer = electron.ipcRenderer;
+    } else {
+        throw new Error('Not in Electron');
+    }
 } catch (e) {
     // Fallback to window.ipcRenderer (Web Adapter)
     ipcRenderer = window.ipcRenderer;
-    if (!ipcRenderer) {
-        console.error('ipcRenderer not found. Ensure web-adapter.js is loaded.');
+}
+
+if (!ipcRenderer) {
+    console.error('ipcRenderer not found. Ensure web-adapter.js is loaded.');
+}
+
+// Always listen for messages from parent window if we are in an iframe (Web Mode)
+if (window.self !== window.top || window.ipcRenderer) {
+    console.log('🎧 Initializing iframe message listener');
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.channel) {
+            const { channel, args } = event.data;
+            console.log('[Reader] Received postMessage:', channel, args);
+
+            // Dispatch custom event that ipcAdapter.on() listens for
+            window.dispatchEvent(new CustomEvent(`ipc-${channel}`, {
+                detail: args || []
+            }));
+        }
+    });
+
+    // Send ready signal to parent
+    if (window.parent && window.parent !== window) {
+        console.log('👋 Sending reader-ready signal to parent');
+        window.parent.postMessage({ channel: 'reader-ready' }, '*');
     }
 }
 

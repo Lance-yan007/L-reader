@@ -29,6 +29,11 @@
         };
         console.log('Supabase disabled for web version');
     </script>
+    <!-- 加载Web适配层 -->
+    <script src="../web-utils/web-fs-adapter.js"></script>
+    <script src="../web-utils/web-storage-adapter.js"></script>
+    <script src="../web-utils/web-ipc-adapter.js"></script>
+    <script src="../web-utils/web-pdf-adapter.js"></script>
 </head>
 
 <body>
@@ -376,7 +381,7 @@
         </div>
     </div>
 
-    <script src="/src/scripts/reader.js"></script>
+    <script src="scripts/reader.js?v=cachebust1"></script>
 </body>
 
 </html>

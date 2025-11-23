@@ -26,17 +26,17 @@ const ipcAdapter = {
 
             case 'read-file':
                 // 文件读取由 file-system-adapter 处理
-                if (window.FileSystemAdapter) {
-                    return window.FileSystemAdapter.readFile(args[0]);
+                if (window.WebFSAdapter) {
+                    return window.WebFSAdapter.readFile(args[0]);
                 } else {
-                    return { success: false, error: 'FileSystemAdapter未初始化' };
+                    return { success: false, error: 'WebFSAdapter未初始化' };
                 }
 
             case 'open-file-dialog':
-                return window.FileSystemAdapter.openFileDialog();
+                return window.WebFSAdapter.openFileDialog();
 
             case 'open-folder-dialog':
-                return window.FileSystemAdapter.openFolderDialog();
+                return window.WebFSAdapter.openFolderDialog();
 
             case 'save-translation':
                 return window.StorageAdapter.saveTranslation(args[0], args[1]);

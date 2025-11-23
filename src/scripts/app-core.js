@@ -1,74 +1,17 @@
 const { ipcRenderer } = require('electron');
 const path = require('path');
 
-// 加载 auth-helper（使用绝对路径确保能正确加载）
-let authHelper;
-try {
-    // 在 Electron 渲染进程中，__dirname 可能指向 src/ 或 src/scripts/
-    // 尝试多种路径
-    const possiblePaths = [
-        path.join(__dirname, '../utils/auth-helper.js'),  // 如果 __dirname 是 src/scripts/
-        path.join(__dirname, 'utils/auth-helper.js'),     // 如果 __dirname 是 src/
-        path.resolve(__dirname, '../utils/auth-helper.js'),
-        path.resolve(__dirname, 'utils/auth-helper.js')
-    ];
-
-    console.log('📦 加载 auth-helper...');
-    console.log('   当前目录 (__dirname):', __dirname);
-
-    let loaded = false;
-    for (const tryPath of possiblePaths) {
-        try {
-            console.log('   尝试路径:', tryPath);
-            authHelper = require(tryPath).authHelper;
-            console.log('   ✅ 成功加载，使用路径:', tryPath);
-            loaded = true;
-            break;
-        } catch (e) {
-            continue;
-        }
-    }
-
-    if (!loaded) {
-        throw new Error('所有路径尝试都失败');
-    }
-
-    console.log('✅ auth-helper 加载成功！');
-} catch (e) {
-    console.error('❌ 加载 auth-helper 失败:', e.message);
-    console.error('   错误详情:', e);
-
-    // 创建一个降级的 authHelper 对象，避免应用崩溃
-    console.warn('⚠️ 使用降级模式：认证功能暂时不可用，但应用可以正常运行');
-    authHelper = {
-        checkAuth: async () => {
-            console.warn('⚠️ auth-helper 未加载，跳过认证检查');
-            return { isAuthenticated: false, user: null, session: null };
-        },
-        getCurrentUser: async () => null,
-        getUserProfile: async () => null,
-        logout: async () => {
-            console.warn('⚠️ 认证功能未加载，无法登出');
-            return { success: false };
-        },
-        onAuthStateChange: () => {
-            console.warn('⚠️ 认证监听未加载');
-            return { data: { subscription: null } };
-        }
-    };
-}
+// Web版本：完全移除Supabase/Auth相关逻辑
+const authHelper = null;
 
 class MainApp {
     constructor() {
         this.recentFiles = [];
         this.pdfLib = null;
-        this.homeTabId = 'tab-home';
-        this.tabs = [];
-        this.activeTabId = null;
-        this.tabLookupByPath = new Map();
-        this.tabStrip = null;
-        this.tabAddButton = null;
+        this.activeView = 'home';
         this.homeView = null;
+        this.vocabularyView = null;
+        this.profileView = null;
         this.documentPanels = null;
         this.currentRenamingCard = null;
         this.currentRenamingInput = null;
@@ -77,356 +20,47 @@ class MainApp {
     }
 
     async init() {
-        // 检查登录状态（Web版本已禁用）
-        console.log('Web版本：跳过认证检查');
-        // try {
-        //     await this.checkAuth();
-        // } catch (error) {
-        //     console.warn('认证检查失败，继续运行应用:', error);
-        // }
-
+        console.log('MainApp initializing...');
         this.cacheDom();
-        this.setupTabSystem();
         await this.loadPDFJS();
         this.bindEvents();
         this.loadRecentFiles();
         this.setupWindowStateListener();
-
-        // 只有在 authHelper 加载成功时才设置监听
-        if (authHelper && typeof authHelper.onAuthStateChange === 'function') {
-            this.setupAuthListener();
-        }
-    }
-
-    async checkAuth() {
-        console.log('Web版本：认证功能已禁用');
-        return;
-    }
-
-    async loadUserInfo() {
-        if (!authHelper) {
-            console.warn('authHelper 未加载，跳过加载用户信息');
-            return;
-        }
-
-        try {
-            const userProfile = await authHelper.getUserProfile();
-            const user = await authHelper.getCurrentUser();
-
-            if (userProfile) {
-                this.updateUserUI(userProfile);
-            } else if (user) {
-                // 如果没有用户资料，使用认证信息
-                this.updateUserUI({
-                    email: user.email,
-                    username: user.email?.split('@')[0] || '用户'
-                });
-            }
-        } catch (error) {
-            console.error('加载用户信息失败:', error);
-        }
-    }
-
-    updateUserUI(userProfile) {
-        // 更新个人中心按钮显示的用户名（如果需要）
-        const profileNavLabel = document.getElementById('profileNavLabel');
-        if (profileNavLabel && userProfile) {
-            const displayName = userProfile.username || userProfile.email?.split('@')[0] || '个人中心';
-            profileNavLabel.textContent = displayName;
-        }
-    }
-
-    setupAuthListener() {
-        console.log('Web版本：跳过认证监听');
-    }
-
-    async handleLogout() {
-        alert('Web版本无需登录/登出');
-    }
-
-    async handleDeleteAccount() {
-        if (!confirm('确定要删除账号吗？此操作不可恢复，所有数据将被永久删除。')) {
-            return;
-        }
-
-        if (!confirm('再次确认：你真的要删除账号吗？')) {
-            return;
-        }
-
-        try {
-            alert('账号删除功能开发中...');
-            // TODO: 实现账号删除功能
-        } catch (error) {
-            console.error('删除账号失败:', error);
-            alert('删除账号失败：' + error.message);
-        }
     }
 
     async loadPDFJS() {
         try {
-            const pdfjsLib = window['pdfjs-dist/build/pdf'];
-            if (!pdfjsLib) {
+            // 优先使用适配器加载
+            if (window.PDFJSAdapter) {
+                this.pdfLib = await window.PDFJSAdapter.load();
+                console.log('PDF.js loaded via adapter');
+            } else if (window.pdfjsLib) {
+                this.pdfLib = window.pdfjsLib;
+                console.log('PDF.js found in window');
+            } else {
+                // Fallback for Electron environment
                 this.pdfLib = require('pdfjs-dist');
                 this.pdfLib.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.js';
-            } else {
-                this.pdfLib = pdfjsLib;
+                console.log('PDF.js loaded via require');
             }
-            console.log('PDF.js加载成功');
         } catch (error) {
             console.error('加载PDF.js失败:', error);
         }
     }
 
     cacheDom() {
-        this.tabStrip = document.getElementById('tabStrip');
-        this.tabAddButton = document.getElementById('tabAddButton');
+        // this.tabStrip = document.getElementById('tabStrip');
+        // this.tabAddButton = document.getElementById('tabAddButton');
         this.homeView = document.getElementById('homeView');
         this.vocabularyView = document.getElementById('vocabularyView');
         this.profileView = document.getElementById('profileView');
         this.documentPanels = document.getElementById('documentPanels');
     }
 
-    setupTabSystem() {
-        if (!this.tabStrip || !this.homeView) {
-            return;
-        }
+    switchView(viewName) {
+        this.activeView = viewName;
 
-        this.homeView.dataset.tabId = this.homeTabId;
-        if (!this.homeView.getAttribute('role')) {
-            this.homeView.setAttribute('role', 'tabpanel');
-        }
-        this.homeView.setAttribute('aria-labelledby', this.homeTabId);
-
-        const homeTab = {
-            id: this.homeTabId,
-            type: 'home',
-            title: '主页',
-            icon: 'home',
-            displayLabel: false,
-            closable: false,
-            panelElement: this.homeView
-        };
-
-        this.tabs = [homeTab];
-        this.activeTabId = this.homeTabId;
-
-        this.renderTabStrip();
-        this.updateTabStates();
-
-        if (this.tabAddButton) {
-            this.tabAddButton.addEventListener('click', () => {
-                this.openFile();
-            });
-        }
-    }
-
-    createTabButton(tab) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'tab-item';
-        button.setAttribute('role', 'tab');
-        button.setAttribute('id', tab.id);
-        button.dataset.tabId = tab.id;
-
-        const titleText = tab.title || '未命名';
-        button.setAttribute('title', titleText);
-
-        if (tab.panelElement && tab.panelElement.id) {
-            button.setAttribute('aria-controls', tab.panelElement.id);
-        }
-
-        if (tab.icon) {
-            const iconMarkup = this.getTabIconMarkup(tab.icon);
-            if (iconMarkup) {
-                const iconSpan = document.createElement('span');
-                iconSpan.className = 'tab-icon';
-                iconSpan.innerHTML = iconMarkup;
-                button.appendChild(iconSpan);
-            }
-        }
-
-        const shouldShowLabel = tab.displayLabel !== false;
-
-        if (shouldShowLabel) {
-            const label = document.createElement('span');
-            label.className = 'tab-label';
-            label.textContent = titleText;
-            button.appendChild(label);
-        } else {
-            button.classList.add('tab-icon-only');
-            button.setAttribute('aria-label', titleText);
-        }
-
-        if (tab.closable) {
-            const closeBtn = document.createElement('button');
-            closeBtn.type = 'button';
-            closeBtn.className = 'tab-close';
-            closeBtn.setAttribute('aria-label', '关闭标签');
-            closeBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L12 13.41l-4.89 4.89-1.41-1.41L10.59 12 5.7 7.11 7.11 5.7 12 10.59l4.89-4.89z" /></svg>';
-            closeBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                this.closeTab(tab.id);
-            });
-            button.appendChild(closeBtn);
-        }
-
-        button.addEventListener('click', () => {
-            this.setActiveTab(tab.id);
-        });
-
-        return button;
-    }
-
-    getTabIconMarkup(name) {
-        switch (name) {
-            case 'home':
-                return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.5h-5V21H5a1 1 0 0 1-1-1v-9.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
-            default:
-                return '';
-        }
-    }
-
-    renderTabStrip() {
-        if (!this.tabStrip) {
-            return;
-        }
-
-        this.tabStrip.innerHTML = '';
-        this.tabs.forEach(tab => {
-            tab.buttonElement = this.createTabButton(tab);
-            this.tabStrip.appendChild(tab.buttonElement);
-        });
-    }
-
-    updateTabStates() {
-        this.tabs.forEach(tab => {
-            const isActive = tab.id === this.activeTabId;
-            if (tab.buttonElement) {
-                tab.buttonElement.classList.toggle('is-active', isActive);
-                tab.buttonElement.setAttribute('aria-selected', isActive ? 'true' : 'false');
-                tab.buttonElement.setAttribute('tabindex', isActive ? '0' : '-1');
-            }
-            if (tab.panelElement) {
-                tab.panelElement.classList.toggle('is-active', isActive);
-            }
-        });
-
-        if (this.tabStrip) {
-            this.tabStrip.setAttribute('aria-activedescendant', this.activeTabId || '');
-        }
-    }
-
-    ensureActiveTabVisible() {
-        if (!this.tabStrip) {
-            return;
-        }
-
-        const activeTab = this.tabs.find(tab => tab.id === this.activeTabId);
-        if (!activeTab || !activeTab.buttonElement) {
-            return;
-        }
-
-        const tabRect = activeTab.buttonElement.getBoundingClientRect();
-        const stripRect = this.tabStrip.getBoundingClientRect();
-
-        if (tabRect.left < stripRect.left) {
-            this.tabStrip.scrollBy({ left: tabRect.left - stripRect.left - 12, behavior: 'smooth' });
-        } else if (tabRect.right > stripRect.right) {
-            this.tabStrip.scrollBy({ left: tabRect.right - stripRect.right + 12, behavior: 'smooth' });
-        }
-    }
-
-    setActiveTab(tabId) {
-        const targetTab = this.tabs.find(tab => tab.id === tabId);
-        if (!targetTab) {
-            return;
-        }
-
-        this.activeTabId = tabId;
-        this.updateTabStates();
-        this.ensureActiveTabVisible();
-
-        // 根据标签类型显示/隐藏相应的视图
-        if (targetTab.type === 'document') {
-            // 隐藏home view、vocabulary view和profile view
-            if (this.homeView) {
-                this.homeView.classList.remove('is-active');
-                this.homeView.style.display = 'none';
-            }
-            if (this.vocabularyView) {
-                this.vocabularyView.classList.remove('is-active');
-                this.vocabularyView.style.display = 'none';
-            }
-            if (this.profileView) {
-                this.profileView.classList.remove('is-active');
-                this.profileView.style.display = 'none';
-            }
-            // 显示对应的文档面板，隐藏其他面板
-            if (this.documentPanels) {
-                const panels = this.documentPanels.querySelectorAll('.document-panel');
-                panels.forEach(panel => {
-                    const panelTabId = panel.dataset.tabId;
-                    if (panelTabId === tabId) {
-                        panel.classList.add('is-active');
-                        panel.style.display = 'flex';
-                    } else {
-                        panel.classList.remove('is-active');
-                        panel.style.display = 'none';
-                    }
-                });
-            }
-            // 更新导航状态
-            this.updateNavActiveState(null);
-            // 聚焦webview
-            if (targetTab.webview) {
-                try {
-                    targetTab.webview.focus();
-                } catch (error) {
-                    console.warn('无法聚焦文档标签:', error);
-                }
-            }
-        } else if (targetTab.type === 'home') {
-            // 显示home view
-            if (this.homeView) {
-                this.homeView.classList.add('is-active');
-                this.homeView.style.display = 'flex';
-            }
-            // 隐藏vocabulary view
-            if (this.vocabularyView) {
-                this.vocabularyView.classList.remove('is-active');
-                this.vocabularyView.style.display = 'none';
-            }
-            // 隐藏profile view
-            if (this.profileView) {
-                this.profileView.classList.remove('is-active');
-                this.profileView.style.display = 'none';
-            }
-            // 隐藏所有文档面板
-            if (this.documentPanels) {
-                const panels = this.documentPanels.querySelectorAll('.document-panel');
-                panels.forEach(panel => {
-                    panel.classList.remove('is-active');
-                    panel.style.display = 'none';
-                });
-            }
-            // 更新导航状态
-            this.updateNavActiveState('home');
-        }
-    }
-
-    openDocumentTab(filePath) {
-        if (!filePath || !this.documentPanels) {
-            return;
-        }
-
-        const normalizedPath = path.resolve(filePath);
-        const existingTabId = this.tabLookupByPath.get(normalizedPath);
-        if (existingTabId) {
-            this.setActiveTab(existingTabId);
-            return;
-        }
-
-        // 隐藏home view和vocabulary view
+        // Hide all views first
         if (this.homeView) {
             this.homeView.classList.remove('is-active');
             this.homeView.style.display = 'none';
@@ -435,137 +69,107 @@ class MainApp {
             this.vocabularyView.classList.remove('is-active');
             this.vocabularyView.style.display = 'none';
         }
+        if (this.profileView) {
+            this.profileView.classList.remove('is-active');
+            this.profileView.style.display = 'none';
+        }
+        if (this.documentPanels) {
+            const panels = this.documentPanels.querySelectorAll('.document-panel');
+            panels.forEach(panel => {
+                panel.classList.remove('is-active');
+                panel.style.display = 'none';
+            });
+        }
 
-        const tabId = `tab-doc-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
+        // Show requested view
+        if (viewName === 'home') {
+            if (this.homeView) {
+                this.homeView.classList.add('is-active');
+                this.homeView.style.display = 'flex';
+            }
+            this.updateNavActiveState('home');
+        } else if (viewName === 'vocabulary') {
+            if (this.vocabularyView) {
+                this.vocabularyView.classList.add('is-active');
+                this.vocabularyView.style.display = 'flex';
+            }
+            this.updateNavActiveState('vocabulary');
+        } else if (viewName === 'profile') {
+            if (this.profileView) {
+                this.profileView.classList.add('is-active');
+                this.profileView.style.display = 'flex';
+            }
+            this.updateNavActiveState('profile');
+        }
+    }
+
+    openDocumentTab(filePath) {
+        if (!filePath || !this.documentPanels) {
+            return;
+        }
+
+        // In web version, file paths from WebFSAdapter are already in correct format
+        const normalizedPath = filePath;
+
+        // Hide other views
+        this.switchView('document');
+
+        // Check if panel already exists (simplified logic for web version)
+        // For now, we just create a new one or reuse if we had a map. 
+        // Since we removed tabLookupByPath, let's just create a new one for simplicity 
+        // or clear existing ones if we want single document mode.
+        // Let's clear existing for single doc mode in web version for now to keep it simple.
+        this.documentPanels.innerHTML = '';
+
+        const tabId = `doc-${Date.now()}`;
         const panel = document.createElement('div');
         panel.className = 'tab-panel document-panel is-active';
         panel.id = `${tabId}-panel`;
-        panel.dataset.tabId = tabId;
-        panel.setAttribute('role', 'tabpanel');
-        panel.setAttribute('aria-labelledby', tabId);
+        panel.style.display = 'flex';
 
-        const webview = document.createElement('webview');
-        webview.className = 'document-frame';
-        webview.setAttribute('src', 'reader.html');
-        webview.setAttribute('nodeintegration', '');
-        webview.setAttribute('webpreferences', 'contextIsolation=false');
+        const iframe = document.createElement('iframe');
+        iframe.className = 'document-frame';
+        iframe.setAttribute('src', 'src/reader.html');
+        // iframe.setAttribute('nodeintegration', ''); // Not needed for iframe
+        // iframe.setAttribute('webpreferences', 'contextIsolation=false'); // Not needed for iframe
+        iframe.style.border = 'none';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
 
-        panel.appendChild(webview);
+        panel.appendChild(iframe);
         this.documentPanels.appendChild(panel);
 
-        const newTab = {
-            id: tabId,
-            type: 'document',
-            title: this.getFileName(filePath),
-            filePath: normalizedPath,
-            closable: true,
-            panelElement: panel,
-            webview
-        };
-
-        this.tabs.push(newTab);
-        this.tabLookupByPath.set(normalizedPath, tabId);
-
-        this.attachWebviewEvents(newTab, normalizedPath);
-        this.renderTabStrip();
-        this.setActiveTab(tabId);
-    }
-
-    attachWebviewEvents(tab, filePath) {
-        if (!tab.webview) {
-            return;
-        }
-
         const sendFileToReader = () => {
-            try {
-                tab.webview.send('set-embed-mode', { embedded: true });
-                tab.webview.send('file-opened', filePath);
-            } catch (error) {
-                console.error('向阅读器标签发送文件失败:', error);
-            }
+            // Add a small delay to ensure iframe scripts are fully loaded
+            setTimeout(() => {
+                try {
+                    console.log('[Main] Sending file to reader iframe:', normalizedPath);
+                    // Use postMessage for iframe communication
+                    if (iframe.contentWindow) {
+                        console.log('[Main] iframe.contentWindow exists, sending messages...');
+                        iframe.contentWindow.postMessage({
+                            channel: 'set-embed-mode',
+                            args: [{ embedded: true }]
+                        }, '*');
+
+                        iframe.contentWindow.postMessage({
+                            channel: 'file-opened',
+                            args: [normalizedPath]
+                        }, '*');
+                        console.log('[Main] Messages sent successfully');
+                    } else {
+                        console.error('[Main] iframe.contentWindow is null!');
+                    }
+                } catch (error) {
+                    console.error('向阅读器发送文件失败:', error);
+                }
+            }, 500); // Wait 500ms for iframe scripts to initialize
         };
 
-        tab.webview.addEventListener('did-finish-load', sendFileToReader);
+        iframe.addEventListener('load', sendFileToReader);
 
-        // 为webview添加开发者工具快捷键支持
-        // 在webview中按 F12 或 Ctrl+Shift+I (Windows/Linux) 或 Cmd+Option+I (Mac) 打开开发者工具
-        tab.webview.addEventListener('dom-ready', () => {
-            // 通过IPC让webview打开开发者工具
-            tab.webview.addEventListener('console-message', (e) => {
-                // 将所有webview的console输出也输出到主窗口控制台
-                console.log(`[WebView ${tab.id}]:`, e.message);
-            });
-        });
-
-        tab.webview.addEventListener('ipc-message', (event) => {
-            if (!event || !event.channel) {
-                return;
-            }
-
-            if (event.channel === 'close-tab-request') {
-                this.closeTab(tab.id);
-            } else if (event.channel === 'update-tab-title' && event.args && event.args[0]) {
-                const newTitle = event.args[0].title;
-                if (newTitle && tab.title !== newTitle) {
-                    tab.title = newTitle;
-                    this.renderTabStrip();
-                    this.updateTabStates();
-                }
-            }
-        });
-    }
-
-    closeTab(tabId) {
-        const tabIndex = this.tabs.findIndex(tab => tab.id === tabId);
-        if (tabIndex === -1) {
-            return;
-        }
-
-        const tab = this.tabs[tabIndex];
-        if (!tab.closable) {
-            return;
-        }
-
-        const isActive = this.activeTabId === tabId;
-
-        // 先隐藏面板，避免白屏
-        if (tab.panelElement && tab.type === 'document') {
-            tab.panelElement.style.display = 'none';
-        }
-
-        // 确定下一个要激活的标签
-        let nextActiveId = null;
-        if (isActive) {
-            // 优先选择同类型的下一个标签，如果没有则选择主页
-            const nextTab = this.tabs[tabIndex + 1] || this.tabs[tabIndex - 1];
-            nextActiveId = nextTab ? nextTab.id : this.homeTabId;
-        }
-
-        // 先切换到下一个标签（如果关闭的是当前标签）
-        if (isActive && nextActiveId) {
-            this.setActiveTab(nextActiveId);
-        }
-
-        // 延迟删除DOM元素，避免阻塞UI
-        setTimeout(() => {
-            if (tab.panelElement && tab.panelElement.parentNode) {
-                tab.panelElement.parentNode.removeChild(tab.panelElement);
-            }
-        }, 100);
-
-        if (tab.filePath) {
-            this.tabLookupByPath.delete(tab.filePath);
-        }
-
-        this.tabs.splice(tabIndex, 1);
-        this.renderTabStrip();
-
-        // 如果没有下一个标签，确保显示主页
-        if (!nextActiveId || this.tabs.length === 1) {
-            this.activeTabId = this.homeTabId;
-            this.setActiveTab(this.homeTabId);
-            this.updateNavActiveState('home');
-        }
+        // Update nav state to show no active sidebar item
+        this.updateNavActiveState(null);
     }
 
     bindEvents() {
@@ -586,36 +190,20 @@ class MainApp {
         const homeNavBtn = document.getElementById('homeNavBtn');
         if (homeNavBtn) {
             homeNavBtn.addEventListener('click', () => {
-                // 隐藏vocabulary view
-                if (this.vocabularyView) {
-                    this.vocabularyView.classList.remove('is-active');
-                    this.vocabularyView.style.display = 'none';
-                }
-                // 隐藏profile view
-                if (this.profileView) {
-                    this.profileView.classList.remove('is-active');
-                    this.profileView.style.display = 'none';
-                }
-                // 显示home view
-                if (this.homeView) {
-                    this.homeView.classList.add('is-active');
-                    this.homeView.style.display = 'flex';
-                }
+                this.switchView('home');
                 if (this.recentFiles.length > 0) {
                     this.showFilesView();
                     this.renderRecentFiles();
                 } else {
                     this.showWelcomeView();
                 }
-                this.setActiveTab(this.homeTabId);
-                this.updateNavActiveState('home');
             });
         }
 
         const vocabularyNavBtn = document.getElementById('vocabularyNavBtn');
         if (vocabularyNavBtn) {
             vocabularyNavBtn.addEventListener('click', () => {
-                this.showVocabularyView();
+                this.switchView('vocabulary');
             });
         }
 
@@ -623,7 +211,7 @@ class MainApp {
         const profileNavBtn = document.getElementById('profileNavBtn');
         if (profileNavBtn) {
             profileNavBtn.addEventListener('click', () => {
-                this.showProfileView();
+                this.switchView('profile');
             });
         }
 
@@ -650,14 +238,14 @@ class MainApp {
             });
         }
 
-        if (this.tabStrip) {
-            this.tabStrip.addEventListener('wheel', (event) => {
-                if (event.deltaY !== 0) {
-                    event.preventDefault();
-                    this.tabStrip.scrollBy({ left: event.deltaY, behavior: 'auto' });
-                }
-            }, { passive: false });
-        }
+        // if (this.tabStrip) {
+        //     this.tabStrip.addEventListener('wheel', (event) => {
+        //         if (event.deltaY !== 0) {
+        //             event.preventDefault();
+        //             this.tabStrip.scrollBy({ left: event.deltaY, behavior: 'auto' });
+        //         }
+        //     }, { passive: false });
+        // }
 
         ipcRenderer.on('open-document-tab', (_event, filePath) => {
             if (filePath) {
@@ -775,31 +363,7 @@ class MainApp {
         document.getElementById('filesView').style.display = 'flex';
     }
 
-    showVocabularyView() {
-        // 隐藏home view
-        if (this.homeView) {
-            this.homeView.classList.remove('is-active');
-            this.homeView.style.display = 'none';
-        }
-        // 隐藏profile view
-        if (this.profileView) {
-            this.profileView.classList.remove('is-active');
-            this.profileView.style.display = 'none';
-        }
-        // 显示vocabulary view
-        if (this.vocabularyView) {
-            this.vocabularyView.classList.add('is-active');
-            this.vocabularyView.style.display = 'flex';
-        }
-        // 隐藏所有文档面板
-        if (this.documentPanels) {
-            const panels = this.documentPanels.querySelectorAll('.document-panel');
-            panels.forEach(panel => {
-                panel.style.display = 'none';
-            });
-        }
-        this.updateNavActiveState('vocabulary');
-    }
+
 
     showProfileView() {
         // 隐藏home view
@@ -971,12 +535,12 @@ class MainApp {
         const fileType = this.getFileType(filePath);
 
         let fileSize = 'unknown';
-        try {
-            const fs = require('fs');
-            const stats = fs.statSync(filePath);
-            fileSize = this.formatFileSize(stats.size);
-        } catch (error) {
-            console.error('获取文件大小失败:', error);
+
+        // Web version: fs module is not available
+        // If we have metadata from WebFSAdapter, we could use it, but for now let's skip fs.statSync
+        if (window.WebFSAdapter) {
+            // Try to get metadata if possible, or just leave as unknown
+            // For recent files, we might not have the file handle readily available to query size without re-opening
         }
 
         const fileInfo = {
