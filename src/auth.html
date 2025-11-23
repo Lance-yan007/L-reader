@@ -1,21 +1,22 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgdfwbqcjmjxdsxvmgot.supabase.co https://cdn.jsdelivr.net;">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rjmumvfwpbcvtkllcehm.supabase.co https://cdn.jsdelivr.net;">
     <title>登录 - L-reader</title>
     <link rel="stylesheet" href="styles/auth.css">
+    <!-- 加载配置文件 -->
+    <script src="scripts/config.js"></script>
     <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         // 初始化 Supabase 客户端（立即执行，不等待 DOMContentLoaded）
         // 将配置作为 window 对象的属性，避免与 auth.js 中的常量冲突
-        window.SUPABASE_CONFIG = {
-            url: 'https://xgdfwbqcjmjxdsxvmgot.supabase.co',
-            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw'
-        };
-        
+        window.SUPABASE_CONFIG = window.AppConfig.supabase;
+
         // 初始化 Supabase 客户端的函数
         function initSupabaseClient() {
             if (typeof supabase !== 'undefined' && supabase.createClient && window.SUPABASE_CONFIG) {
@@ -35,7 +36,7 @@
             }
             return false;
         }
-        
+
         // 立即尝试初始化（如果 CDN 已加载）
         if (!initSupabaseClient()) {
             // 如果失败，等待 CDN 加载完成
@@ -54,6 +55,7 @@
         }
     </script>
 </head>
+
 <body>
     <div class="auth-container">
         <div class="auth-card">
@@ -87,18 +89,10 @@
                         或输入邮箱地址重新发送验证邮件：
                     </p>
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <input 
-                            type="email" 
-                            id="resendEmailInput" 
-                            placeholder="your@email.com" 
-                            style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
-                        >
-                        <button 
-                            type="button" 
-                            id="resendEmailBtn" 
-                            class="btn btn-primary" 
-                            style="padding: 8px 16px; width: auto; font-size: 14px;"
-                        >
+                        <input type="email" id="resendEmailInput" placeholder="your@email.com"
+                            style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <button type="button" id="resendEmailBtn" class="btn btn-primary"
+                            style="padding: 8px 16px; width: auto; font-size: 14px;">
                             发送
                         </button>
                     </div>
@@ -137,5 +131,5 @@
 
     <script src="scripts/auth.js"></script>
 </body>
-</html>
 
+</html>

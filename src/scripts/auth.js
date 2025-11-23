@@ -3,8 +3,23 @@
 let supabase;
 
 // Supabase 配置
-const SUPABASE_URL = 'https://xgdfwbqcjmjxdsxvmgot.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw';
+// Supabase 配置
+let SUPABASE_URL = 'https://xgdfwbqcjmjxdsxvmgot.supabase.co';
+let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw';
+
+// 尝试从配置文件加载
+if (typeof window !== 'undefined' && window.AppConfig) {
+    SUPABASE_URL = window.AppConfig.supabase.url;
+    SUPABASE_ANON_KEY = window.AppConfig.supabase.anonKey;
+} else if (typeof require !== 'undefined') {
+    try {
+        const AppConfig = require('./config');
+        SUPABASE_URL = AppConfig.supabase.url;
+        SUPABASE_ANON_KEY = AppConfig.supabase.anonKey;
+    } catch (e) {
+        // 忽略错误，使用默认值
+    }
+}
 
 // 初始化 Supabase 客户端
 try {
@@ -13,7 +28,7 @@ try {
     if (typeof window !== 'undefined' && window.supabaseClient) {
         supabase = window.supabaseClient;
         console.log('✅ 使用预初始化的 Supabase 客户端');
-    } 
+    }
     // 如果还没有初始化，尝试使用全局 supabase 对象创建客户端
     else if (typeof window !== 'undefined' && typeof supabase !== 'undefined' && supabase.createClient) {
         // 优先使用 window.SUPABASE_CONFIG（如果存在），否则使用本地常量
@@ -22,7 +37,7 @@ try {
         supabase = supabase.createClient(url, key);
         window.supabaseClient = supabase; // 保存到全局，供后续使用
         console.log('✅ 创建浏览器 Supabase 客户端');
-    } 
+    }
     // 如果在 Electron 环境中，尝试使用 Node.js 版本
     else if (typeof require !== 'undefined') {
         try {
@@ -34,7 +49,7 @@ try {
                 path.resolve(__dirname, 'utils/supabase.js'),
                 path.resolve(__dirname, '../utils/supabase.js')
             ];
-            
+
             let loaded = false;
             for (const tryPath of possiblePaths) {
                 try {
@@ -47,7 +62,7 @@ try {
                     continue;
                 }
             }
-            
+
             if (!loaded) {
                 throw new Error('无法加载 Supabase 模块');
             }
@@ -91,10 +106,10 @@ class AuthManager {
     init() {
         // 检查 URL 参数，看是否从验证链接跳转回来
         this.checkVerificationCallback();
-        
+
         // 检查是否已登录
         this.checkAuth();
-        
+
         // 绑定事件
         this.bindEvents();
     }
@@ -104,11 +119,11 @@ class AuthManager {
         const urlParams = new URLSearchParams(window.location.search);
         const type = urlParams.get('type');
         const token = urlParams.get('token');
-        
+
         if (type === 'signup' && token) {
             // 用户从验证链接跳转回来
             this.showSuccessMessage('邮箱验证成功！请使用你的邮箱和密码登录。');
-            
+
             // 清理 URL 参数
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -118,7 +133,7 @@ class AuthManager {
         // 登录/注册切换
         const showRegisterBtn = document.getElementById('showRegister');
         const showLoginBtn = document.getElementById('showLogin');
-        
+
         if (showRegisterBtn) {
             showRegisterBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -208,20 +223,20 @@ class AuthManager {
         const registerForm = document.getElementById('registerForm');
         const resendContainer = document.getElementById('resendVerificationContainer');
         const resendForm = document.getElementById('resendVerificationForm');
-        
+
         if (loginForm) loginForm.style.display = 'block';
         if (registerForm) registerForm.style.display = 'none';
-        
+
         // 如果有待验证的邮箱，显示重新发送链接
         if (resendContainer) {
             resendContainer.style.display = 'block'; // 总是显示，让用户可以输入邮箱
         }
-        
+
         // 默认隐藏输入框
         if (resendForm) {
             resendForm.style.display = 'none';
         }
-        
+
         this.hideError();
     }
 
@@ -268,7 +283,7 @@ class AuthManager {
     async resendVerificationEmail(email = null) {
         // 如果没有提供邮箱，使用保存的邮箱或登录框中的邮箱
         const emailToUse = email || this.pendingVerificationEmail || document.getElementById('loginEmail')?.value;
-        
+
         if (!emailToUse) {
             this.showError('请输入邮箱地址');
             // 如果登录框为空，聚焦到登录邮箱输入框
@@ -444,20 +459,20 @@ class AuthManager {
             // 2. 用户记录应该由数据库触发器自动创建
             // 3. 如果触发器不存在，用户验证邮箱后登录时再创建也可以
             console.log('ℹ️ 注册成功，但需要邮箱验证');
-            
+
             // 显示友好的提示信息（使用成功消息，不是错误消息）
             this.showSuccessMessage(
                 `注册成功！我们已向 ${email} 发送了一封验证邮件。\n\n` +
                 `请检查你的邮箱（包括垃圾邮件文件夹），点击验证链接完成注册。\n\n` +
                 `验证成功后，你就可以使用邮箱和密码登录了。`
             );
-            
+
             // 保存邮箱地址，用于重新发送验证邮件
             this.pendingVerificationEmail = email;
-            
+
             // 切换到登录页面，但显示提示
             this.showLogin();
-            
+
             // 清空注册表单
             document.getElementById('registerEmail').value = '';
             document.getElementById('registerUsername').value = '';
@@ -496,7 +511,7 @@ function initAuthManager() {
         new AuthManager();
         return;
     }
-    
+
     // 否则等待 Supabase 客户端初始化
     // 优先监听自定义事件
     const onSupabaseReady = () => {
@@ -506,14 +521,14 @@ function initAuthManager() {
         }
     };
     window.addEventListener('supabase-ready', onSupabaseReady);
-    
+
     // 同时使用轮询作为备用（最多等待 10 秒）
     let attempts = 0;
     const maxAttempts = 100; // 100 * 100ms = 10秒
-    
+
     const checkSupabase = setInterval(() => {
         attempts++;
-        
+
         if (typeof window !== 'undefined' && window.supabaseClient) {
             clearInterval(checkSupabase);
             window.removeEventListener('supabase-ready', onSupabaseReady);
