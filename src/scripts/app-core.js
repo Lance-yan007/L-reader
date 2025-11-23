@@ -268,6 +268,20 @@ class MainApp {
         });
 
         this.initSidebarInteractions();
+
+        // Listen for messages from reader iframe
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.channel === 'close-document') {
+                console.log('[Main] Received close-document signal');
+                this.switchView('home');
+                if (this.recentFiles.length > 0) {
+                    this.showFilesView();
+                    this.renderRecentFiles();
+                } else {
+                    this.showWelcomeView();
+                }
+            }
+        });
     }
 
     initSidebarInteractions() {

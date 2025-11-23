@@ -1,4 +1,4 @@
-const { ipcRenderer } = require('electron');
+const ipcRenderer = window.ipcRenderer;
 
 class VocabularyApp {
     constructor() {
@@ -29,12 +29,12 @@ class VocabularyApp {
         try {
             // 检查是否有Supabase客户端
             if (typeof window !== 'undefined' && window.supabaseClient) {
-                const SubscriptionHelper = window.SubscriptionHelper || 
+                const SubscriptionHelper = window.SubscriptionHelper ||
                     (await import('../utils/subscription-helper.js')).default;
-                
+
                 if (SubscriptionHelper) {
                     this.subscriptionHelper = new SubscriptionHelper(window.supabaseClient);
-                    
+
                     // 获取当前用户ID
                     const { data: { user } } = await window.supabaseClient.auth.getUser();
                     if (user) {
@@ -118,28 +118,34 @@ class VocabularyApp {
             if (showLoadingIndicator) {
                 this.showLoading();
             }
-            
-            const result = await ipcRenderer.invoke('get-all-translations');
-            
+
+            const result = await ipcRenderer.invoke('get-vocabulary');
+
             if (result.success) {
                 const newTranslations = result.data || [];
-                
+
                 // 检查是否有新数据（比较时间戳）
                 const hasNewData = this.checkForNewTranslations(newTranslations);
-                
-                this.translations = newTranslations;
+
+                // 规范化数据结构
+                this.translations = newTranslations.map(item => ({
+                    ...item,
+                    originalText: item.originalText || item.word,
+                    translatedText: item.translatedText || item.translation,
+                    timestamp: item.timestamp || item.createdAt || item.lastReviewed
+                }));
                 this.filteredTranslations = this.translations;
-                
+
                 // 去重：如果同一个单词有多个翻译，只保留最新的
                 this.filteredTranslations = this.deduplicateTranslations(this.filteredTranslations);
-                
+
                 // 如果有新数据或首次加载，重新渲染列表
                 if (hasNewData || showLoadingIndicator) {
                     this.renderVocabularyList();
                     // 更新订阅状态显示（如果有）
                     this.updateSubscriptionDisplay();
                 }
-                
+
                 this.lastUpdateTime = Date.now();
             } else {
                 if (showLoadingIndicator) {
@@ -158,16 +164,16 @@ class VocabularyApp {
         if (this.translations.length === 0) {
             return true; // 首次加载
         }
-        
+
         // 检查是否有新的翻译记录（通过比较数量或时间戳）
         if (newTranslations.length !== this.translations.length) {
             return true;
         }
-        
+
         // 检查是否有更新的翻译（比较最新记录的时间戳）
         const newLatest = newTranslations[0]?.timestamp || newTranslations[0]?.id || 0;
         const currentLatest = this.translations[0]?.timestamp || this.translations[0]?.id || 0;
-        
+
         return newLatest > currentLatest;
     }
 
@@ -177,11 +183,11 @@ class VocabularyApp {
      */
     deduplicateTranslations(translations) {
         const wordMap = new Map();
-        
+
         translations.forEach(translation => {
             const word = (translation.originalText || '').toLowerCase().trim();
             if (!word) return;
-            
+
             // 如果这个单词还没有记录，或者当前记录更新，则更新
             if (!wordMap.has(word)) {
                 wordMap.set(word, translation);
@@ -189,13 +195,13 @@ class VocabularyApp {
                 const existing = wordMap.get(word);
                 const existingTime = new Date(existing.timestamp || existing.id || 0).getTime();
                 const currentTime = new Date(translation.timestamp || translation.id || 0).getTime();
-                
+
                 if (currentTime > existingTime) {
                     wordMap.set(word, translation);
                 }
             }
         });
-        
+
         return Array.from(wordMap.values());
     }
 
@@ -217,7 +223,7 @@ class VocabularyApp {
 
         // 绑定复选框事件
         this.bindCheckboxEvents();
-        
+
         // 更新编辑模式显示
         if (this.editMode) {
             this.updateEditModeDisplay();
@@ -267,13 +273,13 @@ class VocabularyApp {
 
     formatDate(timestamp) {
         if (!timestamp) return '';
-        
+
         try {
             const date = new Date(timestamp);
             const now = new Date();
             const diffTime = Math.abs(now - date);
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            
+
             if (diffDays === 0) {
                 return '今天';
             } else if (diffDays === 1) {
@@ -354,7 +360,7 @@ class VocabularyApp {
         this.editMode = false;
         this.selectedIds.clear();
         this.updateEditModeDisplay();
-        
+
         // 取消所有复选框选中
         const checkboxes = this.vocabularyList.querySelectorAll('.vocabulary-checkbox');
         checkboxes.forEach(checkbox => {
@@ -365,7 +371,7 @@ class VocabularyApp {
     updateEditModeDisplay() {
         const cards = this.vocabularyList.querySelectorAll('.vocabulary-card');
         const checkboxes = this.vocabularyList.querySelectorAll('.vocabulary-card-checkbox');
-        
+
         if (this.editMode) {
             // 显示编辑工具栏
             if (this.editToolbar) {
@@ -405,7 +411,7 @@ class VocabularyApp {
     toggleSelectAll() {
         const checkboxes = this.vocabularyList.querySelectorAll('.vocabulary-checkbox');
         const allSelected = Array.from(checkboxes).every(cb => cb.checked);
-        
+
         checkboxes.forEach(checkbox => {
             checkbox.checked = !allSelected;
             const translationId = checkbox.dataset.translationId;
@@ -415,7 +421,7 @@ class VocabularyApp {
                 this.selectedIds.delete(translationId);
             }
         });
-        
+
         this.updateDeleteButtonState();
     }
 
@@ -439,7 +445,7 @@ class VocabularyApp {
         try {
             // 调用IPC删除翻译
             const result = await ipcRenderer.invoke('delete-translations', Array.from(this.selectedIds));
-            
+
             if (result.success) {
                 // 从列表中移除已删除的翻译
                 this.filteredTranslations = this.filteredTranslations.filter(
@@ -448,7 +454,7 @@ class VocabularyApp {
                 this.translations = this.translations.filter(
                     t => !this.selectedIds.has(String(t.id || t.timestamp))
                 );
-                
+
                 this.selectedIds.clear();
                 this.renderVocabularyList();
                 this.exitEditMode();
@@ -470,7 +476,7 @@ class VocabularyApp {
 
             // 重新获取订阅状态
             this.subscriptionStatus = await this.subscriptionHelper.getSubscriptionStatus(this.currentUserId);
-            
+
             // 获取生词本总数
             const vocabularyCount = this.translations.length;
             const limits = SubscriptionHelper.LIMITS[this.subscriptionStatus.planType] || SubscriptionHelper.LIMITS.free;
@@ -484,7 +490,7 @@ class VocabularyApp {
                     header.style.color = '';
                 } else {
                     header.textContent = `生词本 (${vocabularyCount}/${limit})`;
-                    
+
                     // 如果接近上限，添加警告样式
                     const percentage = (vocabularyCount / limit) * 100;
                     if (percentage >= 90) {

@@ -64,6 +64,15 @@ const ipcAdapter = {
             case 'load-annotations-from-pdf':
                 return window.StorageAdapter.loadAnnotations(args[0]);
 
+            case 'save-vocabulary':
+                return window.StorageAdapter.saveVocabulary(args[0], args[1], args[2]);
+
+            case 'get-vocabulary':
+                return window.StorageAdapter.getAllVocabulary();
+
+            case 'delete-vocabulary':
+                return window.StorageAdapter.deleteVocabulary(args[0]);
+
             case 'open-profile-page':
                 // 在Web环境中，直接导航到profile页面
                 window.location.href = '#/profile';

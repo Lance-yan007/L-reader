@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgdfwbqcjmjxdsxvmgot.supabase.co https://cdn.jsdelivr.net;">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgdfwbqcjmjxdsxvmgot.supabase.co https://cdn.jsdelivr.net;">
     <title>生词本 - L-reader</title>
     <link rel="stylesheet" href="styles/vocabulary.css">
     <!-- Supabase CDN -->
@@ -14,7 +16,7 @@
             url: 'https://xgdfwbqcjmjxdsxvmgot.supabase.co',
             anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZGZ3YnFjam1qeGRzeHZtZ290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzk5MDgsImV4cCI6MjA3Nzk1NTkwOH0.YXHXZc71Ivl6WchD_1yNK7-wOVE0cxF5_uAqZCqR6Xw'
         };
-        
+
         function initSupabaseClient() {
             if (typeof supabase !== 'undefined' && supabase.createClient && window.SUPABASE_CONFIG) {
                 try {
@@ -32,7 +34,7 @@
             }
             return false;
         }
-        
+
         if (!initSupabaseClient()) {
             let attempts = 0;
             const maxAttempts = 100;
@@ -48,6 +50,7 @@
         }
     </script>
 </head>
+
 <body>
     <div class="vocabulary-container">
         <!-- 顶部标题栏 -->
@@ -61,7 +64,8 @@
                     </button>
                     <button class="btn btn-icon btn-danger" id="deleteSelectedBtn" title="删除选中">
                         <svg viewBox="0 0 24 24">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/>
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                                fill="currentColor" />
                         </svg>
                     </button>
                     <button class="btn btn-text" id="cancelEditBtn" title="取消">
@@ -88,7 +92,8 @@
             <!-- 空状态 -->
             <div class="empty-state" id="emptyState" style="display: none;">
                 <svg viewBox="0 0 24 24" width="64" height="64">
-                    <path fill="#c0c0c0" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                    <path fill="#c0c0c0"
+                        d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
                 </svg>
                 <h2>还没有生词</h2>
                 <p>使用点词翻译功能时，翻译的单词会自动保存到这里</p>
@@ -100,7 +105,10 @@
     </div>
 
     <script src="../utils/subscription-helper.js"></script>
+    <script src="../web-utils/web-fs-adapter.js"></script>
+    <script src="../web-utils/web-storage-adapter.js"></script>
+    <script src="../web-utils/web-ipc-adapter.js"></script>
     <script src="scripts/vocabulary.js"></script>
 </body>
-</html>
 
+</html>

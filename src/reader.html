@@ -381,6 +381,43 @@
         </div>
     </div>
 
+    <!-- AI对话按钮 -->
+    <button class="ai-chat-button" id="aiChatButton" title="AI助手" style="display: none;">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor"
+                d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z" />
+        </svg>
+    </button>
+
+    <!-- AI对话面板 -->
+    <div class="ai-chat-panel" id="aiChatPanel">
+        <div class="ai-chat-header">
+            <div class="ai-chat-header-left">
+                <h3>AI助手</h3>
+                <div class="ai-chat-model">GPT-4</div>
+            </div>
+            <button class="ai-chat-close" id="aiChatClose">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="currentColor"
+                        d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                </svg>
+            </button>
+        </div>
+        <div class="ai-chat-messages" id="aiChatMessages">
+            <div class="ai-chat-welcome">
+                <p>你好！我是你的AI阅读助手。我可以帮你总结文档、解释概念或回答相关问题。</p>
+            </div>
+        </div>
+        <div class="ai-chat-input-container">
+            <textarea class="ai-chat-input" id="aiChatInput" placeholder="输入问题... (Shift+Enter换行)" rows="1"></textarea>
+            <button class="ai-chat-send" id="aiChatSend" disabled>
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
     <script src="scripts/reader.js?v=cachebust1"></script>
 </body>
 

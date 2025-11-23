@@ -1984,7 +1984,13 @@ class ReaderApp {
 
         if (this.isEmbedded) {
             try {
-                ipcRenderer.sendToHost('close-tab-request', { filePath: this.currentFile });
+                // Web version: use postMessage to parent
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ channel: 'close-document' }, '*');
+                } else {
+                    // Electron version
+                    ipcRenderer.sendToHost('close-tab-request', { filePath: this.currentFile });
+                }
             } catch (error) {
                 console.warn('发送关闭标签请求失败:', error);
             }
@@ -2286,37 +2292,14 @@ class ReaderApp {
                     clickCount: 1
                 });
 
-                // 保存翻译到translations目录（用于生词本）
-                // 先检查生词本限制
-                if (this.subscriptionHelper && this.currentUserId) {
-                    try {
-                        const limitCheck = await this.subscriptionHelper.checkAndUpdateUsage(
-                            this.currentUserId,
-                            'vocabulary'
-                        );
-
-                        if (!limitCheck.allowed) {
-                            // 达到上限，不保存但显示提示
-                            this.showUpgradePrompt(limitCheck.message || '生词本已达到上限');
-                            return; // 不保存翻译
-                        }
-                    } catch (error) {
-                        console.error('检查生词本限制失败:', error);
-                        // 如果检查失败，允许继续保存（降级处理）
-                    }
-                }
-
+                // 保存翻译到生词本
+                // Web版本：跳过订阅检查，直接保存
                 try {
-                    const translationData = {
-                        filePath: this.currentFile,
-                        originalText: word,
-                        translatedText: translation,
-                        page: this.currentPage || 0,
-                        timestamp: new Date().toISOString()
-                    };
-                    await ipcRenderer.invoke('save-translation', translationData);
+                    // 使用 save-vocabulary 接口
+                    await ipcRenderer.invoke('save-vocabulary', word, translation, this.getSentenceContext(word));
+                    console.log('生词已保存:', word);
                 } catch (saveError) {
-                    console.error('保存翻译到生词本失败:', saveError);
+                    console.error('保存生词失败:', saveError);
                 }
             } catch (error) {
                 console.error('翻译失败:', error);
@@ -2331,6 +2314,70 @@ class ReaderApp {
 
         // 🎯 不在点击时显示悬浮框，只在hover时显示
         // 翻译会在用户hover到高亮区域时自动显示
+    }
+
+    /**
+     * 获取整个文档的文本内容
+     */
+    async getAllText() {
+        if (!this.pdfDoc) return '';
+
+        try {
+            let fullText = '';
+            const numPages = this.pdfDoc.numPages;
+
+            // 限制最大页数以防止内存溢出或处理时间过长
+            // 对于非常大的文档，可能需要分块处理或只读取前N页
+            const maxPages = Math.min(numPages, 50);
+
+            for (let i = 1; i <= maxPages; i++) {
+                const page = await this.pdfDoc.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                fullText += `【第${i}页】\n${pageText}\n\n`;
+            }
+
+            if (numPages > maxPages) {
+                fullText += `\n(文档过长，仅截取前${maxPages}页内容...)\n`;
+            }
+
+            return fullText;
+        } catch (error) {
+            console.error('获取全文失败:', error);
+            return '';
+        }
+    }
+    /**
+     * 获取包含单词的句子上下文
+     * @param {string} word - 目标单词
+     * @returns {string} - 包含单词的句子
+     */
+    getSentenceContext(word) {
+        if (!word) return '';
+
+        // 尝试从当前选区获取
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const container = range.commonAncestorContainer;
+            const text = container.textContent || container.innerText || '';
+
+            // 简单的句子提取逻辑
+            if (text.length > word.length) {
+                // 如果文本不太长，直接返回
+                if (text.length < 200) return text;
+
+                // 否则尝试截取
+                const index = text.toLowerCase().indexOf(word.toLowerCase());
+                if (index !== -1) {
+                    const start = Math.max(0, index - 50);
+                    const end = Math.min(text.length, index + word.length + 50);
+                    return (start > 0 ? '...' : '') + text.substring(start, end) + (end < text.length ? '...' : '');
+                }
+            }
+        }
+
+        return `Context for ${word}`;
     }
 
     /**
@@ -5485,12 +5532,13 @@ class ReaderApp {
         const loadingId = this.addChatMessage('assistant', '', true);
 
         try {
-            // 获取当前可见页面编号和文本
+            // 获取当前可见页面编号和全文内容
             const visiblePageNum = this.getVisiblePageNumber();
-            const pageText = await this.getCurrentPageText();
+            // 使用全文内容而不是当前页内容
+            const fullText = await this.getAllText();
 
             // 调用AI API
-            const response = await this.callAiChatAPI(message, pageText, visiblePageNum);
+            const response = await this.callAiChatAPI(message, fullText, visiblePageNum);
 
             // 移除加载状态，添加AI回复
             this.updateChatMessage(loadingId, 'assistant', response);
@@ -5520,18 +5568,18 @@ class ReaderApp {
         this.lastRequestTime = now;
 
         const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-        console.log(`📡 调用Gemini API进行AI对话（第${pageNum}页）`);
+        console.log(`📡 调用Gemini API进行AI对话（全文上下文）`);
 
-        // 构建提示词，包含页面内容
-        const prompt = `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，当前正在查看第${pageNum}页，该页面的内容如下：
+        // 构建提示词，包含全文内容
+        const prompt = `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
 
-【第${pageNum}页内容】
+【文档内容】
 ${pageText}
 
 【用户问题】
 ${userMessage}
 
-请基于第${pageNum}页的内容回答用户的问题。如果问题与当前页面内容无关，请礼貌地说明。回答要简洁明了，使用中文。`;
+请基于文档内容回答用户的问题。如果问题与文档内容无关，请礼貌地说明。回答要简洁明了，使用中文。`;
 
         const response = await fetch(fullUrl, {
             method: 'POST',
