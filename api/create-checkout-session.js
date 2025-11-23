@@ -1,6 +1,10 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-
 module.exports = async (req, res) => {
+    if (!process.env.STRIPE_SECRET_KEY) {
+        console.error('Stripe Secret Key is missing');
+        return res.status(500).json({ message: 'Server config error: Missing Stripe Key' });
+    }
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
     if (req.method === 'POST') {
         try {
             const { priceId, userId, userEmail } = req.body;
