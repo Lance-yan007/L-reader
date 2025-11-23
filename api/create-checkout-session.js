@@ -31,7 +31,14 @@ module.exports = async (req, res) => {
             res.status(200).json({ sessionId: session.id, url: session.url });
         } catch (err) {
             console.error('Stripe Error:', err);
-            res.status(500).json({ statusCode: 500, message: err.message });
+            // Return detailed error to frontend for debugging
+            res.status(500).json({
+                statusCode: 500,
+                message: err.message,
+                type: err.type,
+                code: err.code,
+                param: err.param
+            });
         }
     } else {
         res.setHeader('Allow', 'POST');
