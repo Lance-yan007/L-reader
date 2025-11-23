@@ -138,7 +138,7 @@ class WebApp {
         const timestamp = Date.now();
 
         try {
-            const response = await fetch(`src/reader.html?v=${timestamp}`, { cache: "no-store" });
+            const response = await fetch(`reader.html?v=${timestamp}`, { cache: "no-store" });
             const html = await response.text();
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
