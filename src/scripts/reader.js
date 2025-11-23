@@ -2320,30 +2320,51 @@ class ReaderApp {
      * 获取整个文档的文本内容
      */
     async getAllText() {
-        if (!this.pdfDoc) return '';
+        console.log('🔍 开始获取全文内容...');
+        if (!this.pdfDocument) {
+            console.error('❌ getAllText: this.pdfDocument 为空');
+            return '';
+        }
 
         try {
             let fullText = '';
-            const numPages = this.pdfDoc.numPages;
+            const numPages = this.pdfDocument.numPages;
+            console.log(`📄 文档总页数: ${numPages}`);
 
             // 限制最大页数以防止内存溢出或处理时间过长
             // 对于非常大的文档，可能需要分块处理或只读取前N页
             const maxPages = Math.min(numPages, 50);
 
             for (let i = 1; i <= maxPages; i++) {
-                const page = await this.pdfDoc.getPage(i);
+                console.log(`📖 读取第 ${i} 页...`);
+                const page = await this.pdfDocument.getPage(i);
                 const textContent = await page.getTextContent();
+
+                if (!textContent || !textContent.items) {
+                    console.warn(`⚠️ 第 ${i} 页 textContent 为空`);
+                    continue;
+                }
+
                 const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += `【第${i}页】\n${pageText}\n\n`;
+                console.log(`✅ 第 ${i} 页提取字符数: ${pageText.length}`);
+
+                // 简单的去重或清理（可选）
+                if (pageText.trim().length > 0) {
+                    fullText += `【第${i}页】\n${pageText}\n\n`;
+                }
             }
 
             if (numPages > maxPages) {
                 fullText += `\n(文档过长，仅截取前${maxPages}页内容...)\n`;
             }
 
+            console.log(`📝 全文提取完成，总长度: ${fullText.length}`);
+            if (fullText.length === 0) {
+                console.warn('⚠️ 提取的全文内容为空！');
+            }
             return fullText;
         } catch (error) {
-            console.error('获取全文失败:', error);
+            console.error('❌ 获取全文失败:', error);
             return '';
         }
     }

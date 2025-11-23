@@ -51,6 +51,20 @@ const ipcAdapter = {
                 return window.StorageAdapter.deleteTranslations(args[0]);
 
             case 'save-annotations':
+                // reader.js 传递的是一个对象 { path, data }
+                if (typeof args[0] === 'object' && args[0].path && args[0].data) {
+                    // 解析 data 字符串为对象
+                    let annotations;
+                    try {
+                        annotations = typeof args[0].data === 'string' ? JSON.parse(args[0].data) : args[0].data;
+                    } catch (e) {
+                        annotations = args[0].data;
+                    }
+                    // 关键修复：使用 annotations 中的 filePath (PDF路径) 而不是 args[0].path (JSON文件路径)
+                    // 这样 loadAnnotations 使用 PDF 路径查询时才能找到
+                    const pdfPath = annotations.filePath || args[0].path;
+                    return window.StorageAdapter.saveAnnotations(pdfPath, annotations);
+                }
                 return window.StorageAdapter.saveAnnotations(args[0], args[1]);
 
             case 'load-annotations':
