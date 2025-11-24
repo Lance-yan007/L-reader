@@ -145,7 +145,15 @@ class WebApp {
             const bodyContent = tempDiv.querySelector('body') || tempDiv;
 
             // 修复CSS和JS路径
-            const bodyHTML = bodyContent.innerHTML
+            console.log('[WebLoader] Processing reader.html content...');
+            let bodyHTML = bodyContent.innerHTML;
+
+            // Log original paths for debugging
+            const links = bodyHTML.match(/href=["'][^"']*["']/g) || [];
+            const scripts = bodyHTML.match(/src=["'][^"']*["']/g) || [];
+            console.log('[WebLoader] Original paths:', { links, scripts });
+
+            bodyHTML = bodyHTML
                 .replace(/href=["']styles\//g, `href="src/styles/`)
                 .replace(/href=["']\.\.\/styles\//g, `href="src/styles/`)
                 .replace(/src=["']scripts\//g, `src="src/scripts/`)
@@ -155,6 +163,7 @@ class WebApp {
                 .replace(/\.js"/g, `.js?v=${timestamp}"`)
                 .replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
 
+            console.log('[WebLoader] Processed content length:', bodyHTML.length);
             appRoot.innerHTML = bodyHTML;
 
             await new Promise(resolve => setTimeout(resolve, 100));
