@@ -145,43 +145,14 @@ class MainApp {
         // Let's clear existing for single doc mode in web version for now to keep it simple.
         this.documentPanels.innerHTML = '';
 
-        // 创建阅读器iframe（恢复原来的工作方式）
-        console.log('[Main] Creating reader iframe for file:', normalizedPath);
+        // 直接导航到阅读器页面，避免iframe问题
+        console.log('[Main] Navigating to reader for file:', normalizedPath);
 
-        const tabId = `doc-${Date.now()}`;
-        const panel = document.createElement('div');
-        panel.className = 'tab-panel document-panel is-active';
-        panel.id = `${tabId}-panel`;
-        panel.style.display = 'flex';
+        // 存储文件路径到sessionStorage
+        sessionStorage.setItem('pendingFile', normalizedPath);
 
-        const iframe = document.createElement('iframe');
-        iframe.className = 'document-frame';
-        iframe.src = 'reader.html';  // 使用相对路径
-        iframe.style.border = 'none';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-
-        panel.appendChild(iframe);
-        this.documentPanels.appendChild(panel);
-
-        // 等待iframe加载完成后发送文件路径
-        const sendFileToReader = () => {
-            setTimeout(() => {
-                try {
-                    console.log('[Main] Sending file to reader iframe:', normalizedPath);
-                    if (iframe.contentWindow) {
-                        iframe.contentWindow.postMessage({
-                            channel: 'file-opened',
-                            args: [normalizedPath]
-                        }, '*');
-                    }
-                } catch (error) {
-                    console.error('[Main] Error sending file to reader:', error);
-                }
-            }, 500);
-        };
-
-        iframe.addEventListener('load', sendFileToReader);
+        // 使用hash路由导航到阅读器
+        window.location.hash = '#reader';
 
         // Update nav state to show no active sidebar item
         this.updateNavActiveState(null);
