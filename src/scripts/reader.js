@@ -1,4 +1,4 @@
-console.log('✅ Reader script loaded (Version: cachebust1)');
+console.log('✅ Reader script loaded (Version: cachebust2 - PDF.js fix)');
 let ipcRenderer;
 try {
     // Try to load from Electron
