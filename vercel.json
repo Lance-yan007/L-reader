@@ -9,7 +9,7 @@
                 },
                 {
                     "key": "Content-Security-Policy",
-                    "value": "frame-ancestors 'self' https://l-reader.com https://www.l-reader.com;"
+                    "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://*.supabase.co; frame-ancestors 'self' https://l-reader.com https://www.l-reader.com;"
                 },
                 {
                     "key": "X-XSS-Protection",
