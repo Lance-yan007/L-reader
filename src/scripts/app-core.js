@@ -145,11 +145,11 @@ class MainApp {
         // Let's clear existing for single doc mode in web version for now to keep it simple.
         this.documentPanels.innerHTML = '';
 
-        // 直接导航到阅读器页面，避免iframe问题
+        // 直接导航到阅读器页面，使用web-loader的路由系统
         console.log('[Main] Navigating to reader for file:', normalizedPath);
 
-        // 存储文件路径到sessionStorage
-        sessionStorage.setItem('pendingFile', normalizedPath);
+        // 存储文件路径到sessionStorage（web-loader期望的key）
+        sessionStorage.setItem('currentFile', normalizedPath);
 
         // 使用hash路由导航到阅读器
         window.location.hash = '#reader';
