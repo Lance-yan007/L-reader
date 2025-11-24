@@ -145,55 +145,14 @@ class MainApp {
         // Let's clear existing for single doc mode in web version for now to keep it simple.
         this.documentPanels.innerHTML = '';
 
-        const tabId = `doc-${Date.now()}`;
-        const panel = document.createElement('div');
-        panel.className = 'tab-panel document-panel is-active';
-        panel.id = `${tabId}-panel`;
-        panel.style.display = 'flex';
+        // 直接导航到阅读器页面，避免iframe问题
+        console.log('[Main] Navigating to reader for file:', normalizedPath);
 
-        const iframe = document.createElement('iframe');
-        iframe.className = 'document-frame';
-        // Use absolute URL to prevent relative path issues and log it
-        const readerUrl = new URL('reader.html', window.location.origin).href;
-        console.log('[Main] Loading iframe src:', readerUrl);
-        iframe.src = readerUrl;
-        // iframe.setAttribute('nodeintegration', ''); // Not needed for iframe
-        // iframe.setAttribute('webpreferences', 'contextIsolation=false'); // Not needed for iframe
-        iframe.style.border = 'none';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
+        // 存储文件路径到sessionStorage
+        sessionStorage.setItem('pendingFile', normalizedPath);
 
-        panel.appendChild(iframe);
-        this.documentPanels.appendChild(panel);
-
-        const sendFileToReader = () => {
-            // Add a small delay to ensure iframe scripts are fully loaded
-            setTimeout(() => {
-                try {
-                    console.log('[Main] Sending file to reader iframe:', normalizedPath);
-                    // Use postMessage for iframe communication
-                    if (iframe.contentWindow) {
-                        console.log('[Main] iframe.contentWindow exists, sending messages...');
-                        iframe.contentWindow.postMessage({
-                            channel: 'set-embed-mode',
-                            args: [{ embedded: true }]
-                        }, '*');
-
-                        iframe.contentWindow.postMessage({
-                            channel: 'file-opened',
-                            args: [normalizedPath]
-                        }, '*');
-                        console.log('[Main] Messages sent successfully');
-                    } else {
-                        console.error('[Main] iframe.contentWindow is null!');
-                    }
-                } catch (error) {
-                    console.error('向阅读器发送文件失败:', error);
-                }
-            }, 500); // Wait 500ms for iframe scripts to initialize
-        };
-
-        iframe.addEventListener('load', sendFileToReader);
+        // 使用hash路由导航到阅读器
+        window.location.hash = '#reader';
 
         // Update nav state to show no active sidebar item
         this.updateNavActiveState(null);

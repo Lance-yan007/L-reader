@@ -5822,6 +5822,18 @@ ${userMessage}
 }
 
 // 初始化阅读器应用
-document.addEventListener('DOMContentLoaded', () => {
-    new ReaderApp();
+document.addEventListener('DOMContentLoaded', async () => {
+    const readerApp = new ReaderApp();
+
+    // 检查是否有待打开的文件
+    const pendingFile = sessionStorage.getItem('pendingFile');
+    if (pendingFile) {
+        console.log('[Reader] Found pending file:', pendingFile);
+        sessionStorage.removeItem('pendingFile');
+
+        // 等待一小段时间确保DOM完全加载
+        setTimeout(() => {
+            readerApp.loadFile(pendingFile);
+        }, 500);
+    }
 });
