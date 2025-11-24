@@ -986,22 +986,31 @@ class ReaderApp {
     }
 
     async loadPDFJS() {
-        // 动态加载PDF.js
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = '../node_modules/pdfjs-dist/build/pdf.min.js';
-            script.onload = () => {
-                if (window.pdfjsLib) {
-                    // 配置PDF.js Worker
-                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.min.js';
-                    resolve(window.pdfjsLib);
-                } else {
-                    reject(new Error('PDF.js加载失败'));
-                }
-            };
-            script.onerror = () => reject(new Error('PDF.js脚本加载失败'));
-            document.head.appendChild(script);
-        });
+        // 使用 PDFJSAdapter 从 CDN 加载 PDF.js
+        if (window.PDFJSAdapter) {
+            console.log('[Reader] Using PDFJSAdapter to load PDF.js from CDN');
+            return await window.PDFJSAdapter.load();
+        } else if (window.pdfjsLib) {
+            console.log('[Reader] PDF.js already loaded');
+            return window.pdfjsLib;
+        } else {
+            // Fallback: 动态加载PDF.js (仅用于Electron环境)
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = '../node_modules/pdfjs-dist/build/pdf.min.js';
+                script.onload = () => {
+                    if (window.pdfjsLib) {
+                        // 配置PDF.js Worker
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.min.js';
+                        resolve(window.pdfjsLib);
+                    } else {
+                        reject(new Error('PDF.js加载失败'));
+                    }
+                };
+                script.onerror = () => reject(new Error('PDF.js脚本加载失败'));
+                document.head.appendChild(script);
+            });
+        }
     }
 
     async renderPDFPage(pdf, pageNum) {
