@@ -127,8 +127,11 @@ class WebFSAdapter {
      */
     async readFile(filePath) {
         try {
+            console.log('[WebFSAdapter] readFile called with:', filePath);
+
             // 如果filePath是File对象（直接从input获取），直接处理
             if (filePath instanceof File) {
+                console.log('[WebFSAdapter] filePath is a File object');
                 const fileType = this.getFileType(filePath.name);
 
                 if (fileType === 'pdf') {
@@ -160,13 +163,16 @@ class WebFSAdapter {
 
             // 从路径中提取文件ID
             const fileId = this.extractFileId(filePath);
+            console.log('[WebFSAdapter] Extracted fileId:', fileId);
 
             if (!fileId) {
                 throw new Error('无效的文件路径');
             }
 
             // 从IndexedDB读取文件
+            console.log('[WebFSAdapter] Retrieving file from IndexedDB...');
             const file = await this.retrieveFile(fileId);
+            console.log('[WebFSAdapter] Retrieved file:', file ? 'success' : 'null');
 
             if (!file) {
                 throw new Error('文件不存在');
@@ -174,10 +180,12 @@ class WebFSAdapter {
 
             // 根据文件类型返回不同的数据
             const fileType = this.getFileType(filePath);
+            console.log('[WebFSAdapter] File type:', fileType);
 
             if (fileType === 'pdf') {
                 // PDF文件返回ArrayBuffer
                 const arrayBuffer = await file.arrayBuffer();
+                console.log('[WebFSAdapter] PDF ArrayBuffer size:', arrayBuffer.byteLength);
                 return {
                     success: true,
                     data: arrayBuffer,
@@ -201,7 +209,7 @@ class WebFSAdapter {
                 };
             }
         } catch (error) {
-            console.error('读取文件失败:', error);
+            console.error('[WebFSAdapter] readFile error:', error);
             return {
                 success: false,
                 error: error.message
