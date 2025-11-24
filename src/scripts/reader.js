@@ -5813,18 +5813,11 @@ ${userMessage}
 }
 
 // 初始化阅读器应用
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const readerApp = new ReaderApp();
 
-    // 检查是否有待打开的文件
-    const pendingFile = sessionStorage.getItem('pendingFile');
-    if (pendingFile) {
-        console.log('[Reader] Found pending file:', pendingFile);
-        sessionStorage.removeItem('pendingFile');
-
-        // 等待一小段时间确保DOM完全加载
-        setTimeout(() => {
-            readerApp.loadFile(pendingFile);
-        }, 500);
-    }
+    // 暴露给web-loader.js使用
+    window.ReaderApp = ReaderApp;
+    window.readerAppInstance = readerApp;
+    console.log('[Reader] ReaderApp initialized and exposed to window');
 });
