@@ -29,11 +29,20 @@
         };
         console.log('Supabase disabled for web version');
     </script>
+    <!-- 直接从CDN加载PDF.js，避免重复加载问题 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // 立即配置Worker
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            console.log('✅ PDF.js loaded from CDN (3.11.174)');
+        }
+    </script>
     <!-- 加载Web适配层 -->
     <script src="../web-utils/web-fs-adapter.js"></script>
     <script src="../web-utils/web-storage-adapter.js"></script>
     <script src="../web-utils/web-ipc-adapter.js"></script>
-    <script src="../web-utils/web-pdf-adapter.js"></script>
+    <!-- web-pdf-adapter.js 不再需要，因为PDF.js已经从CDN加载 -->
 </head>
 
 <body>
@@ -418,7 +427,7 @@
         </div>
     </div>
 
-    <script src="scripts/reader.js?v=cachebust2"></script>
+    <script src="scripts/reader.js?v=cachebust3"></script>
 </body>
 
 </html>
