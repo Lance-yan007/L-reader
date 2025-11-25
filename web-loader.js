@@ -139,6 +139,8 @@ class WebApp {
 
         try {
             const response = await fetch(`reader.html?v=${timestamp}`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`Failed to load reader.html: ${response.status}`);
+
             const html = await response.text();
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
@@ -160,26 +162,38 @@ class WebApp {
                 .replace(/src=["']\.\.\/scripts\//g, `src="src/scripts/`)
                 .replace(/src=["']\.\.\/utils\//g, `src/utils/`)
                 .replace(/\.css"/g, `.css?v=${timestamp}"`)
-                .replace(/\.js"/g, `.js?v=${timestamp}"`)
+                // Do NOT replace .js with version here if we want to control loading manually
+                // But for CSS it's fine.
                 .replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
 
             console.log('[WebLoader] Processed content length:', bodyHTML.length);
             appRoot.innerHTML = bodyHTML;
 
             await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Ensure PDF.js is loaded if not present
+            if (!window.pdfjsLib) {
+                console.log('[WebLoader] Loading PDF.js...');
+                await this.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+                await this.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');
+            }
+
             await this.loadReaderScript();
             await new Promise(resolve => setTimeout(resolve, 200));
 
             if (window.ReaderApp) {
                 const filePath = sessionStorage.getItem('currentFile');
+                console.log('[WebLoader] Initializing ReaderApp with file:', filePath);
                 window.readerAppInstance = new window.ReaderApp();
                 if (filePath) {
                     window.readerAppInstance.loadFile(filePath);
                 }
+            } else {
+                console.error('❌ ReaderApp class not found after loading script');
             }
         } catch (error) {
             console.error('加载阅读器失败:', error);
-            appRoot.innerHTML = '<div style="padding: 20px;">加载失败</div>';
+            appRoot.innerHTML = `<div style="padding: 20px; color: red;">加载失败: ${error.message}</div>`;
         }
     }
 
@@ -272,9 +286,12 @@ class WebApp {
     async loadScript(src, adapt = false) {
         return new Promise((resolve, reject) => {
             const timestamp = Date.now();
-            const srcWithVersion = `${src}?v=${timestamp}`;
+            // Ensure src starts with src/ if it's a local script and not already starting with src/ or http
+            let finalSrc = src;
 
-            const existingScript = document.querySelector(`script[data-src="${src}"]`);
+            const srcWithVersion = `${finalSrc}${finalSrc.includes('?') ? '&' : '?'}v=${timestamp}`;
+
+            const existingScript = document.querySelector(`script[data-src="${finalSrc}"]`);
             if (existingScript) {
                 // 如果是适配脚本，可能需要重新加载以确保更新
                 if (adapt) {
@@ -286,11 +303,14 @@ class WebApp {
             }
 
             const script = document.createElement('script');
-            script.setAttribute('data-src', src);
+            script.setAttribute('data-src', finalSrc);
 
             if (adapt) {
                 fetch(srcWithVersion, { cache: "no-store" })
-                    .then(response => response.text())
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Failed to fetch script ${finalSrc}: ${response.status}`);
+                        return response.text();
+                    })
                     .then(code => {
                         // 简单的代码适配
                         let adaptedCode = code;
@@ -312,19 +332,52 @@ class WebApp {
                         adaptedCode = adaptedCode.replace(/document\.addEventListener\(['"]DOMContentLoaded['"],\s*\(\)\s*=>\s*\{[^}]*new\s+ReaderApp\(\);[^}]*\}\);/g,
                             '// ReaderApp将在Web版本中手动初始化');
 
-                        // 暴露类到全局
-                        adaptedCode += '\n\nif (typeof MainApp !== "undefined") window.MainApp = MainApp;\nif (typeof ReaderApp !== "undefined") window.ReaderApp = ReaderApp;\n';
+                        // 包装在 try-catch 中以捕获执行错误
+                        const wrappedCode = `
+try {
+    ${adaptedCode}
+    
+    // 暴露类到全局
+    if (typeof MainApp !== "undefined") {
+        window.MainApp = MainApp;
+        console.log('[WebLoader] ✅ MainApp exposed to window');
+    }
+    if (typeof ReaderApp !== "undefined") {
+        window.ReaderApp = ReaderApp;
+        console.log('[WebLoader] ✅ ReaderApp exposed to window');
+    } else {
+        console.error('[WebLoader] ❌ ReaderApp is undefined after script execution');
+    }
+} catch (error) {
+    console.error('[WebLoader] ❌ Error executing adapted script ${finalSrc}:', error);
+    console.error('[WebLoader] Stack:', error.stack);
+}
+`;
 
                         const adaptedScript = document.createElement('script');
-                        adaptedScript.textContent = adaptedCode;
+                        adaptedScript.textContent = wrappedCode;
+                        adaptedScript.setAttribute('data-script-name', finalSrc);
                         document.head.appendChild(adaptedScript);
-                        resolve();
+
+                        // 等待一小段时间确保脚本执行完成
+                        setTimeout(() => {
+                            if (finalSrc.includes('reader.js') && !window.ReaderApp) {
+                                console.error('[WebLoader] ❌ ReaderApp still not found after timeout');
+                            }
+                            resolve();
+                        }, 100);
                     })
-                    .catch(reject);
+                    .catch(err => {
+                        console.error(`Failed to load/adapt script ${finalSrc}:`, err);
+                        reject(err);
+                    });
             } else {
                 script.src = srcWithVersion;
                 script.onload = resolve;
-                script.onerror = reject;
+                script.onerror = (e) => {
+                    console.error(`Failed to load script ${finalSrc}`, e);
+                    reject(new Error(`Failed to load script ${finalSrc}`));
+                };
                 document.head.appendChild(script);
             }
         });

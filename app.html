@@ -11,8 +11,31 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="src/scripts/config.js"></script>
     <script>
+        // 🔧 Development Mode: Set to true to skip authentication
+        const DEV_MODE = true; // Change to false for production
+
         // Initialize Supabase client
-        if (typeof supabase !== 'undefined' && supabase.createClient && window.AppConfig) {
+        if (DEV_MODE) {
+            console.log('🔧 Running in DEV_MODE - Authentication disabled');
+            // Use mock Supabase client (no auth checks)
+            window.supabaseClient = {
+                auth: {
+                    getUser: async () => ({ data: { user: null }, error: null }),
+                    getSession: async () => ({ data: { session: null }, error: null }),
+                    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+                    signOut: async () => ({ error: null })
+                },
+                from: () => ({
+                    select: () => ({
+                        eq: () => ({
+                            single: async () => ({ data: null, error: null }),
+                            data: [],
+                            error: null
+                        })
+                    })
+                })
+            };
+        } else if (typeof supabase !== 'undefined' && supabase.createClient && window.AppConfig) {
             window.supabaseClient = supabase.createClient(
                 window.AppConfig.supabase.url,
                 window.AppConfig.supabase.anonKey
