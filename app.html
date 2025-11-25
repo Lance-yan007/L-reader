@@ -7,65 +7,31 @@
     <title>L-reader - 智能英文阅读器</title>
     <link rel="stylesheet" href="src/styles/main.css">
     <link rel="stylesheet" href="src/styles/reader.css">
-    <!-- Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="src/scripts/config.js"></script>
+    <!-- Working Version: Using mock Supabase (no authentication) -->
     <script>
-        // Initialize Supabase client
-        if (typeof supabase !== 'undefined' && supabase.createClient && window.AppConfig) {
-            window.supabaseClient = supabase.createClient(
-                window.AppConfig.supabase.url,
-                window.AppConfig.supabase.anonKey
-            );
-            console.log('✅ Supabase client initialized');
-
-            // Enforce login: check session and redirect if needed
-            window.supabaseClient.auth.getSession().then(({ data: { session } }) => {
-                if (!session) {
-                    console.log('⚠️ No active session, redirecting to login...');
-                    window.location.href = 'src/auth.html';
-                }
-            });
-
-            // Listen for auth state changes
-            window.supabaseClient.auth.onAuthStateChange((event, session) => {
-                if (event === 'SIGNED_OUT' || !session) {
-                    window.location.href = 'src/auth.html';
-                }
-            });
-        } else {
-            console.warn('⚠️ Supabase SDK not loaded, running in offline mode');
-            // Fallback to mock client for offline mode
-            window.supabaseClient = {
-                auth: {
-                    getUser: async () => ({ data: { user: null }, error: null }),
-                    getSession: async () => ({ data: { session: null }, error: null }),
-                    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-                    signOut: async () => ({ error: null })
-                },
-                from: () => ({
-                    select: () => ({
-                        eq: () => ({
-                            single: async () => ({ data: null, error: null }),
-                            data: [],
-                            error: null
-                        })
+        // Mock Supabase client to prevent errors
+        window.supabaseClient = {
+            auth: {
+                getUser: async () => ({ data: { user: null }, error: null }),
+                onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+                signOut: async () => ({ error: null })
+            },
+            from: () => ({
+                select: () => ({
+                    eq: () => ({
+                        single: async () => ({ data: null, error: null }),
+                        data: [],
+                        error: null
                     })
                 })
-            };
-        }
+            })
+        };
+        console.log('Supabase disabled for web version');
     </script>
 </head>
 
 <body>
-    <div id="app-root">
-        <!-- Version Indicator for Debugging -->
-        <div
-            style="position: fixed; bottom: 5px; right: 5px; font-size: 12px; color: #333; background: rgba(255,255,255,0.8); padding: 2px 5px; border-radius: 3px; z-index: 9999; border: 1px solid #ccc;">
-            v3.0 (Fixing Loading)</div>
-
-        <!-- Sidebar -->
-    </div>
+    <div id="app-root"></div>
 
     <!-- 加载Web适配层 -->
     <script src="web-utils/web-fs-adapter.js"></script>
