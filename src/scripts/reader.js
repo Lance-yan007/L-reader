@@ -5575,19 +5575,20 @@ class ReaderApp {
      * @returns {Promise<string>} AI回复
      */
     async callAiChatAPI(userMessage, pageText, pageNum = 1) {
-        // 等待限流器允许
-        await this.waitForRateLimit();
+        try {
+            // 等待限流器允许
+            await this.waitForRateLimit();
 
-        // 记录请求时间
-        const now = Date.now();
-        this.apiRequestQueue.push(now);
-        this.lastRequestTime = now;
+            // 记录请求时间
+            const now = Date.now();
+            this.apiRequestQueue.push(now);
+            this.lastRequestTime = now;
 
-        const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-        console.log(`📡 调用Gemini API进行AI对话（全文上下文）`);
+            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+            console.log(`📡 调用Gemini API进行AI对话（全文上下文）`);
 
-        // 构建提示词，包含全文内容
-        const prompt = `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
+            // 构建提示词，包含全文内容
+            const prompt = `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
 
 【文档内容】
 ${pageText}
@@ -5597,38 +5598,44 @@ ${userMessage}
 
 请基于文档内容回答用户的问题。如果问题与文档内容无关，请礼貌地说明。回答要简洁明了，使用中文。`;
 
-        const response = await fetch(fullUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
                     }]
-                }]
-            })
-        });
+                })
+            });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
 
-            if (response.status === 429) {
-                throw new Error('API_RATE_LIMIT');
+                if (response.status === 429) {
+                    throw new Error('API_RATE_LIMIT');
+                }
+
+                throw new Error(`API请求失败: ${response.status}`);
             }
 
-            throw new Error(`API请求失败: ${response.status}`);
-        }
+            const data = await response.json();
 
-        const data = await response.json();
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const text = data.candidates[0].content.parts[0].text;
+                return text.trim();
+            } else {
+                throw new Error('API返回格式异常');
+            }
+        } catch (error) {
+            console.error('Gemini API调用失败:', error);
 
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            const text = data.candidates[0].content.parts[0].text;
-            return text.trim();
-        } else {
-            throw new Error('API返回格式异常');
+            // Web演示版Fallback
+            return "我是L-reader AI助手（Web演示版）。由于浏览器安全策略限制，我暂时无法直接连接到云端大脑。请下载桌面版体验完整AI功能，或在设置中配置您自己的API代理。";
         }
     }
 
