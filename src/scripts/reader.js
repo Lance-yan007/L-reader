@@ -5336,6 +5336,7 @@ class ReaderApp {
      * 初始化AI对话功能
      */
     initAiChat() {
+        console.log('[Reader] Initializing AI Chat...');
         const chatButton = document.getElementById('aiChatButton');
         const chatPanel = document.getElementById('aiChatPanel');
         const chatClose = document.getElementById('aiChatClose');
@@ -5343,15 +5344,19 @@ class ReaderApp {
         const chatInput = document.getElementById('aiChatInput');
 
         if (!chatButton || !chatPanel || !chatClose || !chatSend || !chatInput) {
-            console.warn('AI对话UI元素未找到');
+            console.warn('[Reader] AI Chat UI elements not found:', { chatButton, chatPanel });
             return;
         }
+
+        console.log('[Reader] AI Chat UI elements found. Binding events...');
 
         // 初始隐藏按钮，等PDF加载后再显示
         chatButton.style.display = 'none';
 
         // 打开/关闭对话面板
-        chatButton.addEventListener('click', () => {
+        chatButton.addEventListener('click', (e) => {
+            console.log('[Reader] AI Chat button clicked');
+            e.preventDefault();
             this.toggleAiChat();
         });
 
@@ -5367,32 +5372,25 @@ class ReaderApp {
         // 回车发送（Shift+Enter换行）
         const handleChatKeydown = (e) => {
             // 允许标准快捷键（Ctrl/Cmd + A, C, V, X, Z, Y）
-            // Mac使用Cmd键（metaKey），Windows/Linux使用Ctrl键
             const isModifierKey = e.metaKey || e.ctrlKey;
 
-            // 标准编辑快捷键：全选、复制、粘贴、剪切、撤销
             if (isModifierKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
-                // 不阻止默认行为，让浏览器处理
-                e.stopPropagation(); // 阻止事件冒泡到其他监听器
-                e.stopImmediatePropagation(); // 阻止同一元素上的其他监听器
+                e.stopPropagation();
+                e.stopImmediatePropagation();
                 return;
             }
 
-            // Mac上Cmd+Shift+Z用于重做，Windows/Linux上Ctrl+Y用于重做
             if (isModifierKey && e.shiftKey && e.key.toLowerCase() === 'z') {
-                // 允许重做快捷键（Mac）
                 e.stopPropagation();
                 e.stopImmediatePropagation();
                 return;
             }
             if (e.ctrlKey && e.key.toLowerCase() === 'y') {
-                // Windows/Linux的Ctrl+Y重做
                 e.stopPropagation();
                 e.stopImmediatePropagation();
                 return;
             }
 
-            // 应用特定的快捷键
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -5414,12 +5412,17 @@ class ReaderApp {
      * 切换AI对话面板
      */
     toggleAiChat() {
+        console.log('[Reader] Toggling AI Chat. Current state:', this.isAiChatOpen);
         const chatPanel = document.getElementById('aiChatPanel');
-        if (!chatPanel) return;
+        if (!chatPanel) {
+            console.error('[Reader] AI Chat panel not found during toggle');
+            return;
+        }
 
         this.isAiChatOpen = !this.isAiChatOpen;
         if (this.isAiChatOpen) {
             chatPanel.classList.add('open');
+            console.log('[Reader] AI Chat panel opened');
             // 聚焦输入框
             const chatInput = document.getElementById('aiChatInput');
             if (chatInput) {
@@ -5427,6 +5430,7 @@ class ReaderApp {
             }
         } else {
             chatPanel.classList.remove('open');
+            console.log('[Reader] AI Chat panel closed');
         }
     }
 
