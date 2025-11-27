@@ -553,12 +553,14 @@ class ReaderApp {
             console.log('PDF.js库加载成功');
 
             // 读取PDF文件
-            console.log('开始读取PDF文件...');
+            console.log('开始读取PDF文件...', filePath);
             const result = await ipcRenderer.invoke('read-file', filePath);
             console.log('PDF文件读取结果:', result.success ? '成功' : '失败');
 
             if (!result.success) {
-                throw new Error(result.error);
+                console.error('❌ 文件读取失败:', result.error);
+                console.error('文件路径:', filePath);
+                throw new Error(result.error || '文件读取失败');
             }
 
             console.log('PDF文件大小:', result.data.length, 'bytes');

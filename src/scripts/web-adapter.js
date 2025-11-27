@@ -10,11 +10,11 @@ if (typeof window !== 'undefined' && !window.ipcRenderer) {
 
             switch (channel) {
                 case 'read-file':
-                    // Use FileSystemAdapter to read file
-                    if (window.FileSystemAdapter) {
-                        return await window.FileSystemAdapter.readFile(args[0]);
+                    // Use WebFSAdapter to read file
+                    if (window.WebFSAdapter) {
+                        return await window.WebFSAdapter.readFile(args[0]);
                     }
-                    return { success: false, error: 'FileSystemAdapter not found' };
+                    return { success: false, error: 'WebFSAdapter not found' };
 
                 case 'load-annotations':
                     // Mock loading annotations
