@@ -173,6 +173,7 @@ class WebApp {
             appRoot.innerHTML = bodyHTML;
 
             await new Promise(resolve => setTimeout(resolve, 100));
+            await this.loadScript('web-utils/web-ipc-adapter.js');
             await this.loadReaderScript();
             await new Promise(resolve => setTimeout(resolve, 200));
 
