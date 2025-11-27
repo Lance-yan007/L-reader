@@ -13,6 +13,7 @@
         window.supabaseClient = {
             auth: {
                 getUser: async () => ({ data: { user: null }, error: null }),
+                getSession: async () => ({ data: { session: null }, error: null }),
                 onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
                 signOut: async () => ({ error: null })
             },
