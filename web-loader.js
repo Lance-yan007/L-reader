@@ -89,7 +89,7 @@ class WebApp {
         const timestamp = Date.now();
 
         try {
-            const response = await fetch(`src/main.html?v=${timestamp}`, { cache: "no-store" });
+            const response = await fetch(`/src/main.html?v=${timestamp}`, { cache: "no-store" });
             if (!response.ok) {
                 throw new Error(`HTTP错误: ${response.status}`);
             }
@@ -144,7 +144,7 @@ class WebApp {
                 await this.loadPDFJS();
             }
 
-            const response = await fetch(`reader.html?v=${timestamp}`, { cache: "no-store" });
+            const response = await fetch(`/reader.html?v=${timestamp}`, { cache: "no-store" });
             const html = await response.text();
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
@@ -212,7 +212,7 @@ class WebApp {
         const timestamp = Date.now();
 
         try {
-            const response = await fetch(`src/profile.html?v=${timestamp}`, { cache: "no-store" });
+            const response = await fetch(`/src/profile.html?v=${timestamp}`, { cache: "no-store" });
             const html = await response.text();
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
@@ -238,7 +238,7 @@ class WebApp {
         const timestamp = Date.now();
 
         try {
-            const response = await fetch(`src/vocabulary.html?v=${timestamp}`, { cache: "no-store" });
+            const response = await fetch(`/src/vocabulary.html?v=${timestamp}`, { cache: "no-store" });
             const html = await response.text();
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
@@ -264,7 +264,7 @@ class WebApp {
         const timestamp = Date.now();
 
         try {
-            const response = await fetch(`src/auth.html?v=${timestamp}`, { cache: "no-store" });
+            const response = await fetch(`/src/auth.html?v=${timestamp}`, { cache: "no-store" });
             const html = await response.text();
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
@@ -278,7 +278,7 @@ class WebApp {
                 .replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
 
             appRoot.innerHTML = bodyHTML;
-            await this.loadScript('src/scripts/auth.js');
+            await this.loadScript('/src/scripts/auth.js');
         } catch (error) {
             console.error('加载认证页面失败:', error);
             appRoot.innerHTML = '<div style="padding: 20px;">加载失败</div>';
@@ -286,11 +286,11 @@ class WebApp {
     }
 
     async loadMainScript() {
-        return this.loadScript('src/scripts/app-core.js', true);
+        return this.loadScript('/src/scripts/app-core.js', true);
     }
 
     async loadReaderScript() {
-        return this.loadScript('src/scripts/reader.js', true);
+        return this.loadScript('/src/scripts/reader.js', true);
     }
 
     async loadScript(src, adapt = false) {
