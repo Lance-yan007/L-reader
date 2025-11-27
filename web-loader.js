@@ -336,8 +336,13 @@ class WebApp {
                         adaptedCode = adaptedCode.replace(/document\.addEventListener\(['"]DOMContentLoaded['"],\s*\(\)\s*=>\s*\{[^}]*new\s+ReaderApp\(\);[^}]*\}\);/g,
                             '// ReaderApp将在Web版本中手动初始化');
 
-                        // 暴露类到全局
-                        adaptedCode += '\n\nif (typeof MainApp !== "undefined") window.MainApp = MainApp;\nif (typeof ReaderApp !== "undefined") window.ReaderApp = ReaderApp;\n';
+                        // 暴露类到全局并使用IIFE包裹以避免变量重复声明
+                        adaptedCode = `(function() {
+                            ${adaptedCode}
+                            
+                            if (typeof MainApp !== "undefined") window.MainApp = MainApp;
+                            if (typeof ReaderApp !== "undefined") window.ReaderApp = ReaderApp;
+                        })();`;
 
                         const adaptedScript = document.createElement('script');
                         adaptedScript.textContent = adaptedCode;
