@@ -138,6 +138,12 @@ class WebApp {
         const timestamp = Date.now();
 
         try {
+            // Load PDF.js first if not already loaded
+            if (!window.pdfjsLib) {
+                console.log('[WebLoader] Loading PDF.js from CDN...');
+                await this.loadPDFJS();
+            }
+
             const response = await fetch(`reader.html?v=${timestamp}`, { cache: "no-store" });
             const html = await response.text();
             const tempDiv = document.createElement('div');
@@ -181,6 +187,24 @@ class WebApp {
             console.error('加载阅读器失败:', error);
             appRoot.innerHTML = '<div style="padding: 20px;">加载失败</div>';
         }
+    }
+
+    async loadPDFJS() {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            script.onload = () => {
+                if (window.pdfjsLib) {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    console.log('✅ PDF.js loaded from CDN (3.11.174)');
+                    resolve();
+                } else {
+                    reject(new Error('PDF.js failed to load'));
+                }
+            };
+            script.onerror = () => reject(new Error('Failed to load PDF.js script'));
+            document.head.appendChild(script);
+        });
     }
 
     async showProfileView() {
