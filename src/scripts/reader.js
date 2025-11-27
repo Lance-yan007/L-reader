@@ -1864,6 +1864,8 @@ class ReaderApp {
 
     updateTranslationsList() {
         const container = document.getElementById('translationsList');
+        if (!container) return; // Prevent crash if element is missing
+
         container.innerHTML = '';
 
         this.translations.forEach(translation => {
@@ -3024,7 +3026,7 @@ class ReaderApp {
             }
 
             // 返回友好的错误提示
-            return `[词典未收录]`;
+            return `[在线翻译服务不可用]`;
         }
     }
 
