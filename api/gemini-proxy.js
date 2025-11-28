@@ -17,8 +17,16 @@ export default async function handler(req, res) {
 
     try {
         const { contents } = req.body;
+
+        if (!contents) {
+            res.status(400).json({ error: 'Missing contents in request body' });
+            return;
+        }
+
         const apiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
         const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
+
+        console.log('Proxying request to Gemini API...');
 
         const response = await fetch(`${apiUrl}?key=${apiKey}`, {
             method: 'POST',
@@ -31,13 +39,18 @@ export default async function handler(req, res) {
         const data = await response.json();
 
         if (!response.ok) {
+            console.error('Gemini API error:', data);
             res.status(response.status).json(data);
             return;
         }
 
+        console.log('Successfully proxied request');
         res.status(200).json(data);
     } catch (error) {
         console.error('API proxy error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
     }
 }
