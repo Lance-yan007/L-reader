@@ -5792,65 +5792,78 @@ class ReaderApp {
                         parts: [{
                             text: `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
 
+            // 直接调用Gemini API
+            console.log(`📡 调用Gemini API进行AI对话`);
+            fullUrl = `${ this.geminiApiUrl } ? key = ${ this.geminiApiKey }`;
+
+            requestOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
+
 【文档内容】
-${pageText}
+                            ${ pageText }
 
 【用户问题】
-${userMessage}
+                            ${ userMessage }
 
 请基于文档内容回答用户的问题。如果问题与文档内容无关，请礼貌地说明。回答要简洁明了，使用中文。`
                         }]
                     }]
                 })
             };
-        }
 
             const response = await fetch(fullUrl, requestOptions);
 
-        if (!response.ok) {
-            let errorData;
-            try {
-                errorData = await response.json();
-            } catch (e) {
-                errorData = await response.text();
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    errorData = await response.text();
+                }
+                console.error(`❌ API错误详情: `, errorData);
+
+                if (response.status === 429) {
+                    throw new Error('API_RATE_LIMIT');
+                }
+
+                throw new Error(`API请求失败: ${ response.status }`);
             }
-            console.error(`❌ API错误详情:`, errorData);
 
-            if (response.status === 429) {
-                throw new Error('API_RATE_LIMIT');
+            const data = await response.json();
+
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const text = data.candidates[0].content.parts[0].text;
+                return text.trim();
+            } else {
+                throw new Error('API返回格式异常');
             }
-
-            throw new Error(`API请求失败: ${response.status}`);
+        } catch (error) {
+            console.error('Gemini API调用失败:', error);
+            
+            // 返回更友好的错误信息
+            if (error.message === 'API_RATE_LIMIT') {
+                return "抱歉，API调用次数已达上限，请稍后再试。";
+            }
+            
+            return `抱歉，AI助手暂时无法响应。错误信息：${ error.message }`;
         }
-
-        const data = await response.json();
-
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            const text = data.candidates[0].content.parts[0].text;
-            return text.trim();
-        } else {
-            throw new Error('API返回格式异常');
-        }
-    } catch(error) {
-        console.error('Gemini API调用失败:', error);
-
-        // 返回更友好的错误信息
-        if (error.message === 'API_RATE_LIMIT') {
-            return "抱歉，API调用次数已达上限，请稍后再试。";
-        }
-
-        return `抱歉，AI助手暂时无法响应。错误信息：${error.message}`;
     }
-}
 
-/**
- * 添加聊天消息
- * @param {string} role - 'user' 或 'assistant'
- * @param {string} content - 消息内容
- * @param {boolean} isLoading - 是否为加载状态
- * @returns {string} 消息ID
- */
-addChatMessage(role, content, isLoading = false) {
+    /**
+     * 添加聊天消息
+     * @param {string} role - 'user' 或 'assistant'
+     * @param {string} content - 消息内容
+     * @param {boolean} isLoading - 是否为加载状态
+     * @returns {string} 消息ID
+     */
+    addChatMessage(role, content, isLoading = false) {
     const chatMessages = document.getElementById('aiChatMessages');
     if (!chatMessages) return null;
 
@@ -5862,27 +5875,27 @@ addChatMessage(role, content, isLoading = false) {
         }
     }
 
-    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const messageId = `msg - ${ Date.now() } - ${ Math.random().toString(36).substr(2, 9) }`;
     const messageDiv = document.createElement('div');
-    messageDiv.className = `ai-chat-message ${role}${isLoading ? ' loading' : ''}`;
+    messageDiv.className = `ai - chat - message ${ role }${ isLoading? ' loading': '' }`;
     messageDiv.id = messageId;
 
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
     if (isLoading) {
         messageDiv.innerHTML = `
-                <div class="ai-chat-message-bubble">
-                    <div class="ai-chat-loading-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-            `;
+                        < div class= "ai-chat-message-bubble" >
+                        <div class="ai-chat-loading-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                </div >
+                        `;
     } else {
         messageDiv.innerHTML = `
-                <div class="ai-chat-message-bubble">${this.escapeHtml(content)}</div>
-                <div class="ai-chat-message-time">${time}</div>
+                        < div class= "ai-chat-message-bubble" > ${ this.escapeHtml(content) }</div >
+                        <div class="ai-chat-message-time">${time}</div>
             `;
     }
 
@@ -5906,15 +5919,15 @@ showUpgradePrompt(message) {
     const promptDiv = document.createElement('div');
     promptDiv.className = 'upgrade-prompt';
     promptDiv.innerHTML = `
-            <div class="upgrade-prompt-content">
+                        < div class= "upgrade-prompt-content" >
                 <div class="upgrade-prompt-icon">⚠️</div>
                 <div class="upgrade-prompt-message">${this.escapeHtml(message)}</div>
                 <div class="upgrade-prompt-actions">
                     <button class="upgrade-prompt-button upgrade-prompt-button-primary" id="upgradePromptUpgrade">升级订阅</button>
                     <button class="upgrade-prompt-button" id="upgradePromptCancel">稍后再说</button>
                 </div>
-            </div>
-        `;
+            </div >
+                        `;
 
     // 添加到页面
     document.body.appendChild(promptDiv);
@@ -5969,12 +5982,12 @@ updateChatMessage(messageId, role, content) {
     const messageDiv = document.getElementById(messageId);
     if (!messageDiv) return;
 
-    messageDiv.className = `ai-chat-message ${role}`;
+    messageDiv.className = `ai - chat - message ${ role }`;
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
     messageDiv.innerHTML = `
-            <div class="ai-chat-message-bubble">${this.escapeHtml(content)}</div>
-            <div class="ai-chat-message-time">${time}</div>
+                        < div class= "ai-chat-message-bubble" > ${ this.escapeHtml(content) }</div >
+                        <div class="ai-chat-message-time">${time}</div>
         `;
 
     // 更新历史记录
