@@ -1133,10 +1133,15 @@ body.embedded-reader .toolbar {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    z-index: 999;
     transition: all 0.3s ease;
     padding: 0;
     overflow: hidden;
+}
+
+/* 当对话面板打开时，降低按钮的z-index */
+.ai-chat-button.panel-open {
+    z-index: 998;
 }
 
 .ai-chat-button:hover {
@@ -1165,7 +1170,7 @@ body.embedded-reader .toolbar {
     height: 100vh;
     background: #f0f0f0;
     box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
+    z-index: 10001;
     display: flex;
     flex-direction: column;
     transition: right 0.3s ease;

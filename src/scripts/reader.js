@@ -2735,8 +2735,18 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-            console.log(`📡 调用Gemini API翻译句子: ${sentence} (队列: ${this.apiRequestQueue.length}/${this.maxRequestsPerMinute})`);
+            // 检测是否在Web环境
+            const isWeb = !window.electron || !window.electron.invoke;
+            let fullUrl;
+
+            if (isWeb) {
+                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+                console.log(`📡 Web环境：使用CORS代理翻译句子: ${sentence}`);
+            } else {
+                fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                console.log(`📡 调用Gemini API翻译句子: ${sentence}`);
+            }
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
@@ -2755,10 +2765,14 @@ class ReaderApp {
             console.log(`📊 响应状态: ${response.status} ${response.statusText}`);
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    errorData = await response.text();
+                }
+                console.error(`❌ API错误详情:`, errorData);
 
-                // 如果是429错误（配额超限），显示友好提示
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
                 }
@@ -2768,7 +2782,6 @@ class ReaderApp {
 
             const data = await response.json();
 
-            // 提取翻译结果
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const translation = data.candidates[0].content.parts[0].text.trim();
                 console.log(`✅ 句子翻译结果: ${translation}`);
@@ -2845,8 +2858,18 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-            console.log(`📡 调用Gemini API翻译: ${word} (队列: ${this.apiRequestQueue.length}/${this.maxRequestsPerMinute})`);
+            // 检测是否在Web环境
+            const isWeb = !window.electron || !window.electron.invoke;
+            let fullUrl;
+
+            if (isWeb) {
+                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+                console.log(`📡 Web环境：使用CORS代理翻译: ${word}`);
+            } else {
+                fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                console.log(`📡 调用Gemini API翻译: ${word}`);
+            }
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
@@ -2865,10 +2888,14 @@ class ReaderApp {
             console.log(`📊 响应状态: ${response.status} ${response.statusText}`);
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    errorData = await response.text();
+                }
+                console.error(`❌ API错误详情:`, errorData);
 
-                // 如果是429错误（配额超限），显示友好提示
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
                 }
@@ -2878,7 +2905,6 @@ class ReaderApp {
 
             const data = await response.json();
 
-            // 提取翻译结果
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const translation = data.candidates[0].content.parts[0].text.trim();
                 console.log(`✅ 翻译结果: ${translation}`);
@@ -2890,7 +2916,6 @@ class ReaderApp {
         } catch (error) {
             console.error('Gemini API调用失败:', error);
 
-            // 如果是速率限制错误，返回特殊提示
             if (error.message === 'API_RATE_LIMIT') {
                 return '⏳ API请求过快，请稍后再试';
             }
@@ -5589,6 +5614,7 @@ class ReaderApp {
     toggleAiChat() {
         console.log('[Reader] 🔄 toggleAiChat called. Current state:', this.isAiChatOpen);
         const chatPanel = document.getElementById('aiChatPanel');
+        const chatButton = document.getElementById('aiChatButton');
         if (!chatPanel) {
             console.error('[Reader] ❌ AI Chat panel not found during toggle');
             return;
@@ -5599,6 +5625,9 @@ class ReaderApp {
 
         if (this.isAiChatOpen) {
             chatPanel.classList.add('open');
+            if (chatButton) {
+                chatButton.classList.add('panel-open'); // 降低按钮z-index
+            }
             console.log('[Reader] ✅ AI Chat panel opened (class added)');
             // 聚焦输入框
             const chatInput = document.getElementById('aiChatInput');
@@ -5607,6 +5636,9 @@ class ReaderApp {
             }
         } else {
             chatPanel.classList.remove('open');
+            if (chatButton) {
+                chatButton.classList.remove('panel-open'); // 恢复按钮z-index
+            }
             console.log('[Reader] ✅ AI Chat panel closed (class removed)');
         }
     }
@@ -5765,11 +5797,27 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-            console.log(`📡 调用Gemini API进行AI对话（全文上下文）`);
+            // 检测是否在Web环境（非Electron）
+            const isWeb = !window.electron || !window.electron.invoke;
 
-            // 构建提示词，包含全文内容
-            const prompt = `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
+            let fullUrl;
+            let requestOptions;
+
+            if (isWeb) {
+                // Web环境：使用CORS代理
+                console.log(`📡 Web环境：使用CORS代理调用Gemini API`);
+                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+
+                requestOptions = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
 
 【文档内容】
 ${pageText}
@@ -5777,25 +5825,49 @@ ${pageText}
 【用户问题】
 ${userMessage}
 
-请基于文档内容回答用户的问题。如果问题与文档内容无关，请礼貌地说明。回答要简洁明了，使用中文。`;
-
-            const response = await fetch(fullUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
+请基于文档内容回答用户的问题。如果问题与文档内容无关，请礼貌地说明。回答要简洁明了，使用中文。`
+                            }]
                         }]
-                    }]
-                })
-            });
+                    })
+                };
+            } else {
+                // Electron环境：直接调用
+                console.log(`📡 Electron环境：直接调用Gemini API`);
+                fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+
+                requestOptions = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
+
+【文档内容】
+${pageText}
+
+【用户问题】
+${userMessage}
+
+请基于文档内容回答用户的问题。如果问题与文档内容无关，请礼貌地说明。回答要简洁明了，使用中文。`
+                            }]
+                        }]
+                    })
+                };
+            }
+
+            const response = await fetch(fullUrl, requestOptions);
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error(`❌ API错误详情:`, JSON.stringify(errorData, null, 2));
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    errorData = await response.text();
+                }
+                console.error(`❌ API错误详情:`, errorData);
 
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
@@ -5815,8 +5887,12 @@ ${userMessage}
         } catch (error) {
             console.error('Gemini API调用失败:', error);
 
-            // Web演示版Fallback
-            return "我是L-reader AI助手（Web演示版）。由于浏览器安全策略限制，我暂时无法直接连接到云端大脑。请下载桌面版体验完整AI功能，或在设置中配置您自己的API代理。";
+            // 返回更友好的错误信息
+            if (error.message === 'API_RATE_LIMIT') {
+                return "抱歉，API调用次数已达上限，请稍后再试。";
+            }
+
+            return `抱歉，AI助手暂时无法响应。错误信息：${error.message}`;
         }
     }
 
