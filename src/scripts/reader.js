@@ -5894,7 +5894,15 @@ ${userMessage}
                 return "抱歉，API调用次数已达上限，请稍后再试。";
             }
 
-            return `抱歉，AI助手暂时无法响应。错误信息：${error.message}`;
+            let errorMessage = error.message;
+            // 如果错误信息包含 HTML 标签，尝试提取纯文本
+            if (errorMessage.includes('<')) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = errorMessage;
+                errorMessage = tempDiv.textContent || tempDiv.innerText || errorMessage;
+            }
+
+            return `抱歉，AI助手暂时无法响应。错误信息：${errorMessage}`;
         }
     }
 
