@@ -2741,9 +2741,9 @@ class ReaderApp {
             let fullUrl;
 
             if (isWeb) {
-                // Web环境：使用 allorigins 代理
+                // Web环境：使用 corsproxy.io 代理 (支持POST)
                 const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}&t=${Date.now()}`;
+                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
                 console.log(`📡 Web环境：使用代理翻译句子: ${sentence}`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
@@ -2866,9 +2866,9 @@ class ReaderApp {
             let fullUrl;
 
             if (isWeb) {
-                // Web环境：使用 allorigins 代理
+                // Web环境：使用 corsproxy.io 代理 (支持POST)
                 const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}&t=${Date.now()}`;
+                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
                 console.log(`📡 Web环境：使用代理翻译: ${word}`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
@@ -5807,9 +5807,9 @@ class ReaderApp {
             let fullUrl;
 
             if (isWeb) {
-                // Web环境：使用 allorigins 代理，并添加时间戳防止缓存
+                // Web环境：使用 corsproxy.io 代理 (支持POST)
                 const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}&t=${Date.now()}`;
+                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
                 console.log(`📡 Web环境：使用代理调用Gemini API`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
