@@ -2741,10 +2741,9 @@ class ReaderApp {
             let fullUrl;
 
             if (isWeb) {
-                // Web环境：使用 corsproxy.io 代理 (支持POST)
-                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
-                console.log(`📡 Web环境：使用代理翻译句子: ${sentence}`);
+                // Web环境：使用本地 Serverless 代理
+                fullUrl = '/api/gemini-proxy';
+                console.log(`📡 Web环境：使用本地代理翻译句子: ${sentence}`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
                 console.log(`📡 Electron环境：直接调用Gemini API翻译句子: ${sentence}`);
@@ -2866,10 +2865,9 @@ class ReaderApp {
             let fullUrl;
 
             if (isWeb) {
-                // Web环境：使用 corsproxy.io 代理 (支持POST)
-                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
-                console.log(`📡 Web环境：使用代理翻译: ${word}`);
+                // Web环境：使用本地 Serverless 代理
+                fullUrl = '/api/gemini-proxy';
+                console.log(`📡 Web环境：使用本地代理翻译: ${word}`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
                 console.log(`📡 Electron环境：直接调用Gemini API翻译: ${word}`);
@@ -5807,10 +5805,9 @@ class ReaderApp {
             let fullUrl;
 
             if (isWeb) {
-                // Web环境：使用 corsproxy.io 代理 (支持POST)
-                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
-                console.log(`📡 Web环境：使用代理调用Gemini API`);
+                // Web环境：使用本地 Serverless 代理
+                fullUrl = '/api/gemini-proxy';
+                console.log(`📡 Web环境：使用本地代理调用Gemini API`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
                 console.log(`📡 Electron环境：直接调用Gemini API`);
