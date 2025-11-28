@@ -150,8 +150,13 @@ body.embedded-reader .toolbar {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* PDF 文档样式 */
@@ -210,17 +215,21 @@ body.embedded-reader .toolbar {
 
 /* 文本层中的文本元素 */
 .pdf-text-layer span {
-    color: transparent; /* 透明文本，只用于选择 */
+    color: transparent;
+    /* 透明文本，只用于选择 */
     position: absolute;
     white-space: pre;
     cursor: text;
     transform-origin: 0% 0%;
     user-select: text;
-    z-index: 2; /* 确保文字在高亮背景之上 */
-    
+    z-index: 2;
+    /* 确保文字在高亮背景之上 */
+
     /* 🎯 添加padding让选择高亮连贯，负margin抵消位置偏移 */
-    padding: 4px 2px; /* 上下4px，左右2px完全填补单词间隙 */
-    margin: -4px -2px; /* 负margin保持原始位置 */
+    padding: 4px 2px;
+    /* 上下4px，左右2px完全填补单词间隙 */
+    margin: -4px -2px;
+    /* 负margin保持原始位置 */
     box-sizing: content-box;
 }
 
@@ -234,12 +243,15 @@ body.embedded-reader .toolbar {
 /* PDF文本层的选择样式 - 蓝色半透明高亮 */
 /* 🎯 这是用户左键选择文本时看到的默认高亮效果 */
 .pdf-text-layer ::selection {
-    background: rgba(74, 144, 226, 0.35); /* 蓝色半透明 */
-    color: inherit; /* 保持文本颜色可见 */
+    background: rgba(74, 144, 226, 0.35);
+    /* 蓝色半透明 */
+    color: inherit;
+    /* 保持文本颜色可见 */
 }
 
 .pdf-text-layer ::-moz-selection {
-    background: rgba(74, 144, 226, 0.35); /* Firefox浏览器 */
+    background: rgba(74, 144, 226, 0.35);
+    /* Firefox浏览器 */
     color: inherit;
 }
 
@@ -436,23 +448,23 @@ body.embedded-reader .toolbar {
     .sidebar {
         width: 250px;
     }
-    
+
     .toolbar {
         padding: 8px 12px;
     }
-    
+
     .file-name {
         font-size: 14px;
     }
-    
+
     .zoom-controls {
         padding: 6px 8px;
     }
-    
+
     .document-container {
         padding: 12px;
     }
-    
+
     .modal-content {
         width: 95%;
         margin: 20px;
@@ -514,15 +526,18 @@ body.embedded-reader .toolbar {
 
 /* 合并高亮样式 - 当单词被合并时隐藏单个高亮 */
 .pdf-text-layer span.merged-highlighted::before {
-    display: none; /* 隐藏单个单词的高亮，显示合并的高亮 */
+    display: none;
+    /* 隐藏单个单词的高亮，显示合并的高亮 */
 }
 
 /* 合并高亮容器样式 */
 .merged-highlight {
     position: absolute;
-    z-index: 1; /* 放在Canvas层上方，文字层下方 */
+    z-index: 1;
+    /* 放在Canvas层上方，文字层下方 */
     pointer-events: none;
-    border-radius: 0; /* 确保矩形 */
+    border-radius: 0;
+    /* 确保矩形 */
 }
 
 /* 选择预览高亮样式（已弃用 - 现在直接使用浏览器的 ::selection 样式） */
@@ -564,7 +579,8 @@ body.embedded-reader .toolbar {
 
 /* 句子翻译高亮样式 */
 .pdf-text-layer span.sentence-translated::before {
-    background: rgba(0, 150, 255, 0.4); /* 蓝色翻译高亮 */
+    background: rgba(0, 150, 255, 0.4);
+    /* 蓝色翻译高亮 */
     border-radius: 0;
 }
 
@@ -680,6 +696,7 @@ body.embedded-reader .toolbar {
         opacity: 0;
         transform: translateY(-5px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -693,35 +710,45 @@ body.embedded-reader .toolbar {
 }
 
 .word-tooltip-word {
-    display: none; /* 隐藏单词，只显示翻译 */
+    display: none;
+    /* 隐藏单词，只显示翻译 */
 }
 
 .word-tooltip-translation {
     font-size: 13px;
     line-height: 1.4;
-    color: #333; /* 黑色文字 */
+    color: #333;
+    /* 黑色文字 */
     font-weight: 500;
 }
 
 /* 加载状态 */
 .word-tooltip.loading {
-    padding: 1px 4px !important; /* 加载时极度紧凑 */
-    min-height: auto !important; /* 允许自动高度 */
-    height: auto !important; /* 自动高度 */
+    padding: 1px 4px !important;
+    /* 加载时极度紧凑 */
+    min-height: auto !important;
+    /* 允许自动高度 */
+    height: auto !important;
+    /* 自动高度 */
 }
 
 .word-tooltip.loading .word-tooltip-translation {
     opacity: 0.7;
     font-style: italic;
-    font-size: 9px !important; /* 更小的字体 */
-    line-height: 1.2 !important; /* 紧凑的行高 */
+    font-size: 9px !important;
+    /* 更小的字体 */
+    line-height: 1.2 !important;
+    /* 紧凑的行高 */
     text-align: center;
-    padding: 0 !important; /* 移除任何额外padding */
-    margin: 0 !important; /* 移除任何额外margin */
+    padding: 0 !important;
+    /* 移除任何额外padding */
+    margin: 0 !important;
+    /* 移除任何额外margin */
 }
 
 .word-tooltip.loading .word-tooltip-content {
-    gap: 0 !important; /* 移除间距 */
+    gap: 0 !important;
+    /* 移除间距 */
 }
 
 /* ========== 右键菜单样式 ========== */
@@ -760,7 +787,8 @@ body.embedded-reader .toolbar {
     width: 24px;
     height: 24px;
     border-radius: 5px;
-    background: #CDBBEB; /* 默认紫色 */
+    background: #CDBBEB;
+    /* 默认紫色 */
 }
 
 /* 功能按钮 */
@@ -854,17 +882,15 @@ body.embedded-reader .toolbar {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: conic-gradient(
-        from 90deg,
-        #FF0000 0deg,
-        #FF7F00 51.4deg,
-        #FFFF00 102.8deg,
-        #00FF00 154.3deg,
-        #0000FF 205.7deg,
-        #4B0082 257.1deg,
-        #9400D3 308.6deg,
-        #FF0000 360deg
-    );
+    background: conic-gradient(from 90deg,
+            #FF0000 0deg,
+            #FF7F00 51.4deg,
+            #FFFF00 102.8deg,
+            #00FF00 154.3deg,
+            #0000FF 205.7deg,
+            #4B0082 257.1deg,
+            #9400D3 308.6deg,
+            #FF0000 360deg);
     border: 1px solid #ddd;
     pointer-events: none;
     transition: all 0.15s ease;
@@ -884,14 +910,17 @@ body.embedded-reader .toolbar {
         opacity: 0;
         transform: translateX(-50%) translateY(10px);
     }
+
     15% {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
     }
+
     85% {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
     }
+
     100% {
         opacity: 0;
         transform: translateX(-50%) translateY(-10px);
@@ -927,7 +956,7 @@ body.embedded-reader .toolbar {
     width: 100%;
     height: 4px;
     border-radius: 2px;
-    background: linear-gradient(to right, rgba(0,0,0,0.1), rgba(0,0,0,0.9));
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.9));
     outline: none;
     -webkit-appearance: none;
     appearance: none;
@@ -1002,6 +1031,7 @@ body.embedded-reader .toolbar {
         opacity: 0;
         transform: scale(0.9) translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -1103,7 +1133,7 @@ body.embedded-reader .toolbar {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 999;
+    z-index: 10000;
     transition: all 0.3s ease;
     padding: 0;
     overflow: hidden;
@@ -1123,6 +1153,7 @@ body.embedded-reader .toolbar {
     width: 40px;
     height: 40px;
     display: block;
+    pointer-events: none;
 }
 
 /* AI对话面板（右侧滑出） */
@@ -1230,6 +1261,7 @@ body.embedded-reader .toolbar {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1302,10 +1334,14 @@ body.embedded-reader .toolbar {
 }
 
 @keyframes loadingDot {
-    0%, 80%, 100% {
+
+    0%,
+    80%,
+    100% {
         transform: scale(0.8);
         opacity: 0.5;
     }
+
     40% {
         transform: scale(1);
         opacity: 1;
@@ -1402,14 +1438,14 @@ body.embedded-reader .toolbar {
         width: 100%;
         right: -100%;
     }
-    
+
     .ai-chat-button {
         bottom: 20px;
         right: 20px;
         width: 40px;
         height: 40px;
     }
-    
+
     .upgrade-prompt-content {
         padding: 24px;
         max-width: 90%;
@@ -1494,6 +1530,7 @@ body.embedded-reader .toolbar {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -1504,6 +1541,7 @@ body.embedded-reader .toolbar {
         transform: translate(-50%, -40%);
         opacity: 0;
     }
+
     to {
         transform: translate(-50%, -50%);
         opacity: 1;

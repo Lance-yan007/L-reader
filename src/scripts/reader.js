@@ -99,6 +99,55 @@ class ReaderApp {
         this.subscriptionHelper = null; // 订阅助手实例
         this.currentUserId = null; // 当前用户ID
 
+        // 初始化本地模拟词典（用于API Key失效时的降级处理）
+        this.mockTranslations = {
+            'the': '这个；那个',
+            'a': '一个',
+            'an': '一个',
+            'is': '是',
+            'are': '是',
+            'was': '是（过去式）',
+            'were': '是（过去式）',
+            'be': '是；存在',
+            'have': '有',
+            'has': '有',
+            'do': '做',
+            'does': '做',
+            'did': '做（过去式）',
+            'will': '将要',
+            'would': '将会',
+            'can': '能够',
+            'could': '能够（过去式）',
+            'may': '可能',
+            'might': '可能',
+            'must': '必须',
+            'should': '应该',
+            'introduction': '介绍；引言；序言',
+            'book': '书；书籍',
+            'chapter': '章节',
+            'section': '部分；区域',
+            'figure': '图表；数字',
+            'table': '表格',
+            'data': '数据',
+            'analysis': '分析',
+            'result': '结果',
+            'conclusion': '结论',
+            'reference': '参考文献',
+            'abstract': '摘要',
+            'method': '方法',
+            'experiment': '实验',
+            'research': '研究',
+            'study': '研究；学习',
+            'paper': '论文；纸',
+            'article': '文章',
+            'journal': '期刊；杂志',
+            'analyze': '分析',
+            'compare': '比较',
+            'define': '定义',
+            'describe': '描述',
+            'evaluate': '评估'
+        };
+
         this.init();
     }
 
@@ -2846,188 +2895,210 @@ class ReaderApp {
                 return '⏳ API请求过快，请稍后再试';
             }
 
-            // 降级到本地词典（扩展版）
-            const mockTranslations = {
-                // 基础词汇
-                'the': '这个；那个',
-                'a': '一个',
-                'an': '一个',
-                'is': '是',
-                'are': '是',
-                'was': '是（过去式）',
-                'were': '是（过去式）',
-                'be': '是；存在',
-                'have': '有',
-                'has': '有',
-                'do': '做',
-                'does': '做',
-                'did': '做（过去式）',
-                'will': '将要',
-                'would': '将会',
-                'can': '能够',
-                'could': '能够（过去式）',
-                'may': '可能',
-                'might': '可能',
-                'must': '必须',
-                'should': '应该',
-
-                // 学术常用词
-                'introduction': '介绍；引言；序言',
-                'book': '书；书籍',
-                'chapter': '章节',
-                'section': '部分；区域',
-                'figure': '图表；数字',
-                'table': '表格',
-                'data': '数据',
-                'analysis': '分析',
-                'result': '结果',
-                'conclusion': '结论',
-                'reference': '参考文献',
-                'abstract': '摘要',
-                'method': '方法',
-                'experiment': '实验',
-                'research': '研究',
-                'study': '研究；学习',
-                'paper': '论文；纸',
-                'article': '文章',
-                'journal': '期刊；杂志',
-
-                // 动词
-                'analyze': '分析',
-                'compare': '比较',
-                'define': '定义',
-                'describe': '描述',
-                'evaluate': '评估',
-                'explain': '解释',
-                'identify': '识别',
-                'illustrate': '说明',
-                'demonstrate': '演示',
-                'examine': '检查',
-                'discuss': '讨论',
-                'consider': '考虑',
-                'provide': '提供',
-                'show': '显示',
-                'suggest': '建议',
-                'indicate': '表明',
-                'present': '呈现',
-                'develop': '发展',
-                'establish': '建立',
-                'determine': '确定',
-
-                // 名词
-                'approach': '方法；途径',
-                'concept': '概念',
-                'context': '上下文；背景',
-                'evidence': '证据',
-                'factor': '因素',
-                'framework': '框架',
-                'hypothesis': '假设',
-                'process': '过程',
-                'theory': '理论',
-                'model': '模型',
-                'system': '系统',
-                'structure': '结构',
-                'function': '功能',
-                'relationship': '关系',
-                'difference': '差异',
-                'similarity': '相似性',
-                'example': '例子',
-                'case': '案例；情况',
-                'issue': '问题',
-                'problem': '问题',
-
-                // 形容词
-                'significant': '重要的；显著的',
-                'important': '重要的',
-                'relevant': '相关的',
-                'specific': '具体的',
-                'general': '一般的',
-                'complex': '复杂的',
-                'simple': '简单的',
-                'similar': '相似的',
-                'different': '不同的',
-                'common': '常见的',
-                'particular': '特定的',
-                'various': '各种各样的',
-                'possible': '可能的',
-                'necessary': '必要的',
-                'essential': '必不可少的',
-                'effective': '有效的',
-                'potential': '潜在的',
-                'recent': '最近的',
-                'current': '当前的',
-                'previous': '以前的',
-
-                // 副词和连词
-                'however': '然而',
-                'therefore': '因此',
-                'moreover': '此外',
-                'furthermore': '而且',
-                'nevertheless': '然而',
-                'consequently': '因此',
-                'thus': '因此',
-                'hence': '因此',
-                'also': '也',
-                'additionally': '另外',
-                'finally': '最后',
-                'particularly': '特别是',
-                'especially': '尤其是',
-                'generally': '通常',
-                'typically': '通常',
-                'essentially': '本质上',
-                'primarily': '主要地',
-                'significantly': '显著地',
-                'relatively': '相对地',
-                'specifically': '具体地',
-
-                // 其他常用词
-                'between': '之间',
-                'among': '在...之中',
-                'during': '在...期间',
-                'through': '通过',
-                'within': '在...之内',
-                'without': '没有',
-                'according': '根据',
-                'based': '基于',
-                'regarding': '关于',
-                'concerning': '关于',
-                'including': '包括',
-                'following': '以下的',
-                'above': '上面的',
-                'below': '下面的',
-                'such': '这样的',
-                'other': '其他的',
-                'both': '两者都',
-                'either': '两者之一',
-                'neither': '两者都不',
-                'whether': '是否',
-                'although': '虽然',
-                'though': '虽然',
-                'unless': '除非',
-                'since': '自从；因为',
-                'because': '因为',
-                'if': '如果',
-                'when': '当...时',
-                'while': '当...时；然而',
-                'until': '直到',
-                'where': '在哪里',
-                'which': '哪一个',
-                'what': '什么',
-                'who': '谁',
-                'whose': '谁的',
-                'how': '如何',
-                'why': '为什么'
-            };
-
+            // 降级到本地词典
+            console.warn('[Reader] API调用失败，尝试使用本地词典');
             const lowerWord = word.toLowerCase();
-            if (mockTranslations[lowerWord]) {
-                console.log(`📚 使用本地词典: ${word} -> ${mockTranslations[lowerWord]}`);
-                return mockTranslations[lowerWord];
+            if (this.mockTranslations && this.mockTranslations[lowerWord]) {
+                console.log(`📚 使用本地词典: ${word} -> ${this.mockTranslations[lowerWord]}`);
+                return this.mockTranslations[lowerWord];
+            }
+
+            // 如果是API Key错误，返回特定提示
+            if (error.message.includes('403') || error.message.includes('400') || error.message.includes('Key')) {
+                return `[模拟翻译] ${word} (API Key受限)`;
             }
 
             // 返回友好的错误提示
-            return `[在线翻译服务不可用]`;
+            return `[翻译服务暂时不可用]`;
         }
+        console.error('Gemini API调用失败:', error);
+
+        // 如果是速率限制错误，返回特殊提示
+        if (error.message === 'API_RATE_LIMIT') {
+            return '⏳ API请求过快，请稍后再试';
+        }
+
+        // 降级到本地词典（扩展版）
+        const mockTranslations = {
+            // 基础词汇
+            'the': '这个；那个',
+            'a': '一个',
+            'an': '一个',
+            'is': '是',
+            'are': '是',
+            'was': '是（过去式）',
+            'were': '是（过去式）',
+            'be': '是；存在',
+            'have': '有',
+            'has': '有',
+            'do': '做',
+            'does': '做',
+            'did': '做（过去式）',
+            'will': '将要',
+            'would': '将会',
+            'can': '能够',
+            'could': '能够（过去式）',
+            'may': '可能',
+            'might': '可能',
+            'must': '必须',
+            'should': '应该',
+
+            // 学术常用词
+            'introduction': '介绍；引言；序言',
+            'book': '书；书籍',
+            'chapter': '章节',
+            'section': '部分；区域',
+            'figure': '图表；数字',
+            'table': '表格',
+            'data': '数据',
+            'analysis': '分析',
+            'result': '结果',
+            'conclusion': '结论',
+            'reference': '参考文献',
+            'abstract': '摘要',
+            'method': '方法',
+            'experiment': '实验',
+            'research': '研究',
+            'study': '研究；学习',
+            'paper': '论文；纸',
+            'article': '文章',
+            'journal': '期刊；杂志',
+
+            // 动词
+            'analyze': '分析',
+            'compare': '比较',
+            'define': '定义',
+            'describe': '描述',
+            'evaluate': '评估',
+            'explain': '解释',
+            'identify': '识别',
+            'illustrate': '说明',
+            'demonstrate': '演示',
+            'examine': '检查',
+            'discuss': '讨论',
+            'consider': '考虑',
+            'provide': '提供',
+            'show': '显示',
+            'suggest': '建议',
+            'indicate': '表明',
+            'present': '呈现',
+            'develop': '发展',
+            'establish': '建立',
+            'determine': '确定',
+
+            // 名词
+            'approach': '方法；途径',
+            'concept': '概念',
+            'context': '上下文；背景',
+            'evidence': '证据',
+            'factor': '因素',
+            'framework': '框架',
+            'hypothesis': '假设',
+            'process': '过程',
+            'theory': '理论',
+            'model': '模型',
+            'system': '系统',
+            'structure': '结构',
+            'function': '功能',
+            'relationship': '关系',
+            'difference': '差异',
+            'similarity': '相似性',
+            'example': '例子',
+            'case': '案例；情况',
+            'issue': '问题',
+            'problem': '问题',
+
+            // 形容词
+            'significant': '重要的；显著的',
+            'important': '重要的',
+            'relevant': '相关的',
+            'specific': '具体的',
+            'general': '一般的',
+            'complex': '复杂的',
+            'simple': '简单的',
+            'similar': '相似的',
+            'different': '不同的',
+            'common': '常见的',
+            'particular': '特定的',
+            'various': '各种各样的',
+            'possible': '可能的',
+            'necessary': '必要的',
+            'essential': '必不可少的',
+            'effective': '有效的',
+            'potential': '潜在的',
+            'recent': '最近的',
+            'current': '当前的',
+            'previous': '以前的',
+
+            // 副词和连词
+            'however': '然而',
+            'therefore': '因此',
+            'moreover': '此外',
+            'furthermore': '而且',
+            'nevertheless': '然而',
+            'consequently': '因此',
+            'thus': '因此',
+            'hence': '因此',
+            'also': '也',
+            'additionally': '另外',
+            'finally': '最后',
+            'particularly': '特别是',
+            'especially': '尤其是',
+            'generally': '通常',
+            'typically': '通常',
+            'essentially': '本质上',
+            'primarily': '主要地',
+            'significantly': '显著地',
+            'relatively': '相对地',
+            'specifically': '具体地',
+
+            // 其他常用词
+            'between': '之间',
+            'among': '在...之中',
+            'during': '在...期间',
+            'through': '通过',
+            'within': '在...之内',
+            'without': '没有',
+            'according': '根据',
+            'based': '基于',
+            'regarding': '关于',
+            'concerning': '关于',
+            'including': '包括',
+            'following': '以下的',
+            'above': '上面的',
+            'below': '下面的',
+            'such': '这样的',
+            'other': '其他的',
+            'both': '两者都',
+            'either': '两者之一',
+            'neither': '两者都不',
+            'whether': '是否',
+            'although': '虽然',
+            'though': '虽然',
+            'unless': '除非',
+            'since': '自从；因为',
+            'because': '因为',
+            'if': '如果',
+            'when': '当...时',
+            'while': '当...时；然而',
+            'until': '直到',
+            'where': '在哪里',
+            'which': '哪一个',
+            'what': '什么',
+            'who': '谁',
+            'whose': '谁的',
+            'how': '如何',
+            'why': '为什么'
+        };
+
+        const lowerWord = word.toLowerCase();
+        if (mockTranslations[lowerWord]) {
+            console.log(`📚 使用本地词典: ${word} -> ${mockTranslations[lowerWord]}`);
+            return mockTranslations[lowerWord];
+        }
+
+        // 返回友好的错误提示
+        return `[在线翻译服务不可用]`;
     }
 
     /**
@@ -3206,6 +3277,18 @@ class ReaderApp {
             });
         }
 
+        // 绑定删除单个高亮按钮
+        const deleteHighlightBtn = document.getElementById('deleteHighlightBtn');
+        if (deleteHighlightBtn) {
+            deleteHighlightBtn.addEventListener('click', (e) => {
+                console.log('🗑️ 删除高亮按钮被点击');
+                e.stopPropagation();
+                this.deleteHighlight();
+            });
+        } else {
+            console.error('❌ 未找到删除高亮按钮 #deleteHighlightBtn');
+        }
+
         // 绑定调色板中的颜色选项
         const colorOptions = document.querySelectorAll('.color-option');
         colorOptions.forEach(option => {
@@ -3322,9 +3405,21 @@ class ReaderApp {
                 } else {
                     this.currentColorFill.style.background = this.defaultHighlightColor;
                 }
+
+                // 显示删除高亮按钮
+                const deleteHighlightBtn = document.getElementById('deleteHighlightBtn');
+                if (deleteHighlightBtn) {
+                    deleteHighlightBtn.style.display = 'flex';
+                }
             } else {
                 // 没有高亮，显示默认颜色
                 this.currentColorFill.style.background = this.defaultHighlightColor;
+
+                // 隐藏删除高亮按钮
+                const deleteHighlightBtn = document.getElementById('deleteHighlightBtn');
+                if (deleteHighlightBtn) {
+                    deleteHighlightBtn.style.display = 'none';
+                }
             }
         }
 
@@ -4392,6 +4487,57 @@ class ReaderApp {
     /**
      * 删除所有标记（高亮和下划线）
      */
+    /**
+     * 删除当前选中的高亮
+     */
+    async deleteHighlight() {
+        if (!this.currentContextTarget || !this.currentContextTarget.dataset.highlightId) {
+            console.warn('⚠️ 没有选中的高亮，无法删除');
+            this.hideContextMenu();
+            return;
+        }
+
+        const highlightId = this.currentContextTarget.dataset.highlightId;
+        console.log('🗑️ 删除高亮:', highlightId);
+
+        // 1. 从数据中移除
+        const index = this.highlights.findIndex(h => h.highlightId === highlightId);
+        if (index !== -1) {
+            this.highlights.splice(index, 1);
+            console.log('✅ 已从 highlights 数组中移除');
+        } else {
+            console.warn('⚠️ highlights 数组中未找到该ID');
+        }
+
+        // 2. 移除DOM元素
+        // 移除统一高亮层
+        const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+        if (highlightDiv) {
+            highlightDiv.remove();
+        }
+
+        // 清除span上的标记
+        const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
+        spans.forEach(span => {
+            delete span.dataset.highlightId;
+            delete span.dataset.highlightColor;
+            span.classList.remove('word-highlighted');
+        });
+
+        // 3. 隐藏菜单
+        this.hideContextMenu();
+
+        // 4. 保存更改
+        this.isDirty = true;
+        this.updateSaveButtonState();
+        await this.saveDocument();
+
+        this.showToast('高亮已删除');
+    }
+
+    /**
+     * 删除所有标记
+     */
     clearAllMarks() {
         const spansToRemoveSet = new Set();
 
@@ -5336,30 +5482,59 @@ class ReaderApp {
      * 初始化AI对话功能
      */
     initAiChat() {
-        console.log('[Reader] Initializing AI Chat...');
+        console.log('[Reader] ========== Initializing AI Chat ==========');
         const chatButton = document.getElementById('aiChatButton');
         const chatPanel = document.getElementById('aiChatPanel');
         const chatClose = document.getElementById('aiChatClose');
         const chatSend = document.getElementById('aiChatSend');
         const chatInput = document.getElementById('aiChatInput');
 
+        console.log('[Reader] AI Chat elements:', {
+            chatButton: chatButton ? 'FOUND' : 'NOT FOUND',
+            chatPanel: chatPanel ? 'FOUND' : 'NOT FOUND',
+            chatClose: chatClose ? 'FOUND' : 'NOT FOUND',
+            chatSend: chatSend ? 'FOUND' : 'NOT FOUND',
+            chatInput: chatInput ? 'FOUND' : 'NOT FOUND'
+        });
+
         if (!chatButton || !chatPanel || !chatClose || !chatSend || !chatInput) {
-            console.warn('[Reader] AI Chat UI elements not found:', { chatButton, chatPanel });
+            console.error('[Reader] ❌ AI Chat UI elements not found:', { chatButton, chatPanel, chatClose, chatSend, chatInput });
             return;
         }
 
-        console.log('[Reader] AI Chat UI elements found. Binding events...');
+        console.log('[Reader] ✅ All AI Chat UI elements found. Binding events...');
 
         // 初始隐藏按钮，等PDF加载后再显示
         chatButton.style.display = 'none';
+        console.log('[Reader] AI Chat button initially hidden');
 
         // 打开/关闭对话面板
-        chatButton.addEventListener('click', (e) => {
-            console.log('[Reader] AI Chat button clicked');
-            e.preventDefault();
-            this.toggleAiChat();
-        });
+        console.log('[Reader] Adding click event listener to AI Chat button...');
 
+        // 添加多个事件监听器以确保捕获点击
+        const handleClick = (e) => {
+            console.log('[Reader] 🎯 AI Chat button clicked (Event triggered)');
+            console.log('[Reader] Event type:', e.type);
+            console.log('[Reader] Event details:', {
+                target: e.target,
+                currentTarget: e.currentTarget,
+                type: e.type,
+                bubbles: e.bubbles
+            });
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation(); // 阻止所有其他监听器
+            this.toggleAiChat();
+        };
+
+        chatButton.addEventListener('click', handleClick, true); // 使用捕获阶段
+        chatButton.addEventListener('mousedown', (e) => {
+            console.log('[Reader] 🖱️ AI Chat button mousedown');
+        });
+        chatButton.addEventListener('mouseup', (e) => {
+            console.log('[Reader] 🖱️ AI Chat button mouseup');
+        });
+        console.log('[Reader] ✅ Click event listener added to AI Chat button');
         chatClose.addEventListener('click', () => {
             this.closeAiChat();
         });
@@ -5412,17 +5587,19 @@ class ReaderApp {
      * 切换AI对话面板
      */
     toggleAiChat() {
-        console.log('[Reader] Toggling AI Chat. Current state:', this.isAiChatOpen);
+        console.log('[Reader] 🔄 toggleAiChat called. Current state:', this.isAiChatOpen);
         const chatPanel = document.getElementById('aiChatPanel');
         if (!chatPanel) {
-            console.error('[Reader] AI Chat panel not found during toggle');
+            console.error('[Reader] ❌ AI Chat panel not found during toggle');
             return;
         }
 
         this.isAiChatOpen = !this.isAiChatOpen;
+        console.log('[Reader] New state:', this.isAiChatOpen);
+
         if (this.isAiChatOpen) {
             chatPanel.classList.add('open');
-            console.log('[Reader] AI Chat panel opened');
+            console.log('[Reader] ✅ AI Chat panel opened (class added)');
             // 聚焦输入框
             const chatInput = document.getElementById('aiChatInput');
             if (chatInput) {
@@ -5430,7 +5607,7 @@ class ReaderApp {
             }
         } else {
             chatPanel.classList.remove('open');
-            console.log('[Reader] AI Chat panel closed');
+            console.log('[Reader] ✅ AI Chat panel closed (class removed)');
         }
     }
 
@@ -5808,9 +5985,15 @@ ${userMessage}
      * 显示AI对话按钮
      */
     showAiChatButton() {
+        console.log('[Reader] 👁️ showAiChatButton called');
         const chatButton = document.getElementById('aiChatButton');
+        console.log('[Reader] AI Chat button element:', chatButton);
         if (chatButton) {
             chatButton.style.display = 'flex';
+            console.log('[Reader] ✅ AI Chat button display set to flex');
+            console.log('[Reader] Button computed style:', window.getComputedStyle(chatButton).display);
+        } else {
+            console.error('[Reader] ❌ AI Chat button not found in showAiChatButton');
         }
     }
 
