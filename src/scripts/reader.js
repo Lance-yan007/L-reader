@@ -2735,8 +2735,9 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            // 检测是否在Web环境
-            const isWeb = !window.electron || !window.electron.invoke;
+            // 检测是否在Web环境 (通过UserAgent检测，避免被web-adapter误导)
+            const isElectron = /Electron/.test(navigator.userAgent);
+            const isWeb = !isElectron;
             let fullUrl;
 
             if (isWeb) {
@@ -2860,7 +2861,8 @@ class ReaderApp {
             this.lastRequestTime = now;
 
             // 检测是否在Web环境
-            const isWeb = !window.electron || !window.electron.invoke;
+            const isElectron = /Electron/.test(navigator.userAgent);
+            const isWeb = !isElectron;
             let fullUrl;
 
             if (isWeb) {
@@ -5800,7 +5802,8 @@ class ReaderApp {
             this.lastRequestTime = now;
 
             // 检测是否在Web环境
-            const isWeb = !window.electron || !window.electron.invoke;
+            const isElectron = /Electron/.test(navigator.userAgent);
+            const isWeb = !isElectron;
             let fullUrl;
 
             if (isWeb) {
