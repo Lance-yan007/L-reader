@@ -2735,9 +2735,19 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            // 直接调用Gemini API（Google已经支持CORS）
-            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-            console.log(`📡 调用Gemini API翻译句子: ${sentence}`);
+            // 检测是否在Web环境
+            const isWeb = !window.electron || !window.electron.invoke;
+            let fullUrl;
+
+            if (isWeb) {
+                // Web环境：使用 allorigins 代理
+                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}&t=${Date.now()}`;
+                console.log(`📡 Web环境：使用代理翻译句子: ${sentence}`);
+            } else {
+                fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                console.log(`📡 Electron环境：直接调用Gemini API翻译句子: ${sentence}`);
+            }
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
@@ -2849,9 +2859,19 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            // 直接调用Gemini API
-            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-            console.log(`📡 调用Gemini API翻译: ${word}`);
+            // 检测是否在Web环境
+            const isWeb = !window.electron || !window.electron.invoke;
+            let fullUrl;
+
+            if (isWeb) {
+                // Web环境：使用 allorigins 代理
+                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}&t=${Date.now()}`;
+                console.log(`📡 Web环境：使用代理翻译: ${word}`);
+            } else {
+                fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                console.log(`📡 Electron环境：直接调用Gemini API翻译: ${word}`);
+            }
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
@@ -5779,9 +5799,19 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            // 直接调用Gemini API（Google已支持CORS）
-            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-            console.log(`📡 调用Gemini API进行AI对话`);
+            // 检测是否在Web环境
+            const isWeb = !window.electron || !window.electron.invoke;
+            let fullUrl;
+
+            if (isWeb) {
+                // Web环境：使用 allorigins 代理，并添加时间戳防止缓存
+                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}&t=${Date.now()}`;
+                console.log(`📡 Web环境：使用代理调用Gemini API`);
+            } else {
+                fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
+                console.log(`📡 Electron环境：直接调用Gemini API`);
+            }
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
@@ -5860,27 +5890,27 @@ ${userMessage}
             }
         }
 
-        const messageId = `msg - ${Date.now()} - ${Math.random().toString(36).substr(2, 9)}`;
+        const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const messageDiv = document.createElement('div');
-        messageDiv.className = `ai - chat - message ${role}${isLoading ? ' loading' : ''}`;
+        messageDiv.className = `ai-chat-message ${role}${isLoading ? ' loading' : ''}`;
         messageDiv.id = messageId;
 
         const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
         if (isLoading) {
             messageDiv.innerHTML = `
-                        < div class= "ai-chat-message-bubble" >
-                        <div class="ai-chat-loading-dots">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-                </div >
-                        `;
+                <div class="ai-chat-message-bubble">
+                    <div class="ai-chat-loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
         } else {
             messageDiv.innerHTML = `
-                        < div class= "ai-chat-message-bubble" > ${this.escapeHtml(content)}</div >
-                        <div class="ai-chat-message-time">${time}</div>
+                <div class="ai-chat-message-bubble">${this.escapeHtml(content)}</div>
+                <div class="ai-chat-message-time">${time}</div>
             `;
         }
 
