@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 module.exports = async (req, res) => {
     // 设置 CORS 头
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -14,11 +12,13 @@ module.exports = async (req, res) => {
     }
 
     const { body } = req;
-    const apiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY'; // 暂时硬编码，生产环境应使用环境变量
+    const apiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
     const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
 
     try {
         console.log('Proxying request to Gemini API...');
+
+        // 使用原生 fetch (Node.js 18+)
         const response = await fetch(`${apiUrl}?key=${apiKey}`, {
             method: 'POST',
             headers: {

@@ -5835,23 +5835,24 @@ ${userMessage}
                 })
             });
 
+            const responseText = await response.text();
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Failed to parse API response as JSON:', responseText);
+                throw new Error('API返回格式异常: 非JSON响应');
+            }
+
             if (!response.ok) {
-                let errorData;
-                try {
-                    errorData = await response.json();
-                } catch (e) {
-                    errorData = await response.text();
-                }
-                console.error(`❌ API错误详情:`, errorData);
+                console.error(`❌ API错误详情:`, data);
 
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
                 }
 
-                throw new Error(`API请求失败: ${response.status}`);
+                throw new Error(`API请求失败: ${response.status} ${data.error?.message || ''}`);
             }
-
-            const data = await response.json();
 
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const text = data.candidates[0].content.parts[0].text;
