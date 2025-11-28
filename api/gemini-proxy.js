@@ -3,7 +3,7 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Gemini-API-Key');
 
     // 处理 OPTIONS 请求
     if (req.method === 'OPTIONS') {
@@ -12,13 +12,13 @@ module.exports = async (req, res) => {
     }
 
     const { body } = req;
-    const apiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
+    // 优先从请求头获取 Key，否则使用默认（已失效，仅作占位）
+    const apiKey = req.headers['x-gemini-api-key'] || 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
     const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
 
     try {
         console.log('Proxying request to Gemini API...');
 
-        // 使用原生 fetch (Node.js 18+)
         const response = await fetch(`${apiUrl}?key=${apiKey}`, {
             method: 'POST',
             headers: {

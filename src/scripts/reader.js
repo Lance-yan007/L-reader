@@ -299,6 +299,8 @@ class ReaderApp {
             this.loadFile(filePath);
         });
 
+        this.initSettings();
+
         // 缩放事件监听
         this.bindZoomEvents();
 
@@ -2744,6 +2746,12 @@ class ReaderApp {
                 // Web环境：使用本地 Serverless 代理
                 fullUrl = '/api/gemini-proxy';
                 console.log(`📡 Web环境：使用本地代理翻译句子: ${sentence}`);
+
+                // 获取用户设置的 Key
+                const userApiKey = localStorage.getItem('gemini_api_key');
+                if (userApiKey) {
+                    requestOptions.headers['X-Gemini-API-Key'] = userApiKey;
+                }
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
                 console.log(`📡 Electron环境：直接调用Gemini API翻译句子: ${sentence}`);
@@ -2868,6 +2876,12 @@ class ReaderApp {
                 // Web环境：使用本地 Serverless 代理
                 fullUrl = '/api/gemini-proxy';
                 console.log(`📡 Web环境：使用本地代理翻译: ${word}`);
+
+                // 获取用户设置的 Key
+                const userApiKey = localStorage.getItem('gemini_api_key');
+                if (userApiKey) {
+                    requestOptions.headers['X-Gemini-API-Key'] = userApiKey;
+                }
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
                 console.log(`📡 Electron环境：直接调用Gemini API翻译: ${word}`);
@@ -5808,6 +5822,12 @@ class ReaderApp {
                 // Web环境：使用本地 Serverless 代理
                 fullUrl = '/api/gemini-proxy';
                 console.log(`📡 Web环境：使用本地代理调用Gemini API`);
+
+                // 获取用户设置的 Key
+                const userApiKey = localStorage.getItem('gemini_api_key');
+                if (userApiKey) {
+                    requestOptions.headers['X-Gemini-API-Key'] = userApiKey;
+                }
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
                 console.log(`📡 Electron环境：直接调用Gemini API`);
@@ -5863,6 +5883,12 @@ ${userMessage}
         } catch (error) {
             console.error('Gemini API调用失败:', error);
 
+            // 检查是否是 API Key 泄露或无效
+            if (error.message.includes('403') || error.message.includes('API key not valid')) {
+                this.showSettingsModal('API Key 已失效，请在设置中更新您的 Key。');
+                return "API Key 无效或已过期。请点击右上角设置按钮，输入您自己的 Gemini API Key。";
+            }
+
             // 返回更友好的错误信息
             if (error.message === 'API_RATE_LIMIT') {
                 return "抱歉，API调用次数已达上限，请稍后再试。";
@@ -5870,6 +5896,62 @@ ${userMessage}
 
             return `抱歉，AI助手暂时无法响应。错误信息：${error.message}`;
         }
+    }
+
+    showSettingsModal(message = null) {
+        const modal = document.getElementById('settingsModal');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+
+        if (modal) {
+            modal.style.display = 'flex';
+            // 预填充现有的 Key
+            const savedKey = localStorage.getItem('gemini_api_key');
+            if (savedKey) apiKeyInput.value = savedKey;
+
+            if (message) {
+                alert(message);
+            }
+        }
+    }
+
+    initSettings() {
+        const settingsBtn = document.getElementById('settingsBtn');
+        const modal = document.getElementById('settingsModal');
+        const closeBtn = document.getElementById('closeSettingsModal');
+        const saveBtn = document.getElementById('saveSettingsBtn');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                this.showSettingsModal();
+            });
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        }
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const key = apiKeyInput.value.trim();
+                if (key) {
+                    localStorage.setItem('gemini_api_key', key);
+                    alert('设置已保存！');
+                    modal.style.display = 'none';
+                } else {
+                    alert('请输入有效的 API Key');
+                }
+            });
+        }
+
+        // 点击外部关闭
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
     }
 
     /**
