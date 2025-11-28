@@ -5779,24 +5779,11 @@ class ReaderApp {
             this.apiRequestQueue.push(now);
             this.lastRequestTime = now;
 
-            let fullUrl;
-            let requestOptions;
-
-            requestOptions = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
-
-            // 直接调用Gemini API
+            // 直接调用Gemini API（Google已支持CORS）
+            const fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
             console.log(`📡 调用Gemini API进行AI对话`);
-            fullUrl = `${ this.geminiApiUrl } ? key = ${ this.geminiApiKey }`;
 
-            requestOptions = {
+            const response = await fetch(fullUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -5807,18 +5794,16 @@ class ReaderApp {
                             text: `你是一个专业的PDF阅读助手。用户正在阅读一个PDF文档，文档的全部内容如下：
 
 【文档内容】
-                            ${ pageText }
+${pageText}
 
 【用户问题】
-                            ${ userMessage }
+${userMessage}
 
 请基于文档内容回答用户的问题。如果问题与文档内容无关，请礼貌地说明。回答要简洁明了，使用中文。`
                         }]
                     }]
                 })
-            };
-
-            const response = await fetch(fullUrl, requestOptions);
+            });
 
             if (!response.ok) {
                 let errorData;
@@ -5827,13 +5812,13 @@ class ReaderApp {
                 } catch (e) {
                     errorData = await response.text();
                 }
-                console.error(`❌ API错误详情: `, errorData);
+                console.error(`❌ API错误详情:`, errorData);
 
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
                 }
 
-                throw new Error(`API请求失败: ${ response.status }`);
+                throw new Error(`API请求失败: ${response.status}`);
             }
 
             const data = await response.json();
@@ -5846,13 +5831,13 @@ class ReaderApp {
             }
         } catch (error) {
             console.error('Gemini API调用失败:', error);
-            
+
             // 返回更友好的错误信息
             if (error.message === 'API_RATE_LIMIT') {
                 return "抱歉，API调用次数已达上限，请稍后再试。";
             }
-            
-            return `抱歉，AI助手暂时无法响应。错误信息：${ error.message }`;
+
+            return `抱歉，AI助手暂时无法响应。错误信息：${error.message}`;
         }
     }
 
@@ -5864,26 +5849,26 @@ class ReaderApp {
      * @returns {string} 消息ID
      */
     addChatMessage(role, content, isLoading = false) {
-    const chatMessages = document.getElementById('aiChatMessages');
-    if (!chatMessages) return null;
+        const chatMessages = document.getElementById('aiChatMessages');
+        if (!chatMessages) return null;
 
-    // 如果是第一条消息，移除欢迎消息
-    if (this.aiChatMessages.length === 0) {
-        const welcome = chatMessages.querySelector('.ai-chat-welcome');
-        if (welcome) {
-            welcome.remove();
+        // 如果是第一条消息，移除欢迎消息
+        if (this.aiChatMessages.length === 0) {
+            const welcome = chatMessages.querySelector('.ai-chat-welcome');
+            if (welcome) {
+                welcome.remove();
+            }
         }
-    }
 
-    const messageId = `msg - ${ Date.now() } - ${ Math.random().toString(36).substr(2, 9) }`;
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `ai - chat - message ${ role }${ isLoading? ' loading': '' }`;
-    messageDiv.id = messageId;
+        const messageId = `msg - ${Date.now()} - ${Math.random().toString(36).substr(2, 9)}`;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `ai - chat - message ${role}${isLoading ? ' loading' : ''}`;
+        messageDiv.id = messageId;
 
-    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
-    if (isLoading) {
-        messageDiv.innerHTML = `
+        if (isLoading) {
+            messageDiv.innerHTML = `
                         < div class= "ai-chat-message-bubble" >
                         <div class="ai-chat-loading-dots">
                             <span></span>
@@ -5892,33 +5877,33 @@ class ReaderApp {
                         </div>
                 </div >
                         `;
-    } else {
-        messageDiv.innerHTML = `
-                        < div class= "ai-chat-message-bubble" > ${ this.escapeHtml(content) }</div >
+        } else {
+            messageDiv.innerHTML = `
+                        < div class= "ai-chat-message-bubble" > ${this.escapeHtml(content)}</div >
                         <div class="ai-chat-message-time">${time}</div>
             `;
+        }
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // 保存到历史记录
+        if (!isLoading) {
+            this.aiChatMessages.push({ role, content, time });
+        }
+
+        return messageId;
     }
 
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    // 保存到历史记录
-    if (!isLoading) {
-        this.aiChatMessages.push({ role, content, time });
-    }
-
-    return messageId;
-}
-
-/**
- * 显示升级提示
- * @param {string} message - 提示消息
- */
-showUpgradePrompt(message) {
-    // 创建提示弹窗
-    const promptDiv = document.createElement('div');
-    promptDiv.className = 'upgrade-prompt';
-    promptDiv.innerHTML = `
+    /**
+     * 显示升级提示
+     * @param {string} message - 提示消息
+     */
+    showUpgradePrompt(message) {
+        // 创建提示弹窗
+        const promptDiv = document.createElement('div');
+        promptDiv.className = 'upgrade-prompt';
+        promptDiv.innerHTML = `
                         < div class= "upgrade-prompt-content" >
                 <div class="upgrade-prompt-icon">⚠️</div>
                 <div class="upgrade-prompt-message">${this.escapeHtml(message)}</div>
@@ -5929,121 +5914,121 @@ showUpgradePrompt(message) {
             </div >
                         `;
 
-    // 添加到页面
-    document.body.appendChild(promptDiv);
+        // 添加到页面
+        document.body.appendChild(promptDiv);
 
-    // 绑定事件
-    const upgradeBtn = promptDiv.querySelector('#upgradePromptUpgrade');
-    const cancelBtn = promptDiv.querySelector('#upgradePromptCancel');
+        // 绑定事件
+        const upgradeBtn = promptDiv.querySelector('#upgradePromptUpgrade');
+        const cancelBtn = promptDiv.querySelector('#upgradePromptCancel');
 
-    upgradeBtn.addEventListener('click', () => {
-        // 打开个人中心订阅页面
-        if (typeof window !== 'undefined' && window.electron && window.electron.invoke) {
-            window.electron.invoke('open-profile-page').catch(err => {
-                console.error('打开个人中心失败:', err);
-                // 降级方案：尝试直接跳转
+        upgradeBtn.addEventListener('click', () => {
+            // 打开个人中心订阅页面
+            if (typeof window !== 'undefined' && window.electron && window.electron.invoke) {
+                window.electron.invoke('open-profile-page').catch(err => {
+                    console.error('打开个人中心失败:', err);
+                    // 降级方案：尝试直接跳转
+                    if (typeof window !== 'undefined') {
+                        window.location.href = 'profile.html';
+                    }
+                });
+            } else if (typeof ipcRenderer !== 'undefined') {
+                // 兼容旧版本（如果直接使用 ipcRenderer）
+                ipcRenderer.invoke('open-profile-page').catch(err => {
+                    console.error('打开个人中心失败:', err);
+                });
+            } else {
+                // 降级方案：直接跳转
                 if (typeof window !== 'undefined') {
                     window.location.href = 'profile.html';
                 }
-            });
-        } else if (typeof ipcRenderer !== 'undefined') {
-            // 兼容旧版本（如果直接使用 ipcRenderer）
-            ipcRenderer.invoke('open-profile-page').catch(err => {
-                console.error('打开个人中心失败:', err);
-            });
-        } else {
-            // 降级方案：直接跳转
-            if (typeof window !== 'undefined') {
-                window.location.href = 'profile.html';
             }
-        }
-        promptDiv.remove();
-    });
-
-    cancelBtn.addEventListener('click', () => {
-        promptDiv.remove();
-    });
-
-    // 3秒后自动关闭
-    setTimeout(() => {
-        if (promptDiv.parentNode) {
             promptDiv.remove();
-        }
-    }, 5000);
-}
+        });
 
-/**
- * 更新聊天消息
- * @param {string} messageId - 消息ID
- * @param {string} role - 'user' 或 'assistant'
- * @param {string} content - 消息内容
- */
-updateChatMessage(messageId, role, content) {
-    const messageDiv = document.getElementById(messageId);
-    if (!messageDiv) return;
+        cancelBtn.addEventListener('click', () => {
+            promptDiv.remove();
+        });
 
-    messageDiv.className = `ai - chat - message ${ role }`;
-    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        // 3秒后自动关闭
+        setTimeout(() => {
+            if (promptDiv.parentNode) {
+                promptDiv.remove();
+            }
+        }, 5000);
+    }
 
-    messageDiv.innerHTML = `
-                        < div class= "ai-chat-message-bubble" > ${ this.escapeHtml(content) }</div >
+    /**
+     * 更新聊天消息
+     * @param {string} messageId - 消息ID
+     * @param {string} role - 'user' 或 'assistant'
+     * @param {string} content - 消息内容
+     */
+    updateChatMessage(messageId, role, content) {
+        const messageDiv = document.getElementById(messageId);
+        if (!messageDiv) return;
+
+        messageDiv.className = `ai - chat - message ${role}`;
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+        messageDiv.innerHTML = `
+                        < div class= "ai-chat-message-bubble" > ${this.escapeHtml(content)}</div >
                         <div class="ai-chat-message-time">${time}</div>
         `;
 
-    // 更新历史记录
-    const messageIndex = this.aiChatMessages.findIndex(msg => msg.role === role && !msg.content);
-    if (messageIndex >= 0) {
-        this.aiChatMessages[messageIndex].content = content;
-        this.aiChatMessages[messageIndex].time = time;
-    } else {
-        this.aiChatMessages.push({ role, content, time });
+        // 更新历史记录
+        const messageIndex = this.aiChatMessages.findIndex(msg => msg.role === role && !msg.content);
+        if (messageIndex >= 0) {
+            this.aiChatMessages[messageIndex].content = content;
+            this.aiChatMessages[messageIndex].time = time;
+        } else {
+            this.aiChatMessages.push({ role, content, time });
+        }
+
+        // 滚动到底部
+        const chatMessages = document.getElementById('aiChatMessages');
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
     }
 
-    // 滚动到底部
-    const chatMessages = document.getElementById('aiChatMessages');
-    if (chatMessages) {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+    /**
+     * HTML转义
+     * @param {string} text - 原始文本
+     * @returns {string} 转义后的文本
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
-}
 
-/**
- * HTML转义
- * @param {string} text - 原始文本
- * @returns {string} 转义后的文本
- */
-escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
- * 显示AI对话按钮
- */
-showAiChatButton() {
-    console.log('[Reader] 👁️ showAiChatButton called');
-    const chatButton = document.getElementById('aiChatButton');
-    console.log('[Reader] AI Chat button element:', chatButton);
-    if (chatButton) {
-        chatButton.style.display = 'flex';
-        console.log('[Reader] ✅ AI Chat button display set to flex');
-        console.log('[Reader] Button computed style:', window.getComputedStyle(chatButton).display);
-    } else {
-        console.error('[Reader] ❌ AI Chat button not found in showAiChatButton');
+    /**
+     * 显示AI对话按钮
+     */
+    showAiChatButton() {
+        console.log('[Reader] 👁️ showAiChatButton called');
+        const chatButton = document.getElementById('aiChatButton');
+        console.log('[Reader] AI Chat button element:', chatButton);
+        if (chatButton) {
+            chatButton.style.display = 'flex';
+            console.log('[Reader] ✅ AI Chat button display set to flex');
+            console.log('[Reader] Button computed style:', window.getComputedStyle(chatButton).display);
+        } else {
+            console.error('[Reader] ❌ AI Chat button not found in showAiChatButton');
+        }
     }
-}
 
-/**
- * 隐藏AI对话按钮
- */
-hideAiChatButton() {
-    const chatButton = document.getElementById('aiChatButton');
-    if (chatButton) {
-        chatButton.style.display = 'none';
+    /**
+     * 隐藏AI对话按钮
+     */
+    hideAiChatButton() {
+        const chatButton = document.getElementById('aiChatButton');
+        if (chatButton) {
+            chatButton.style.display = 'none';
+        }
+        // 如果对话面板打开，也关闭它
+        this.closeAiChat();
     }
-    // 如果对话面板打开，也关闭它
-    this.closeAiChat();
-}
 }
 
 // 初始化阅读器应用
