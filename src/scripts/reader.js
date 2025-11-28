@@ -2738,15 +2738,15 @@ class ReaderApp {
             // 检测是否在Web环境
             const isWeb = !window.electron || !window.electron.invoke;
             let fullUrl;
+            let requestBody;
 
             if (isWeb) {
-                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                // 使用 allorigins 代理
-                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-                console.log(`📡 Web环境：使用CORS代理翻译句子: ${sentence}`);
+                // Web环境：使用本地API代理
+                fullUrl = '/api/gemini-proxy';
+                console.log(`📡 Web环境：使用本地API代理翻译句子: ${sentence}`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                console.log(`📡 调用Gemini API翻译句子: ${sentence}`);
+                console.log(`📡 Electron环境：直接调用Gemini API翻译句子: ${sentence}`);
             }
 
             const response = await fetch(fullUrl, {
@@ -2864,12 +2864,12 @@ class ReaderApp {
             let fullUrl;
 
             if (isWeb) {
-                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-                console.log(`📡 Web环境：使用CORS代理翻译: ${word}`);
+                // Web环境：使用本地API代理
+                fullUrl = '/api/gemini-proxy';
+                console.log(`📡 Web环境：使用本地API代理翻译: ${word}`);
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                console.log(`📡 调用Gemini API翻译: ${word}`);
+                console.log(`📡 Electron环境：直接调用Gemini API翻译: ${word}`);
             }
 
             const response = await fetch(fullUrl, {
@@ -5805,10 +5805,9 @@ class ReaderApp {
             let requestOptions;
 
             if (isWeb) {
-                // Web环境：使用CORS代理
-                console.log(`📡 Web环境：使用CORS代理调用Gemini API`);
-                const apiUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
-                fullUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
+                // Web环境：使用本地API代理
+                console.log(`📡 Web环境：使用本地API代理调用Gemini API`);
+                fullUrl = '/api/gemini-proxy';
 
                 requestOptions = {
                     method: 'POST',
