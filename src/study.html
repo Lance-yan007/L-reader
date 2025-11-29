@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>背单词 - L-reader</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .study-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .study-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .study-header h1 {
+            font-size: 28px;
+            color: #333;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .heatmap-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .heatmap-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .heatmap-container {
+            overflow-x: auto;
+        }
+
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(53, 12px);
+            grid-gap: 3px;
+            margin-top: 10px;
+        }
+
+        .heatmap-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            background: #ebedf0;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .heatmap-cell[data-level="1"] {
+            background: #c6e48b;
+        }
+
+        .heatmap-cell[data-level="2"] {
+            background: #7bc96f;
+        }
+
+        .heatmap-cell[data-level="3"] {
+            background: #239a3b;
+        }
+
+        .heatmap-cell[data-level="4"] {
+            background: #196127;
+        }
+
+        .heatmap-cell:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .modes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .mode-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .mode-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .mode-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .mode-desc {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .mode-count {
+            font-size: 18px;
+            color: #4CAF50;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .back-button {
+            background: #f5f5f5;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .back-button:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="study-container">
+        <div class="study-header">
+            <h1>🎯 背单词</h1>
+            <button class="back-button" onclick="window.location.hash = '#/main'">← 返回主页</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">今日待复习</div>
+                <div class="stat-value" id="todayReviewCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">连续打卡</div>
+                <div class="stat-value" id="streakDays">0</div>
+                <div class="stat-label">天</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">累计学习</div>
+                <div class="stat-value" id="totalStudied">0</div>
+                <div class="stat-label">个单词</div>
+            </div>
+        </div>
+
+        <div class="heatmap-section">
+            <div class="heatmap-title">🔥 学习热力图 (最近90天)</div>
+            <div class="heatmap-container">
+                <div class="heatmap-grid" id="heatmapGrid"></div>
+            </div>
+        </div>
+
+        <div class="modes-grid">
+            <div class="mode-card" onclick="startStudyMode('review')">
+                <div class="mode-icon">🔄</div>
+                <div class="mode-title">今日复习</div>
+                <div class="mode-desc">复习需要巩固的单词</div>
+                <div class="mode-count"><span id="reviewModeCount">0</span> 个待复习</div>
+            </div>
+
+            <div class="mode-card" onclick="startStudyMode('new')">
+                <div class="mode-icon">✨</div>
+                <div class="mode-title">学习新词</div>
+                <div class="mode-desc">学习生词本中的新单词</div>
+                <div class="mode-count"><span id="newModeCount">0</span> 个新词</div>
+            </div>
+
+            <div class="mode-card" onclick="startStudyMode('browse')">
+                <div class="mode-icon">📚</div>
+                <div class="mode-title">快速浏览</div>
+                <div class="mode-desc">浏览所有已学单词</div>
+                <div class="mode-count"><span id="browseModeCount">0</span> 个单词</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/study.js"></script>
+</body>
+
+</html>
+", "Complexity">2

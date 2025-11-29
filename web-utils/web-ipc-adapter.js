@@ -90,6 +90,21 @@ const ipcAdapter = {
             case 'delete-vocabulary':
                 return window.StorageAdapter.deleteVocabulary(args[0]);
 
+            case 'get-vocabulary-for-review':
+                return window.StorageAdapter.getVocabularyForReview();
+
+            case 'get-new-vocabulary':
+                return window.StorageAdapter.getNewVocabulary();
+
+            case 'update-vocabulary-progress':
+                return window.StorageAdapter.updateVocabularyProgress(args[0]);
+
+            case 'get-study-sessions':
+                return window.StorageAdapter.getStudySessions(args[0]);
+
+            case 'record-study-session':
+                return window.StorageAdapter.recordStudySession(args[0]);
+
             case 'open-profile-page':
                 // 在Web环境中，直接导航到profile页面
                 window.location.href = '#/profile';

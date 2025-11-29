@@ -688,6 +688,70 @@ class StorageAdapter {
             return { success: false, error: error.message };
         }
     }
+
+    async getVocabularyForReview() {
+        const userId = await this.getCurrentUserId();
+        if (!userId) return [];
+        try {
+            const { data } = await window.supabaseClient
+                .from('vocabulary_progress')
+                .select('*')
+                .eq('user_id', userId)
+                .lte('next_review', new Date().toISOString())
+                .lt('proficiency_level', 5);
+            return data || [];
+        } catch (e) { return []; }
+    }
+
+    async getNewVocabulary() {
+        const userId = await this.getCurrentUserId();
+        if (!userId) return [];
+        try {
+            const { data: all } = await window.supabaseClient.from('vocabulary').select('*').eq('user_id', userId);
+            const { data: studied } = await window.supabaseClient.from('vocabulary_progress').select('word').eq('user_id', userId);
+            const studiedSet = new Set((studied || []).map(w => w.word));
+            return (all || []).filter(v => !studiedSet.has(v.word));
+        } catch (e) { return []; }
+    }
+
+    async updateVocabularyProgress(data) {
+        const userId = await this.getCurrentUserId();
+        if (!userId) return { success: false };
+        try {
+            await window.supabaseClient.from('vocabulary_progress').upsert({
+                user_id: userId, word: data.word, proficiency_level: data.proficiency_level,
+                review_count: data.review_count, last_reviewed: new Date().toISOString(),
+                next_review: data.next_review, ease_factor: data.ease_factor,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id,word' });
+            return { success: true };
+        } catch (e) { return { success: false }; }
+    }
+
+    async getStudySessions(days = 90) {
+        const userId = await this.getCurrentUserId();
+        if (!userId) return [];
+        try {
+            const start = new Date();
+            start.setDate(start.getDate() - days);
+            const { data } = await window.supabaseClient.from('study_sessions').select('*')
+                .eq('user_id', userId).gte('study_date', start.toISOString().split('T')[0]);
+            return data || [];
+        } catch (e) { return []; }
+    }
+
+    async recordStudySession(data) {
+        const userId = await this.getCurrentUserId();
+        if (!userId) return { success: false };
+        try {
+            await window.supabaseClient.from('study_sessions').upsert({
+                user_id: userId, study_date: new Date().toISOString().split('T')[0],
+                words_studied: data.words_studied, words_reviewed: data.words_reviewed,
+                accuracy_rate: data.accuracy_rate, study_duration: data.study_duration
+            }, { onConflict: 'user_id,study_date' });
+            return { success: true };
+        } catch (e) { return { success: false }; }
+    }
 }
 
 // 创建全局实例
