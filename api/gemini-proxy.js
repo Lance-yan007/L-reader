@@ -16,9 +16,11 @@ module.exports = async (req, res) => {
     const apiKey = req.headers['x-gemini-api-key'] || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
+        console.error('❌ Configuration Error: GEMINI_API_KEY is missing in environment variables.');
         res.status(500).json({
             error: 'Configuration Error',
-            details: 'API Key not configured. Please set GEMINI_API_KEY in Vercel environment variables or provide it in request headers.'
+            code: 'MISSING_API_KEY',
+            details: 'Server is not configured with an API Key. Please contact the administrator.'
         });
         return;
     }

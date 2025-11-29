@@ -5877,13 +5877,16 @@ ${userMessage}
             if (!response.ok) {
                 console.error(`❌ API错误详情:`, data);
 
+                if (data.code === 'MISSING_API_KEY') {
+                    throw new Error('SERVER_MISSING_KEY');
+                }
+
                 if (response.status === 429) {
                     throw new Error('API_RATE_LIMIT');
                 }
 
                 throw new Error(`API请求失败: ${response.status} ${data.error?.message || ''}`);
             }
-
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const text = data.candidates[0].content.parts[0].text;
                 return text.trim();
@@ -5897,6 +5900,11 @@ ${userMessage}
             if (error.message.includes('403') || error.message.includes('API key not valid')) {
                 this.showSettingsModal('API Key 已失效，请在设置中更新您的 Key。');
                 return "API Key 无效或已过期。请点击右上角设置按钮，输入您自己的 Gemini API Key。";
+            }
+
+            // 服务器未配置 Key
+            if (error.message === 'SERVER_MISSING_KEY') {
+                return "⚠️ 系统提示：服务器尚未配置 API Key。请联系管理员在后台配置 GEMINI_API_KEY，或者您可以点击右上角设置按钮，暂时使用自己的 Key。";
             }
 
             // 返回更友好的错误信息

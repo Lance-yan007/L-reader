@@ -107,6 +107,18 @@ const ipcAdapter = {
     send: (channel, ...args) => {
         console.log(`[IPC Adapter] send: ${channel}`, args);
 
+        // 处理导航返回
+        if (channel === 'go-back') {
+            console.log('[IPC Adapter] Handling go-back navigation');
+            // 如果有历史记录则返回，否则回到主页
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.hash = '#/';
+            }
+            return;
+        }
+
         // 触发自定义事件
         window.dispatchEvent(new CustomEvent(`ipc-${channel}`, { detail: args }));
     },

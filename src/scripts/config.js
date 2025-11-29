@@ -9,10 +9,9 @@ const AppConfig = {
         url: 'https://rjmumvfwpbcvtkllcehm.supabase.co',
         anonKey: 'sb_publishable_F2pZVeDCJMnxy7K8ZsqTuQ_UrG5w3BM'
     },
-    stripe: {
-        publishableKey: 'pk_test_51SWgDrPVEKLXa9iSia0TFVK5IkYfE77Jpo2iPqawhe2yOMjVNERWhuCBeVc3i6ZEdxdyuO94F8aHh23EE5O3Ocwn00vScq3zq9',
+    payment: {
         prices: {
-            lifetime: 'price_1SWjhzPVEKLXa9iSLMXPxDob'
+            lifetime: '39.90' // USD or equivalent CNY
         }
     }
 };

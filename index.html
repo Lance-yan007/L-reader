@@ -29,49 +29,45 @@
                     loginBtn.style.border = '1px solid #ddd';
                 }
 
-                // Handle Buy Button Click
-                const buyBtn = document.getElementById('buyProBtn');
-                if (buyBtn) {
-                    buyBtn.addEventListener('click', async () => {
-                        if (!session) {
-                            // Not logged in, redirect to login
-                            window.location.href = 'src/auth.html';
-                            return;
+                // Handle Alipay Payment (Web Only)
+                const handleAlipayPayment = async () => {
+                    const { data: { session } } = await client.auth.getSession();
+                    if (!session) {
+                        window.location.href = 'src/auth.html';
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/create-alipay-order', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                amount: window.AppConfig.payment.prices.lifetime,
+                                subject: 'L-reader Pro 终身版',
+                            }),
+                        });
+
+                        const result = await response.json();
+
+                        if (result.url) {
+                            // Redirect to Alipay payment page
+                            window.location.href = result.url;
+                        } else {
+                            alert('支付宝支付初始化失败: ' + (result.message || '未知错误'));
                         }
 
-                        // Logged in, start checkout
-                        buyBtn.textContent = '处理中...';
-                        buyBtn.disabled = true;
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('支付服务暂时不可用');
+                    }
+                };
 
-                        try {
-                            const response = await fetch('/api/create-checkout-session', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    priceId: window.AppConfig.stripe.prices.lifetime,
-                                    userId: session.user.id,
-                                    userEmail: session.user.email
-                                }),
-                            });
-
-                            const data = await response.json();
-                            if (data.url) {
-                                window.location.href = data.url;
-                            } else {
-                                console.error('Payment Error:', data);
-                                alert(`支付初始化失败: ${data.message || '未知错误'}`);
-                                buyBtn.textContent = '立即购买';
-                                buyBtn.disabled = false;
-                            }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            alert(`支付服务暂时不可用: ${error.message}`);
-                            buyBtn.textContent = '立即购买';
-                            buyBtn.disabled = false;
-                        }
-                    });
+                // Bind Alipay button
+                const alipayBtn = document.getElementById('btn-alipay');
+                if (alipayBtn) {
+                    alipayBtn.addEventListener('click', handleAlipayPayment);
                 }
             }
         });
@@ -412,9 +408,12 @@
                         <li><i class="fas fa-check"></i> <strong>无限</strong> AI助手</li>
                         <li><i class="fas fa-check"></i> <strong>无限</strong> 生词本容量</li>
                         <li><i class="fas fa-check"></i> 优先客服支持</li>
-                        <li><i class="fas fa-check"></i> 支持支付宝/微信支付</li>
+                        <li><i class="fas fa-check"></i> 支持支付宝支付</li>
                     </ul>
-                    <button class="btn-pricing btn-primary" id="buyProBtn">立即购买</button>
+                    <button class="btn-pricing btn-primary" id="btn-alipay"
+                        style="background-color: #1677FF; width: 100%;">
+                        <i class="fab fa-alipay"></i> 支付宝支付
+                    </button>
                 </div>
             </div>
         </div>
