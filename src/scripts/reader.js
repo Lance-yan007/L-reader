@@ -6106,13 +6106,13 @@ ${userMessage}
         const messageDiv = document.getElementById(messageId);
         if (!messageDiv) return;
 
-        messageDiv.className = `ai - chat - message ${role}`;
+        messageDiv.className = `ai-chat-message ${role}`;
         const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
         messageDiv.innerHTML = `
-                        < div class= "ai-chat-message-bubble" > ${this.escapeHtml(content)}</div >
-                        <div class="ai-chat-message-time">${time}</div>
-        `;
+        <div class="ai-chat-message-bubble">${this.escapeHtml(content)}</div>
+        <div class="ai-chat-message-time">${time}</div>
+    `;
 
         // 更新历史记录
         const messageIndex = this.aiChatMessages.findIndex(msg => msg.role === role && !msg.content);
