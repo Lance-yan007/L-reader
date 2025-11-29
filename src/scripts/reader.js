@@ -2043,6 +2043,13 @@ class ReaderApp {
             return;
         }
 
+        // Web SPA mode (Not embedded)
+        if (!/Electron/.test(navigator.userAgent)) {
+            console.log('Web mode: Navigating back to main');
+            window.location.hash = '#/main';
+            return;
+        }
+
         // 独立窗口模式下关闭窗口
         window.close();
     }
