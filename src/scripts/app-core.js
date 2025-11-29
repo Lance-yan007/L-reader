@@ -213,6 +213,13 @@ class MainApp {
             });
         }
 
+        const studyNavBtn = document.getElementById('studyNavBtn');
+        if (studyNavBtn) {
+            studyNavBtn.addEventListener('click', () => {
+                window.location.hash = '#/study';
+            });
+        }
+
         // 个人中心按钮
         const profileNavBtn = document.getElementById('profileNavBtn');
         if (profileNavBtn) {
