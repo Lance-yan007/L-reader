@@ -38,6 +38,9 @@ const ipcAdapter = {
             case 'open-folder-dialog':
                 return window.WebFSAdapter.openFolderDialog();
 
+            case 'delete-file':
+                return window.WebFSAdapter.deleteFile(args[0]);
+
             case 'save-translation':
                 return window.StorageAdapter.saveTranslation(args[0], args[1]);
 

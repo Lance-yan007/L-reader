@@ -368,6 +368,47 @@ class WebFSAdapter {
             };
         });
     }
+
+    /**
+     * 删除文件
+     */
+    async deleteFile(filePath) {
+        try {
+            const fileId = this.extractFileId(filePath);
+            if (!fileId) {
+                return { success: false, error: '无效的文件路径' };
+            }
+
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('LReaderFiles', 10);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const transaction = db.transaction(['files', 'metadata'], 'readwrite');
+
+                    const filesStore = transaction.objectStore('files');
+                    const metadataStore = transaction.objectStore('metadata');
+
+                    // 删除文件内容
+                    filesStore.delete(fileId);
+                    // 删除元数据
+                    metadataStore.delete(fileId);
+
+                    transaction.oncomplete = () => {
+                        resolve({ success: true });
+                    };
+
+                    transaction.onerror = () => {
+                        reject(transaction.error);
+                    };
+                };
+            });
+        } catch (error) {
+            console.error('[WebFSAdapter] deleteFile error:', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 // 创建全局实例
