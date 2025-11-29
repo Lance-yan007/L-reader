@@ -3443,33 +3443,41 @@ class ReaderApp {
 
         // 更新当前颜色显示
         if (this.currentColorFill) {
-            if (this.currentContextTarget && this.currentContextTarget.dataset.highlightId) {
-                // 如果是已有高亮，读取高亮的实际颜色
-                const highlightId = this.currentContextTarget.dataset.highlightId;
-                const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+            const hasHighlight = this.currentContextTarget && this.currentContextTarget.dataset.highlightId;
+            const hasUnderline = this.currentContextTarget && this.currentContextTarget.dataset.underlineId;
 
-                if (highlightDiv) {
-                    const bgColor = highlightDiv.style.backgroundColor;
-                    console.log('🔍 读取到的高亮颜色:', bgColor);
-                    if (bgColor) {
-                        this.currentColorFill.style.background = bgColor;
+            if (hasHighlight || hasUnderline) {
+                // 如果是已有高亮，读取高亮的实际颜色
+                if (hasHighlight) {
+                    const highlightId = this.currentContextTarget.dataset.highlightId;
+                    const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+
+                    if (highlightDiv) {
+                        const bgColor = highlightDiv.style.backgroundColor;
+                        console.log('🔍 读取到的高亮颜色:', bgColor);
+                        if (bgColor) {
+                            this.currentColorFill.style.background = bgColor;
+                        } else {
+                            this.currentColorFill.style.background = this.defaultHighlightColor;
+                        }
                     } else {
                         this.currentColorFill.style.background = this.defaultHighlightColor;
                     }
                 } else {
+                    // 只有下划线，显示默认颜色
                     this.currentColorFill.style.background = this.defaultHighlightColor;
                 }
 
-                // 显示删除高亮按钮
+                // 显示删除按钮 (无论是高亮还是下划线)
                 const deleteHighlightBtn = document.getElementById('deleteHighlightBtn');
                 if (deleteHighlightBtn) {
                     deleteHighlightBtn.style.display = 'flex';
                 }
             } else {
-                // 没有高亮，显示默认颜色
+                // 没有高亮或下划线，显示默认颜色
                 this.currentColorFill.style.background = this.defaultHighlightColor;
 
-                // 隐藏删除高亮按钮
+                // 隐藏删除按钮
                 const deleteHighlightBtn = document.getElementById('deleteHighlightBtn');
                 if (deleteHighlightBtn) {
                     deleteHighlightBtn.style.display = 'none';
@@ -4542,39 +4550,54 @@ class ReaderApp {
      * 删除所有标记（高亮和下划线）
      */
     /**
-     * 删除当前选中的高亮
+     * 删除当前选中的标记 (高亮或下划线)
      */
     async deleteHighlight() {
-        if (!this.currentContextTarget || !this.currentContextTarget.dataset.highlightId) {
-            console.warn('⚠️ 没有选中的高亮，无法删除');
+        const highlightId = this.currentContextTarget.dataset.highlightId;
+        const underlineId = this.currentContextTarget.dataset.underlineId;
+
+        if (!highlightId && !underlineId) {
+            console.warn('⚠️ 没有选中的高亮或下划线，无法删除');
             this.hideContextMenu();
             return;
         }
 
-        const highlightId = this.currentContextTarget.dataset.highlightId;
-        console.log('🗑️ 删除高亮:', highlightId);
+        console.log('🗑️ 删除标记:', { highlightId, underlineId });
 
-        // 1. 从数据中移除
-        const index = this.highlights.findIndex(h => h.highlightId === highlightId);
-        if (index !== -1) {
-            this.highlights.splice(index, 1);
-            console.log('✅ 已从 highlights 数组中移除');
-        } else {
-            console.warn('⚠️ highlights 数组中未找到该ID');
+        // 1. 删除高亮
+        if (highlightId) {
+            // 从数据中移除
+            const index = this.highlights.findIndex(h => h.highlightId === highlightId);
+            if (index !== -1) {
+                this.highlights.splice(index, 1);
+            }
+
+            // 移除统一高亮层
+            const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+            highlightDivs.forEach(div => div.remove());
+
+            // 清除span上的高亮标记
+            const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
+            spans.forEach(span => {
+                delete span.dataset.highlightId;
+                delete span.dataset.highlightColor;
+                span.classList.remove('word-highlighted');
+            });
         }
 
-        // 2. 移除DOM元素
-        // 移除统一高亮层 (可能有多行，需全部移除)
-        const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
-        highlightDivs.forEach(div => div.remove());
+        // 2. 删除下划线
+        if (underlineId) {
+            // 移除统一下划线层
+            const underlineDivs = document.querySelectorAll(`.unified-underline[data-underline-id="${underlineId}"]`);
+            underlineDivs.forEach(div => div.remove());
 
-        // 清除span上的标记
-        const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
-        spans.forEach(span => {
-            delete span.dataset.highlightId;
-            delete span.dataset.highlightColor;
-            span.classList.remove('word-highlighted');
-        });
+            // 清除span上的下划线标记
+            const spans = document.querySelectorAll(`span[data-underline-id="${underlineId}"]`);
+            spans.forEach(span => {
+                delete span.dataset.underlineId;
+                span.classList.remove('word-underlined');
+            });
+        }
 
         // 3. 隐藏菜单
         this.hideContextMenu();
@@ -4584,7 +4607,7 @@ class ReaderApp {
         this.updateSaveButtonState();
         await this.saveDocument();
 
-        this.showToast('高亮已删除');
+        this.showToast('标记已删除');
     }
 
     /**
