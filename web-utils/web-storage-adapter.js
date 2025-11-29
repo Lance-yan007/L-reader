@@ -110,6 +110,10 @@ class StorageAdapter {
      */
     async saveTranslation(filePath, translation) {
         try {
+            const isLoggedIn = await this.isUserLoggedIn();
+            const userId = await this.getCurrentUserId();
+
+            // 1. 保存到本地 IndexedDB
             const db = await this.ensureDB();
             const transaction = db.transaction(['translations'], 'readwrite');
             const store = transaction.objectStore('translations');
@@ -122,7 +126,7 @@ class StorageAdapter {
                 ...translation
             };
 
-            return new Promise((resolve, reject) => {
+            const localResult = await new Promise((resolve, reject) => {
                 const request = store.add(translationData);
                 request.onsuccess = () => {
                     resolve({ success: true, id: request.result });
@@ -131,6 +135,32 @@ class StorageAdapter {
                     reject(request.error);
                 };
             });
+
+            // 2. 如果已登录，同步到云端
+            if (isLoggedIn && userId) {
+                try {
+                    const { error } = await window.supabaseClient
+                        .from('translations')
+                        .insert({
+                            user_id: userId,
+                            file_path: filePath,
+                            original_text: translationData.originalText,
+                            translated_text: translationData.translatedText,
+                            context: translationData.context || '',
+                            updated_at: new Date().toISOString()
+                        });
+
+                    if (error) {
+                        console.warn('云端翻译同步失败:', error);
+                    } else {
+                        console.log('✅ 翻译已同步到云端');
+                    }
+                } catch (cloudError) {
+                    console.warn('云端翻译同步异常:', cloudError);
+                }
+            }
+
+            return localResult;
         } catch (error) {
             console.error('保存翻译失败:', error);
             return { success: false, error: error.message };
@@ -192,13 +222,17 @@ class StorageAdapter {
      */
     async deleteTranslations(filePath) {
         try {
+            const isLoggedIn = await this.isUserLoggedIn();
+            const userId = await this.getCurrentUserId();
+
+            // 1. 删除本地 IndexedDB 记录
             const db = await this.ensureDB();
             const transaction = db.transaction(['translations'], 'readwrite');
             const store = transaction.objectStore('translations');
 
             // 先获取所有记录
             const getAllRequest = store.getAll();
-            return new Promise((resolve, reject) => {
+            const localResult = await new Promise((resolve, reject) => {
                 getAllRequest.onsuccess = () => {
                     const allTranslations = getAllRequest.result;
                     const toDelete = allTranslations.filter(t => t.filePath === filePath);
@@ -229,6 +263,27 @@ class StorageAdapter {
                     reject(getAllRequest.error);
                 };
             });
+
+            // 2. 如果已登录，同步删除云端记录
+            if (isLoggedIn && userId) {
+                try {
+                    const { error } = await window.supabaseClient
+                        .from('translations')
+                        .delete()
+                        .eq('user_id', userId)
+                        .eq('file_path', filePath);
+
+                    if (error) {
+                        console.warn('云端翻译删除失败:', error);
+                    } else {
+                        console.log('✅ 云端翻译已删除');
+                    }
+                } catch (cloudError) {
+                    console.warn('云端翻译删除异常:', cloudError);
+                }
+            }
+
+            return localResult;
         } catch (error) {
             console.error('删除翻译失败:', error);
             return { success: false, error: error.message };
@@ -240,13 +295,17 @@ class StorageAdapter {
      */
     async saveAnnotations(filePath, annotations) {
         try {
+            const isLoggedIn = await this.isUserLoggedIn();
+            const userId = await this.getCurrentUserId();
+
+            // 1. 保存到本地 IndexedDB
             const db = await this.ensureDB();
             const transaction = db.transaction(['annotations'], 'readwrite');
             const store = transaction.objectStore('annotations');
 
             // 先删除该文件的旧标注
             const getAllRequest = store.getAll();
-            return new Promise((resolve, reject) => {
+            const localResult = await new Promise((resolve, reject) => {
                 getAllRequest.onsuccess = async () => {
                     const allAnnotations = getAllRequest.result;
                     const toDelete = allAnnotations.filter(a => a.filePath === filePath);
@@ -279,6 +338,35 @@ class StorageAdapter {
                     reject(getAllRequest.error);
                 };
             });
+
+            // 2. 如果已登录，同步到云端
+            if (isLoggedIn && userId) {
+                try {
+                    // 序列化标注数据
+                    const annotationsJson = typeof annotations === 'string' ? annotations : JSON.stringify(annotations);
+
+                    const { error } = await window.supabaseClient
+                        .from('annotations')
+                        .upsert({
+                            user_id: userId,
+                            file_path: filePath,
+                            data: annotationsJson,
+                            updated_at: new Date().toISOString()
+                        }, {
+                            onConflict: 'user_id,file_path'
+                        });
+
+                    if (error) {
+                        console.warn('云端标注同步失败:', error);
+                    } else {
+                        console.log('✅ 标注已同步到云端');
+                    }
+                } catch (cloudError) {
+                    console.warn('云端标注同步异常:', cloudError);
+                }
+            }
+
+            return localResult;
         } catch (error) {
             console.error('保存标注失败:', error);
             return { success: false, error: error.message };
@@ -290,6 +378,42 @@ class StorageAdapter {
      */
     async loadAnnotations(filePath) {
         try {
+            const isLoggedIn = await this.isUserLoggedIn();
+            const userId = await this.getCurrentUserId();
+
+            // 1. 尝试从云端加载（如果已登录）
+            if (isLoggedIn && userId) {
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('annotations')
+                        .select('data')
+                        .eq('user_id', userId)
+                        .eq('file_path', filePath)
+                        .single();
+
+                    if (!error && data) {
+                        console.log('✅ 从云端加载标注成功');
+                        let annotations = data.data;
+                        // 确保是对象格式
+                        if (typeof annotations === 'string') {
+                            try {
+                                annotations = JSON.parse(annotations);
+                            } catch (e) {
+                                console.warn('解析云端标注失败:', e);
+                            }
+                        }
+
+                        // 异步更新本地缓存
+                        this.saveAnnotations(filePath, annotations).catch(e => console.warn('更新本地标注缓存失败:', e));
+
+                        return { success: true, data: annotations };
+                    }
+                } catch (cloudError) {
+                    console.warn('从云端加载标注失败，尝试本地加载:', cloudError);
+                }
+            }
+
+            // 2. 从本地 IndexedDB 加载
             const db = await this.ensureDB();
             const transaction = db.transaction(['annotations'], 'readonly');
             const store = transaction.objectStore('annotations');
@@ -464,13 +588,42 @@ class StorageAdapter {
      */
     async deleteVocabulary(wordIds) {
         try {
+            const isLoggedIn = await this.isUserLoggedIn();
+            const userId = await this.getCurrentUserId();
+
+            // 1. 删除本地 IndexedDB 记录
             const db = await this.ensureDB();
             const transaction = db.transaction(['vocabulary'], 'readwrite');
             const store = transaction.objectStore('vocabulary');
 
             const ids = Array.isArray(wordIds) ? wordIds : [wordIds];
 
-            return new Promise((resolve, reject) => {
+            // 获取要删除的单词内容（用于云端删除）
+            const wordsToDelete = [];
+            if (isLoggedIn && userId) {
+                for (const id of ids) {
+                    // 尝试获取单词内容
+                    // 注意：这里可能需要先 get 再 delete，或者假设云端也有同样的 ID（通常不成立，因为 ID 生成机制不同）
+                    // 更好的方式是根据 word 内容删除，或者在本地存储中保存云端 ID
+                    // 简化处理：先从本地获取单词内容
+                    try {
+                        const getRequest = store.get(typeof id === 'string' && /^\d+$/.test(id) ? parseInt(id, 10) : id);
+                        await new Promise((resolve) => {
+                            getRequest.onsuccess = () => {
+                                if (getRequest.result) {
+                                    wordsToDelete.push(getRequest.result.word);
+                                }
+                                resolve();
+                            };
+                            getRequest.onerror = () => resolve();
+                        });
+                    } catch (e) {
+                        console.warn('获取待删除单词失败:', e);
+                    }
+                }
+            }
+
+            const localResult = await new Promise((resolve, reject) => {
                 let deletedCount = 0;
                 let errorCount = 0;
                 let completed = 0;
@@ -509,6 +662,27 @@ class StorageAdapter {
                     };
                 });
             });
+
+            // 2. 如果已登录，同步删除云端记录
+            if (isLoggedIn && userId && wordsToDelete.length > 0) {
+                try {
+                    const { error } = await window.supabaseClient
+                        .from('vocabulary')
+                        .delete()
+                        .eq('user_id', userId)
+                        .in('word', wordsToDelete);
+
+                    if (error) {
+                        console.warn('云端生词删除失败:', error);
+                    } else {
+                        console.log(`✅ 云端已删除 ${wordsToDelete.length} 个生词`);
+                    }
+                } catch (cloudError) {
+                    console.warn('云端生词删除异常:', cloudError);
+                }
+            }
+
+            return localResult;
         } catch (error) {
             console.error('删除生词失败:', error);
             return { success: false, error: error.message };
