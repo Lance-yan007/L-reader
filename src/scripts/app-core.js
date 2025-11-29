@@ -216,7 +216,15 @@ class MainApp {
         const studyNavBtn = document.getElementById('studyNavBtn');
         if (studyNavBtn) {
             studyNavBtn.addEventListener('click', () => {
-                window.location.hash = '#/study';
+                // Force navigation even if already on study page
+                if (window.location.hash === '#/study') {
+                    window.location.hash = '#/main';
+                    setTimeout(() => {
+                        window.location.hash = '#/study';
+                    }, 10);
+                } else {
+                    window.location.hash = '#/study';
+                }
             });
         }
 
