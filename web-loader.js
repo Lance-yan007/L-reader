@@ -373,11 +373,56 @@ if (document.readyState === 'loading') {
     window.webApp = new WebApp();
 }
 
+
 // Study page view methods
 WebApp.prototype.showStudyView = async function () {
-    await this.loadView('study', 'study.js');
+    const appRoot = document.getElementById('app-root');
+    const timestamp = Date.now();
+
+    try {
+        const response = await fetch(`/src/study.html?v=${timestamp}`, { cache: "no-store" });
+        const html = await response.text();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const bodyContent = tempDiv.querySelector('body') || tempDiv;
+
+        const bodyHTML = bodyContent.innerHTML
+            .replace(/href=["']styles\//g, `href="src/styles/`)
+            .replace(/src=["']scripts\//g, `src="src/scripts/`)
+            .replace(/\.css"/g, `.css?v=${timestamp}"`)
+            .replace(/\.js"/g, `.js?v=${timestamp}"`)
+            .replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
+
+        appRoot.innerHTML = bodyHTML;
+        await this.loadScript('/src/scripts/study.js');
+    } catch (error) {
+        console.error('加载背单词页面失败:', error);
+        appRoot.innerHTML = '<div style="padding: 20px;">加载失败</div>';
+    }
 };
 
 WebApp.prototype.showStudyCardView = async function () {
-    await this.loadView('study-card', 'study-card.js');
+    const appRoot = document.getElementById('app-root');
+    const timestamp = Date.now();
+
+    try {
+        const response = await fetch(`/src/study-card.html?v=${timestamp}`, { cache: "no-store" });
+        const html = await response.text();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const bodyContent = tempDiv.querySelector('body') || tempDiv;
+
+        const bodyHTML = bodyContent.innerHTML
+            .replace(/href=["']styles\//g, `href="src/styles/`)
+            .replace(/src=["']scripts\//g, `src="src/scripts/`)
+            .replace(/\.css"/g, `.css?v=${timestamp}"`)
+            .replace(/\.js"/g, `.js?v=${timestamp}"`)
+            .replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
+
+        appRoot.innerHTML = bodyHTML;
+        await this.loadScript('/src/scripts/study-card.js');
+    } catch (error) {
+        console.error('加载学习卡片页面失败:', error);
+        appRoot.innerHTML = '<div style="padding: 20px;">加载失败</div>';
+    }
 };
