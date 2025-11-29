@@ -27,6 +27,26 @@ class MainApp {
         this.loadRecentFiles();
         this.setupWindowStateListener();
         this.checkSubscriptionStatus();
+        this.checkPaymentStatus();
+    }
+
+    checkPaymentStatus() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const status = urlParams.get('status');
+
+        if (status === 'success') {
+            // 显示成功消息
+            setTimeout(() => {
+                alert('支付成功！感谢您的支持，会员权益已生效。');
+            }, 500);
+
+            // 刷新订阅状态
+            this.checkSubscriptionStatus();
+
+            // 清除 URL 参数
+            const newUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, newUrl);
+        }
     }
 
     async checkSubscriptionStatus() {
