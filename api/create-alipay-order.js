@@ -36,6 +36,10 @@ module.exports = async (req, res) => {
             totalAmount: amount,
             subject: subject || 'L-reader Pro',
             body: body || 'Lifetime Subscription',
+            passback_params: encodeURIComponent(JSON.stringify({
+                userId: req.body.userId,
+                planType: req.body.planType || 'monthly'
+            }))
         });
 
         formData.addField('returnUrl', `${req.headers.origin}/app.html?status=success`);
