@@ -29,7 +29,7 @@ http://localhost:8081/app.html
 - 前端：原生 JavaScript + HTML + CSS
 - PDF 渲染：PDF.js
 - 后端服务：Supabase
-- 部署：Vercel
+- 部署：Vercel (自动部署)
 
 ## 环境配置
 
