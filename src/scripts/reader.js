@@ -4564,11 +4564,9 @@ class ReaderApp {
         }
 
         // 2. 移除DOM元素
-        // 移除统一高亮层
-        const highlightDiv = document.querySelector(`.unified-highlight[data-highlight-id="${highlightId}"]`);
-        if (highlightDiv) {
-            highlightDiv.remove();
-        }
+        // 移除统一高亮层 (可能有多行，需全部移除)
+        const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+        highlightDivs.forEach(div => div.remove());
 
         // 清除span上的标记
         const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
