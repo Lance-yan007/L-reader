@@ -443,8 +443,8 @@ class VocabularyApp {
         }
 
         try {
-            // 调用IPC删除翻译
-            const result = await ipcRenderer.invoke('delete-translations', Array.from(this.selectedIds));
+            // 调用IPC删除生词
+            const result = await ipcRenderer.invoke('delete-vocabulary', Array.from(this.selectedIds));
 
             if (result.success) {
                 // 从列表中移除已删除的翻译

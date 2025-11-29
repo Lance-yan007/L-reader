@@ -460,22 +460,54 @@ class StorageAdapter {
     }
 
     /**
-     * 删除生词
+     * 删除生词 (支持单个ID或ID数组)
      */
-    async deleteVocabulary(wordId) {
+    async deleteVocabulary(wordIds) {
         try {
             const db = await this.ensureDB();
             const transaction = db.transaction(['vocabulary'], 'readwrite');
             const store = transaction.objectStore('vocabulary');
 
+            const ids = Array.isArray(wordIds) ? wordIds : [wordIds];
+
             return new Promise((resolve, reject) => {
-                const request = store.delete(wordId);
-                request.onsuccess = () => {
-                    resolve({ success: true });
-                };
-                request.onerror = () => {
-                    reject(request.error);
-                };
+                let deletedCount = 0;
+                let errorCount = 0;
+                let completed = 0;
+
+                if (ids.length === 0) {
+                    resolve({ success: true, count: 0 });
+                    return;
+                }
+
+                ids.forEach(id => {
+                    // 确保ID类型匹配 (IndexedDB keyPath autoIncrement 生成的是数字)
+                    // 如果传入的是字符串数字，尝试转换
+                    let key = id;
+                    if (typeof id === 'string' && /^\d+$/.test(id)) {
+                        key = parseInt(id, 10);
+                    }
+
+                    const request = store.delete(key);
+                    request.onsuccess = () => {
+                        deletedCount++;
+                        completed++;
+                        if (completed === ids.length) {
+                            resolve({ success: true, count: deletedCount });
+                        }
+                    };
+                    request.onerror = () => {
+                        errorCount++;
+                        completed++;
+                        if (completed === ids.length) {
+                            if (deletedCount > 0) {
+                                resolve({ success: true, count: deletedCount, errors: errorCount });
+                            } else {
+                                reject(request.error);
+                            }
+                        }
+                    };
+                });
             });
         } catch (error) {
             console.error('删除生词失败:', error);
