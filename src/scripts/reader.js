@@ -2742,6 +2742,11 @@ class ReaderApp {
             const isWeb = !isElectron;
             let fullUrl;
 
+            // 构建请求头
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
             if (isWeb) {
                 // Web环境：使用本地 Serverless 代理
                 fullUrl = '/api/gemini-proxy';
@@ -2750,7 +2755,7 @@ class ReaderApp {
                 // 获取用户设置的 Key
                 const userApiKey = localStorage.getItem('gemini_api_key');
                 if (userApiKey) {
-                    requestOptions.headers['X-Gemini-API-Key'] = userApiKey;
+                    headers['X-Gemini-API-Key'] = userApiKey;
                 }
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
@@ -2759,9 +2764,7 @@ class ReaderApp {
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
@@ -2872,6 +2875,11 @@ class ReaderApp {
             const isWeb = !isElectron;
             let fullUrl;
 
+            // 构建请求头
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
             if (isWeb) {
                 // Web环境：使用本地 Serverless 代理
                 fullUrl = '/api/gemini-proxy';
@@ -2880,7 +2888,7 @@ class ReaderApp {
                 // 获取用户设置的 Key
                 const userApiKey = localStorage.getItem('gemini_api_key');
                 if (userApiKey) {
-                    requestOptions.headers['X-Gemini-API-Key'] = userApiKey;
+                    headers['X-Gemini-API-Key'] = userApiKey;
                 }
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
@@ -2889,9 +2897,7 @@ class ReaderApp {
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
@@ -5818,6 +5824,11 @@ class ReaderApp {
             const isWeb = !isElectron;
             let fullUrl;
 
+            // 构建请求头
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
             if (isWeb) {
                 // Web环境：使用本地 Serverless 代理
                 fullUrl = '/api/gemini-proxy';
@@ -5826,7 +5837,8 @@ class ReaderApp {
                 // 获取用户设置的 Key
                 const userApiKey = localStorage.getItem('gemini_api_key');
                 if (userApiKey) {
-                    requestOptions.headers['X-Gemini-API-Key'] = userApiKey;
+                    headers['X-Gemini-API-Key'] = userApiKey;
+                    console.log('✅ 使用用户自定义 API Key');
                 }
             } else {
                 fullUrl = `${this.geminiApiUrl}?key=${this.geminiApiKey}`;
@@ -5835,9 +5847,7 @@ class ReaderApp {
 
             const response = await fetch(fullUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
