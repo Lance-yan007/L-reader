@@ -12,8 +12,16 @@ module.exports = async (req, res) => {
     }
 
     const { body } = req;
-    // 优先从请求头获取 Key，否则使用默认（已失效，仅作占位）
-    const apiKey = req.headers['x-gemini-api-key'] || 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
+    // 优先从请求头获取 Key (用户自定义)，其次从环境变量获取 (服务器配置)
+    const apiKey = req.headers['x-gemini-api-key'] || process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+        res.status(500).json({
+            error: 'Configuration Error',
+            details: 'API Key not configured. Please set GEMINI_API_KEY in Vercel environment variables or provide it in request headers.'
+        });
+        return;
+    }
     const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
 
     try {
