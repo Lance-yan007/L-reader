@@ -31,6 +31,23 @@ http://localhost:8081/app.html
 - 后端服务：Supabase
 - 部署：Vercel
 
+## 环境配置
+
+本项目使用 Google Gemini API 提供 AI 功能。
+
+### Vercel 部署配置
+
+1. 在 Vercel 项目设置中找到 **Environment Variables**。
+2. 添加变量：
+   - Key: `GEMINI_API_KEY`
+   - Value: `您的 Google Gemini API Key`
+3. **重要**：添加变量后，必须**重新部署 (Redeploy)** 才能生效。
+
+### 本地开发配置
+
+1. 复制 `.env.example` 为 `.env`
+2. 在 `.env` 中填入您的 API Key
+
 ## 许可证
 
 MIT
