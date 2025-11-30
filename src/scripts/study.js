@@ -1,4 +1,7 @@
-const { ipcRenderer } = require('electron');
+/**
+ * Study Dashboard - Web Version
+ * Uses StorageAdapter instead of Electron IPC
+ */
 
 class StudyApp {
     constructor() {
@@ -21,23 +24,34 @@ class StudyApp {
 
     async loadStats() {
         try {
-            // Get words due for review today
-            const reviewWords = await ipcRenderer.invoke('get-vocabulary-for-review');
-            this.stats.reviewCount = reviewWords?.length || 0;
-            this.stats.todayReview = this.stats.reviewCount;
+            if (!window.StorageAdapter) {
+                console.error('StorageAdapter not found');
+                return;
+            }
 
-            // Get new words (not yet studied)
-            const newWords = await ipcRenderer.invoke('get-new-vocabulary');
-            this.stats.newCount = newWords?.length || 0;
+            // Get all vocabulary
+            const response = await window.StorageAdapter.getAllVocabulary();
+            const allWords = response.data || [];
 
-            // Get all vocabulary for browse mode
-            const allWords = await ipcRenderer.invoke('get-all-vocabulary');
-            this.stats.browseCount = allWords?.data?.length || 0;
+            // Total vocabulary count
+            this.stats.browseCount = allWords.length;
+            this.stats.totalStudied = allWords.length;
+
+            // Count words that need review (for now, all words)
+            // In future, implement SM-2 algorithm to determine review schedule
+            this.stats.reviewCount = allWords.length;
+            this.stats.todayReview = allWords.length;
+
+            // New words (words added recently, e.g., last 7 days)
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            this.stats.newCount = allWords.filter(w => {
+                const createdAt = w.createdAt || 0;
+                return createdAt > sevenDaysAgo;
+            }).length;
 
             // Get study sessions for streak calculation
-            const sessions = await ipcRenderer.invoke('get-study-sessions', 90);
+            const sessions = await window.StorageAdapter.getStudySessions(90);
             this.stats.streak = this.calculateStreak(sessions);
-            this.stats.totalStudied = this.calculateTotalStudied(sessions);
         } catch (error) {
             console.error('Failed to load stats:', error);
         }
@@ -72,28 +86,30 @@ class StudyApp {
         return streak;
     }
 
-    calculateTotalStudied(sessions) {
-        if (!sessions || sessions.length === 0) return 0;
-        return sessions.reduce((total, session) =>
-            total + (session.words_studied || 0), 0
-        );
-    }
-
     updateUI() {
-        document.getElementById('todayReviewCount').textContent = this.stats.todayReview;
-        document.getElementById('streakDays').textContent = this.stats.streak;
-        document.getElementById('totalStudied').textContent = this.stats.totalStudied;
-        document.getElementById('reviewModeCount').textContent = this.stats.reviewCount;
-        document.getElementById('newModeCount').textContent = this.stats.newCount;
-        document.getElementById('browseModeCount').textContent = this.stats.browseCount;
+        const todayReviewEl = document.getElementById('todayReviewCount');
+        const streakEl = document.getElementById('streakDays');
+        const totalStudiedEl = document.getElementById('totalStudied');
+        const reviewModeEl = document.getElementById('reviewModeCount');
+        const newModeEl = document.getElementById('newModeCount');
+        const browseModeEl = document.getElementById('browseModeCount');
+
+        if (todayReviewEl) todayReviewEl.textContent = this.stats.todayReview;
+        if (streakEl) streakEl.textContent = this.stats.streak;
+        if (totalStudiedEl) totalStudiedEl.textContent = this.stats.totalStudied;
+        if (reviewModeEl) reviewModeEl.textContent = this.stats.reviewCount;
+        if (newModeEl) newModeEl.textContent = this.stats.newCount;
+        if (browseModeEl) browseModeEl.textContent = this.stats.browseCount;
     }
 
     async renderHeatmap() {
         try {
-            const sessions = await ipcRenderer.invoke('get-study-sessions', 90);
+            const sessions = await window.StorageAdapter.getStudySessions(90);
             const heatmapData = this.generateHeatmapData(sessions);
 
             const grid = document.getElementById('heatmapGrid');
+            if (!grid) return;
+
             grid.innerHTML = '';
 
             heatmapData.forEach(day => {
@@ -151,7 +167,13 @@ class StudyApp {
 function startStudyMode(mode) {
     // Store mode in sessionStorage for the card page to read
     sessionStorage.setItem('studyMode', mode);
-    window.location.hash = '#/study-card';
+
+    // Navigate to study card
+    if (window.webApp) {
+        window.webApp.navigate('study-card');
+    } else {
+        window.location.hash = '#/study-card';
+    }
 }
 
 // Initialize app when DOM is ready
