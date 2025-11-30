@@ -14,6 +14,10 @@ class StudySession {
             correct: 0 // Count of 'Good' or 'Easy'
         };
 
+        // Gemini API Configuration
+        this.geminiApiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
+        this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
+
         this.ui = {
             cardArea: document.getElementById('cardArea'),
             summaryCard: document.getElementById('summaryCard'),
@@ -159,18 +163,73 @@ class StudySession {
             const contextSentence = word.context.replace(regex, `<span class="word-highlight">${word.word}</span>`);
             html += `<div class="word-context">${contextSentence}</div>`;
         } else {
-            html += `<div class="word-context placeholder">No context available</div>`;
+            // No context available, generate it
+            html += `<div class="word-context placeholder" id="contextPlaceholder">正在生成例句...</div>`;
+            this.generateContext(word);
         }
 
         this.ui.sentenceDisplay.innerHTML = html;
 
-
-
         // Pre-fill hidden details
         this.ui.phonetic.textContent = word.phonetic ? `/${word.phonetic}/` : '';
         this.ui.definition.textContent = word.translation || '暂无释义';
+    }
 
+    async generateContext(wordObj) {
+        if (wordObj.isGeneratingContext) return;
+        wordObj.isGeneratingContext = true;
 
+        try {
+            console.log(`Generating context for: ${wordObj.word}`);
+            const prompt = `Please generate a short, simple English example sentence for the word "${wordObj.word}". The sentence should be easy to understand. Only return the sentence, nothing else.`;
+
+            const response = await fetch(`${this.geminiApiUrl}?key=${this.geminiApiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const sentence = data.candidates[0].content.parts[0].text.trim();
+                console.log(`Generated context: ${sentence}`);
+
+                // Update word object
+                wordObj.context = sentence;
+
+                // Update UI if still on the same word
+                if (this.currentWord === wordObj) {
+                    const regex = new RegExp(`\\b${wordObj.word}\\b`, 'gi');
+                    const contextSentence = sentence.replace(regex, `<span class="word-highlight">${wordObj.word}</span>`);
+
+                    const placeholder = document.getElementById('contextPlaceholder');
+                    if (placeholder) {
+                        placeholder.innerHTML = contextSentence;
+                        placeholder.classList.remove('placeholder');
+                    }
+                }
+
+                // Save to storage (optional, but good for caching)
+                // window.StorageAdapter.updateVocabulary(wordObj); 
+            }
+        } catch (error) {
+            console.error('Failed to generate context:', error);
+            const placeholder = document.getElementById('contextPlaceholder');
+            if (placeholder && this.currentWord === wordObj) {
+                placeholder.textContent = '例句生成失败';
+            }
+        } finally {
+            wordObj.isGeneratingContext = false;
+        }
     }
 
     reveal() {

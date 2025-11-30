@@ -88,39 +88,39 @@
 /* Sentence Display */
 .sentence-display {
     font-family: "Georgia", "Times New Roman", serif;
-    font-size: 28px;
-    line-height: 1.6;
     color: #2c3e50;
     margin-bottom: 30px;
-}
-
-.cloze-blank {
-    display: inline-block;
-    min-width: 80px;
-    border-bottom: 2px solid #6366F1;
-    color: transparent;
-    transition: all 0.3s ease;
-    padding: 0 5px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.cloze-blank.revealed {
-    color: #6366F1;
-    border-bottom-color: transparent;
-    background: rgba(99, 102, 241, 0.1);
-    border-radius: 4px;
-}
-
-.book-source {
-    font-size: 14px;
-    color: #888;
-    font-style: italic;
-    margin-top: 20px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
+    gap: 15px;
+}
+
+/* New Styles for Word and Context */
+.word-main {
+    font-size: 28px;
+    font-weight: 600;
+    color: #2c3e50;
+    font-family: "Georgia", "Times New Roman", serif;
+    margin-bottom: 5px;
+}
+
+.word-context {
+    font-size: 20px;
+    line-height: 1.6;
+    color: #666;
+    max-width: 90%;
+    font-family: "Georgia", "Times New Roman", serif;
+}
+
+.word-context.placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+.word-highlight {
+    color: #6366F1;
+    font-weight: 600;
 }
 
 /* Reveal Section */
@@ -160,16 +160,6 @@
     font-size: 18px;
     color: #444;
     margin-bottom: 15px;
-}
-
-.mnemonic {
-    font-size: 14px;
-    color: #6366F1;
-    background: rgba(99, 102, 241, 0.05);
-    padding: 10px 20px;
-    border-radius: 8px;
-    display: inline-block;
-    max-width: 80%;
 }
 
 /* Action Buttons */
@@ -238,15 +228,6 @@
 
 .btn-good:hover {
     background: #e8f5e9;
-}
-
-.btn-easy {
-    color: #6366F1;
-    border-color: rgba(99, 102, 241, 0.2);
-}
-
-.btn-easy:hover {
-    background: #e8eaf6;
 }
 
 /* Reveal Trigger */
