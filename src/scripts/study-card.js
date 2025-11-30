@@ -50,7 +50,8 @@ class StudySession {
         try {
             // Fetch words due for review or new words
             // For MVP, we fetch all and filter/sort. In production, use a dedicated query.
-            const allWords = await window.StorageAdapter.getVocabularyList();
+            const response = await window.StorageAdapter.getAllVocabulary();
+            const allWords = response.data || [];
 
             // Simple logic: Prioritize words with context
             // In real SM-2, we'd check nextReview date
@@ -62,6 +63,18 @@ class StudySession {
             // If no words with context, fallback to words without context (show word directly)
             if (this.queue.length === 0 && allWords.length > 0) {
                 this.queue = allWords.slice(0, 10);
+            }
+
+            // Seed sample data if absolutely no words (for demo/testing)
+            if (this.queue.length === 0) {
+                const sampleWords = [
+                    { word: 'ephemeral', translation: '短暂的', phonetic: 'əˈfem(ə)rəl', context: 'Fashions are ephemeral, changing with every season.', source: 'Sample Data' },
+                    { word: 'serendipity', translation: '意外发现珍奇事物的本领', phonetic: 'ˌserənˈdipədē', context: 'It was pure serendipity that we met at the coffee shop right before the rain started.', source: 'Sample Data' },
+                    { word: 'ubiquitous', translation: '无处不在的', phonetic: 'yo͞oˈbikwədəs', context: 'Smartphones have become ubiquitous in modern society.', source: 'Sample Data' }
+                ];
+                this.queue = sampleWords;
+                // Optionally save them to storage? No, keep them ephemeral for now or save them.
+                // Let's just use them for the session.
             }
 
             console.log(`Loaded ${this.queue.length} words for session`);
@@ -145,8 +158,8 @@ class StudySession {
             const clozeSentence = word.context.replace(regex, `<span class="cloze-blank">_______</span>`);
             this.ui.sentenceDisplay.innerHTML = clozeSentence;
         } else {
-            // Fallback if no context
-            this.ui.sentenceDisplay.innerHTML = `<span class="cloze-blank">_______</span>`;
+            // Fallback if no context: Show the word itself (as the question)
+            this.ui.sentenceDisplay.innerHTML = `<span class="word-question">${word.word}</span>`;
         }
 
         this.ui.sourceText.textContent = word.source || '未知来源';
