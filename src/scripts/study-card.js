@@ -18,13 +18,12 @@ class StudySession {
             cardArea: document.getElementById('cardArea'),
             summaryCard: document.getElementById('summaryCard'),
             sentenceDisplay: document.getElementById('sentenceDisplay'),
-            bookSource: document.getElementById('bookSource'),
-            sourceText: document.getElementById('sourceText'),
+
             revealTrigger: document.getElementById('revealTrigger'),
             revealSection: document.getElementById('revealSection'),
             phonetic: document.getElementById('phonetic'),
             definition: document.getElementById('definition'),
-            mnemonic: document.getElementById('mnemonic'),
+
             progressBar: document.getElementById('progressBar'),
             summaryCount: document.getElementById('summaryCount'),
             summaryCount: document.getElementById('summaryCount'),
@@ -151,30 +150,27 @@ class StudySession {
     renderFront() {
         const word = this.currentWord;
 
+        // Always show the word prominently
+        let html = `<div class="word-main">${word.word}</div>`;
+
         if (word.context) {
-            // Create Cloze Deletion
-            // Case insensitive replacement
+            // Highlight the word in the context sentence
             const regex = new RegExp(`\\b${word.word}\\b`, 'gi');
-            const clozeSentence = word.context.replace(regex, `<span class="cloze-blank">_______</span>`);
-            this.ui.sentenceDisplay.innerHTML = clozeSentence;
+            const contextSentence = word.context.replace(regex, `<span class="word-highlight">${word.word}</span>`);
+            html += `<div class="word-context">${contextSentence}</div>`;
         } else {
-            // Fallback if no context: Show the word itself (as the question)
-            this.ui.sentenceDisplay.innerHTML = `<span class="word-question">${word.word}</span>`;
+            html += `<div class="word-context placeholder">No context available</div>`;
         }
 
-        this.ui.sourceText.textContent = word.source || '未知来源';
+        this.ui.sentenceDisplay.innerHTML = html;
+
+
 
         // Pre-fill hidden details
         this.ui.phonetic.textContent = word.phonetic ? `/${word.phonetic}/` : '';
         this.ui.definition.textContent = word.translation || '暂无释义';
 
-        // Mock Mnemonic
-        const mnemonics = [
-            "联想：词根拆解记忆法",
-            "场景：想象在图书馆阅读这本书",
-            "对比：与同义词区分记忆"
-        ];
-        this.ui.mnemonic.textContent = `💡 ${mnemonics[Math.floor(Math.random() * mnemonics.length)]}`;
+
     }
 
     reveal() {

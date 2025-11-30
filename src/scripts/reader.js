@@ -4553,6 +4553,12 @@ class ReaderApp {
      * 删除当前选中的标记 (高亮或下划线)
      */
     async deleteHighlight() {
+        if (!this.currentContextTarget) {
+            console.warn('⚠️ 没有选中的目标，无法删除');
+            this.hideContextMenu();
+            return;
+        }
+
         const highlightId = this.currentContextTarget.dataset.highlightId;
         const underlineId = this.currentContextTarget.dataset.underlineId;
 
@@ -4572,7 +4578,7 @@ class ReaderApp {
                 this.highlights.splice(index, 1);
             }
 
-            // 移除统一高亮层
+            // 移除统一高亮层 (使用更精确的选择器)
             const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
             highlightDivs.forEach(div => div.remove());
 
@@ -4582,6 +4588,8 @@ class ReaderApp {
                 delete span.dataset.highlightId;
                 delete span.dataset.highlightColor;
                 span.classList.remove('word-highlighted');
+                // 确保背景色也被清除 (虽然由unified-highlight处理，但以防万一)
+                span.style.backgroundColor = '';
             });
         }
 
