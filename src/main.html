@@ -8,6 +8,7 @@
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rjmumvfwpbcvtkllcehm.supabase.co https://cdn.jsdelivr.net;">
     <title>L-reader - 主界面</title>
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/study-new.css">
     <style>
         .subscription-badge {
             font-size: 10px;
@@ -148,6 +149,97 @@
                     <div class="vocabulary-panel-container">
                         <iframe class="vocabulary-frame" id="vocabularyFrame" src="src/vocabulary.html"
                             style="width: 100%; height: 100%; border: none;"></iframe>
+                    </div>
+                </div>
+                <div id="studyView" class="tab-panel" role="tabpanel" aria-labelledby="tab-study"
+                    style="display: none;">
+                    <div class="study-dashboard">
+                        <div class="dashboard-header">
+                            <h1>沉浸式语境记忆</h1>
+                            <div class="dashboard-subtitle">Immersive Context Memory Center</div>
+                        </div>
+
+                        <!-- Status Bar -->
+                        <div class="status-bar">
+                            <div class="focus-ring-container">
+                                <svg class="focus-ring-svg">
+                                    <circle class="focus-ring-circle-bg" cx="60" cy="60" r="54"></circle>
+                                    <circle class="focus-ring-circle-progress" id="focusRingProgress" cx="60" cy="60"
+                                        r="54"></circle>
+                                </svg>
+                                <div class="focus-content">
+                                    <div class="focus-number" id="todayFocusCount">0</div>
+                                    <div class="focus-label">今日专注</div>
+                                </div>
+                            </div>
+                            <div class="status-stats">
+                                <div class="stat-item">
+                                    <div class="stat-item-value" id="masteredCount">0</div>
+                                    <div class="stat-item-label">已掌握词汇</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-item-value" id="streakDays">0</div>
+                                    <div class="stat-item-label">连续打卡</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-item-value" id="bookSourceCount">0</div>
+                                    <div class="stat-item-label">阅读关联</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Grid -->
+                        <div class="action-grid">
+                            <!-- Main Review Card -->
+                            <div class="card review-card" id="startReviewCard">
+                                <div class="review-card-content">
+                                    <h2>开始语境复习</h2>
+                                    <p>准备好复习今日的单词了吗？</p>
+
+                                    <div class="context-preview">
+                                        "The only way to do great work is to love what you do."
+                                    </div>
+                                    <div class="book-source">
+                                        <svg class="book-icon" viewBox="0 0 24 24">
+                                            <path
+                                                d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
+                                        </svg>
+                                        来自 <span id="previewSource">Steve Jobs Biography</span>
+                                    </div>
+
+                                    <button class="start-btn">开始专注模式</button>
+                                </div>
+                            </div>
+
+                            <!-- Side Cards -->
+                            <div class="side-cards">
+                                <div class="card list-card">
+                                    <h3>最近收录</h3>
+                                    <div id="recentWordsList">
+                                        <!-- Items will be injected by JS -->
+                                        <div class="list-item">
+                                            <span class="word-text">ephemeral</span>
+                                            <span class="word-source">Tech Blog</span>
+                                        </div>
+                                        <div class="list-item">
+                                            <span class="word-text">serendipity</span>
+                                            <span class="word-source">Novel</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card list-card">
+                                    <h3>遗忘预警</h3>
+                                    <div id="riskWordsList">
+                                        <!-- Items will be injected by JS -->
+                                        <div class="list-item">
+                                            <span class="word-text">ubiquitous</span>
+                                            <span class="risk-tag">高危</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div id="profileView" class="tab-panel" role="tabpanel" aria-labelledby="tab-profile"

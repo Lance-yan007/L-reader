@@ -97,6 +97,7 @@ class MainApp {
         // this.tabAddButton = document.getElementById('tabAddButton');
         this.homeView = document.getElementById('homeView');
         this.vocabularyView = document.getElementById('vocabularyView');
+        this.studyView = document.getElementById('studyView');
         this.profileView = document.getElementById('profileView');
         this.documentPanels = document.getElementById('documentPanels');
     }
@@ -112,6 +113,10 @@ class MainApp {
         if (this.vocabularyView) {
             this.vocabularyView.classList.remove('is-active');
             this.vocabularyView.style.display = 'none';
+        }
+        if (this.studyView) {
+            this.studyView.classList.remove('is-active');
+            this.studyView.style.display = 'none';
         }
         if (this.profileView) {
             this.profileView.classList.remove('is-active');
@@ -138,6 +143,13 @@ class MainApp {
                 this.vocabularyView.style.display = 'flex';
             }
             this.updateNavActiveState('vocabulary');
+        } else if (viewName === 'study') {
+            if (this.studyView) {
+                this.studyView.classList.add('is-active');
+                this.studyView.style.display = 'block';
+                this.updateStudyDashboard();
+            }
+            this.updateNavActiveState('study');
         } else if (viewName === 'profile') {
             if (this.profileView) {
                 this.profileView.classList.add('is-active');
@@ -216,15 +228,7 @@ class MainApp {
         const studyNavBtn = document.getElementById('studyNavBtn');
         if (studyNavBtn) {
             studyNavBtn.addEventListener('click', () => {
-                // Force navigation even if already on study page
-                if (window.location.hash === '#/study') {
-                    window.location.hash = '#/main';
-                    setTimeout(() => {
-                        window.location.hash = '#/study';
-                    }, 10);
-                } else {
-                    window.location.hash = '#/study';
-                }
+                this.switchView('study');
             });
         }
 
@@ -276,6 +280,15 @@ class MainApp {
 
         // 点击外部关闭所有文件卡片菜单和取消重命名
         document.addEventListener('click', (e) => {
+            // Event delegation for Start Focus Mode button
+            if (e.target.closest('.start-btn')) {
+                if (window.webApp) {
+                    window.webApp.navigate('study-card');
+                } else {
+                    window.location.hash = '#/study-card';
+                }
+            }
+
             if (!e.target.closest('.file-card')) {
                 this.closeAllFileCardMenus();
 
@@ -429,6 +442,141 @@ class MainApp {
         this.updateNavActiveState('profile');
     }
 
+    async updateStudyDashboard() {
+        if (!window.StorageAdapter) return;
+
+        try {
+            // Fetch real vocabulary data
+            const allWords = await window.StorageAdapter.getVocabularyList();
+
+            // Calculate Stats
+            const stats = {
+                todayFocus: 0,
+                mastered: 0,
+                streak: 0, // Need to implement streak logic in StorageAdapter later
+                bookSource: 0
+            };
+
+            // Calculate Mastered (proficiency >= 4)
+            // Assuming vocabulary structure has proficiency or similar
+            // For now, let's assume we can get this from progress table if available, 
+            // or just count words that have been reviewed many times.
+            // Since we don't have full progress data in simple list, we might need to fetch progress.
+            // For MVP, let's count total words as "Mastered" candidate if we don't have proficiency yet.
+            // Actually, let's just show total words for now as "已收录" if mastered is 0
+            stats.mastered = allWords.length;
+
+            // Calculate Book Sources
+            const sources = new Set(allWords.map(w => w.source).filter(s => s));
+            stats.bookSource = sources.size;
+
+            // Calculate Today's Focus (Mock logic for now until we have full SM-2 schedule)
+            // In a real SM-2 system, we'd query words with nextReview <= today
+            // For now, let's say 10% of total words are due, plus 5 new words
+            stats.todayFocus = Math.ceil(allWords.length * 0.1) + 5;
+            if (stats.todayFocus > allWords.length) stats.todayFocus = allWords.length;
+            if (stats.todayFocus === 0 && allWords.length > 0) stats.todayFocus = 1; // Always show something if we have words
+
+            // Update numbers
+            const focusEl = document.getElementById('todayFocusCount');
+            if (focusEl) focusEl.textContent = stats.todayFocus;
+
+            const masteredEl = document.getElementById('masteredCount');
+            if (masteredEl) masteredEl.textContent = stats.mastered;
+
+            const streakEl = document.getElementById('streakDays');
+            if (streakEl) streakEl.textContent = stats.streak;
+
+            const sourceEl = document.getElementById('bookSourceCount');
+            if (sourceEl) sourceEl.textContent = stats.bookSource;
+
+            // Animate Progress Ring
+            const circle = document.getElementById('focusRingProgress');
+            if (circle) {
+                const radius = circle.r.baseVal.value;
+                const circumference = radius * 2 * Math.PI;
+                // Calculate percentage based on completed/total for today (mocked as 0 completed for now)
+                const percent = 0;
+                const offset = circumference - (percent / 100) * circumference;
+
+                circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                circle.style.strokeDashoffset = offset;
+
+                // Animate to target (e.g. if we had progress)
+                // setTimeout(() => circle.style.strokeDashoffset = targetOffset, 100);
+            }
+
+            // Populate "Recent Added"
+            const recentListEl = document.getElementById('recentWordsList');
+            if (recentListEl && allWords.length > 0) {
+                // Sort by id (assuming auto-increment or timestamp) descending
+                // Or just take the last ones if array is chronological
+                const recentWords = [...allWords].reverse().slice(0, 3);
+
+                recentListEl.innerHTML = recentWords.map(word => `
+                    <div class="list-item">
+                        <span class="word-text">${word.word}</span>
+                        <span class="word-source">${word.source || '未知来源'}</span>
+                    </div>
+                `).join('');
+            } else if (recentListEl) {
+                recentListEl.innerHTML = '<div class="list-item" style="color:#999; justify-content:center;">暂无生词</div>';
+            }
+
+            // Populate "At Risk" (Mock for now, random words)
+            const riskListEl = document.getElementById('riskWordsList');
+            if (riskListEl && allWords.length > 0) {
+                // Pick random words as "At Risk" for now
+                const riskWords = [];
+                if (allWords.length > 0) riskWords.push(allWords[Math.floor(Math.random() * allWords.length)]);
+                if (allWords.length > 1) riskWords.push(allWords[Math.floor(Math.random() * allWords.length)]);
+
+                riskListEl.innerHTML = riskWords.map(word => `
+                    <div class="list-item">
+                        <span class="word-text">${word.word}</span>
+                        <span class="risk-tag">需复习</span>
+                    </div>
+                `).join('');
+            } else if (riskListEl) {
+                riskListEl.innerHTML = '<div class="list-item" style="color:#999; justify-content:center;">暂无数据</div>';
+            }
+
+            // Update Context Preview Card
+            if (allWords.length > 0) {
+                // Pick a random word for context review
+                const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+
+                const previewSourceEl = document.getElementById('previewSource');
+                if (previewSourceEl) previewSourceEl.textContent = randomWord.source || '未知来源';
+
+                const contextPreviewEl = document.querySelector('.context-preview');
+                if (contextPreviewEl) {
+                    // If word has context (sentence), use it. Otherwise use a placeholder or definition.
+                    if (randomWord.context) {
+                        contextPreviewEl.textContent = `"${randomWord.context}"`;
+                    } else if (randomWord.translation) {
+                        contextPreviewEl.textContent = `(释义) ${randomWord.translation}`;
+                        contextPreviewEl.style.fontStyle = 'normal';
+                    } else {
+                        contextPreviewEl.textContent = "暂无例句";
+                    }
+                }
+            } else {
+                // No words state
+                const contextPreviewEl = document.querySelector('.context-preview');
+                if (contextPreviewEl) contextPreviewEl.textContent = "快去阅读添加生词吧！";
+            }
+
+            // Bind Start Button
+            const startBtn = document.querySelector('.start-btn');
+            // Note: Click handling is now done via event delegation in bindEvents
+            // to ensure it works even if the button is re-rendered.
+
+        } catch (error) {
+            console.error('Error updating study dashboard:', error);
+        }
+    }
+
     async loadProfileData() {
         try {
             if (!authHelper) {
@@ -489,16 +637,24 @@ class MainApp {
     updateNavActiveState(activeView) {
         const homeNavBtn = document.getElementById('homeNavBtn');
         const vocabularyNavBtn = document.getElementById('vocabularyNavBtn');
+        const studyNavBtn = document.getElementById('studyNavBtn');
         const profileNavBtn = document.getElementById('profileNavBtn');
 
-        if (homeNavBtn) {
-            homeNavBtn.classList.toggle('active', activeView === 'home');
-        }
-        if (vocabularyNavBtn) {
-            vocabularyNavBtn.classList.toggle('active', activeView === 'vocabulary');
-        }
-        if (profileNavBtn) {
-            profileNavBtn.classList.toggle('active', activeView === 'profile');
+        // Reset all
+        if (homeNavBtn) homeNavBtn.classList.remove('active');
+        if (vocabularyNavBtn) vocabularyNavBtn.classList.remove('active');
+        if (studyNavBtn) studyNavBtn.classList.remove('active');
+        if (profileNavBtn) profileNavBtn.classList.remove('active');
+
+        // Set active
+        if (activeView === 'home' && homeNavBtn) {
+            homeNavBtn.classList.add('active');
+        } else if (activeView === 'vocabulary' && vocabularyNavBtn) {
+            vocabularyNavBtn.classList.add('active');
+        } else if (activeView === 'study' && studyNavBtn) {
+            studyNavBtn.classList.add('active');
+        } else if (activeView === 'profile' && profileNavBtn) {
+            profileNavBtn.classList.add('active');
         }
     }
 
@@ -575,7 +731,7 @@ class MainApp {
         // If we have metadata from WebFSAdapter, we could use it, but for now let's skip fs.statSync
         if (window.WebFSAdapter) {
             // Try to get metadata if possible, or just leave as unknown
-            // For recent files, we might not have the file handle readily available to query size without re-opening
+            // For recent files, weadily available to query size without re-opening
         }
 
         const fileInfo = {

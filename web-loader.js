@@ -12,7 +12,6 @@ class WebApp {
             'profile': () => this.showProfileView(),
             'vocabulary': () => this.showVocabularyView(),
             'auth': () => this.showAuthView(),
-            'study': () => this.showStudyView(),
             'study-card': () => this.showStudyCardView()
         };
 
@@ -62,7 +61,12 @@ class WebApp {
     }
 
     handleRoute() {
-        const hash = window.location.hash.slice(1) || 'main';
+        let hash = window.location.hash.slice(1) || 'main';
+        // Remove leading slash if present (e.g. #/study-card -> study-card)
+        if (hash.startsWith('/')) {
+            hash = hash.slice(1);
+        }
+
         const [route, ...params] = hash.split('/');
 
         this.currentRoute = route;
@@ -73,6 +77,8 @@ class WebApp {
             this.showMainView();
         }
     }
+
+
 
     navigate(route, ...params) {
         const hash = params.length > 0 ? `${route}/${params.join('/')}` : route;
@@ -87,6 +93,11 @@ class WebApp {
     }
 
     async showMainView() {
+        // Prevent showMainView from running if currentRoute is study-card
+        if (this.currentRoute === 'study-card') {
+            return;
+        }
+
         const appRoot = document.getElementById('app-root');
         const timestamp = Date.now();
 
@@ -374,33 +385,6 @@ if (document.readyState === 'loading') {
 }
 
 
-// Study page view methods
-WebApp.prototype.showStudyView = async function () {
-    const appRoot = document.getElementById('app-root');
-    const timestamp = Date.now();
-
-    try {
-        const response = await fetch(`/src/study.html?v=${timestamp}`, { cache: "no-store" });
-        const html = await response.text();
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-        const bodyContent = tempDiv.querySelector('body') || tempDiv;
-
-        const bodyHTML = bodyContent.innerHTML
-            .replace(/href=["']styles\//g, `href="src/styles/`)
-            .replace(/src=["']scripts\//g, `src="src/scripts/`)
-            .replace(/\.css"/g, `.css?v=${timestamp}"`)
-            .replace(/\.js"/g, `.js?v=${timestamp}"`)
-            .replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
-
-        appRoot.innerHTML = bodyHTML;
-        await this.loadScript('/src/scripts/study.js');
-    } catch (error) {
-        console.error('加载背单词页面失败:', error);
-        appRoot.innerHTML = '<div style="padding: 20px;">加载失败</div>';
-    }
-};
-
 WebApp.prototype.showStudyCardView = async function () {
     const appRoot = document.getElementById('app-root');
     const timestamp = Date.now();
@@ -420,6 +404,7 @@ WebApp.prototype.showStudyCardView = async function () {
             .replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
 
         appRoot.innerHTML = bodyHTML;
+
         await this.loadScript('/src/scripts/study-card.js');
     } catch (error) {
         console.error('加载学习卡片页面失败:', error);
