@@ -139,6 +139,8 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    padding: 25px 25px 20px 25px;
+    /* Reduce bottom padding */
 }
 
 .review-card h2 {
