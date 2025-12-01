@@ -286,14 +286,12 @@
 .side-cards {
     display: flex;
     flex-direction: column;
-    gap: 25px;
-    height: 100%;
-    /* Ensure full height */
+    gap: 15px;
+    /* Reduce gap for tighter layout */
 }
 
 .side-cards .card:last-child {
-    flex: 1;
-    /* Stretch last card to fill space */
+    /* Remove flex: 1 to let it shrink naturally */
 }
 
 .list-card h3 {
