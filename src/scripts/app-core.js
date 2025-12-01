@@ -1213,56 +1213,137 @@ class MainApp {
         localStorage.setItem('recentFiles', JSON.stringify(this.recentFiles));
     }
 
-    // Daily Goal System
+    // Daily Review Pack System
     async initDailyGoal() {
         if (!window.StorageAdapter) {
-            console.warn('StorageAdapter not available for daily goal');
+            console.warn('StorageAdapter not available for review pack');
             return;
         }
 
-        // Load settings and progress
-        this.settings = await window.StorageAdapter.getUserSettings();
+        // Load daily progress
         this.dailyProgress = await window.StorageAdapter.getDailyProgress();
 
-        // Bind goal selector
-        const goalSelect = document.getElementById('dailyGoalSelect');
-        if (goalSelect) {
-            goalSelect.value = this.settings.dailyReviewGoal;
-            goalSelect.addEventListener('change', (e) => this.updateGoal(parseInt(e.target.value)));
+        // Generate today's review pack
+        await this.generateReviewPack();
+
+        // Bind reset button
+        const resetBtn = document.getElementById('resetReviewBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetDailyReview());
         }
 
         // Update UI
-        this.updateDailyGoalUI();
+        this.updateReviewPackUI();
     }
 
-    async updateGoal(newGoal) {
-        if (window.StorageAdapter) {
-            await window.StorageAdapter.saveUserSettings({ dailyReviewGoal: newGoal });
-            this.settings.dailyReviewGoal = newGoal;
-            this.updateDailyGoalUI();
+    async generateReviewPack() {
+        if (!window.StorageAdapter) return;
+
+        try {
+            const response = await window.StorageAdapter.getAllVocabulary();
+            const allWords = response.data || [];
+            const now = Date.now();
+
+            // 1. Get due review words (nextReview <= now)
+            const dueWords = allWords.filter(w => {
+                return w.nextReview && w.nextReview <= now;
+            }).sort((a, b) => a.nextReview - b.nextReview);
+
+            // 2. Get new words (never studied)
+            const newWords = allWords.filter(w => !w.repetitions || w.repetitions === 0);
+
+            // 3. Calculate pack composition
+            const minPackSize = 20;
+            const maxPackSize = 50;
+
+            let reviewCount = Math.min(dueWords.length, maxPackSize);
+            let newCount = 0;
+
+            // If we have space, add new words
+            if (reviewCount < minPackSize && newWords.length > 0) {
+                newCount = Math.min(newWords.length, minPackSize - reviewCount);
+            } else if (reviewCount < maxPackSize && newWords.length > 0) {
+                // Add some new words even if we have due reviews
+                newCount = Math.min(newWords.length, Math.floor((maxPackSize - reviewCount) * 0.3));
+            }
+
+            this.reviewPack = {
+                dueWords: dueWords.slice(0, reviewCount),
+                newWords: newWords.slice(0, newCount),
+                total: reviewCount + newCount
+            };
+
+            console.log('Review pack generated:', this.reviewPack);
+        } catch (error) {
+            console.error('Failed to generate review pack:', error);
+            this.reviewPack = { dueWords: [], newWords: [], total: 0 };
         }
     }
 
-    updateDailyGoalUI() {
-        const progressEl = document.getElementById('goalProgress');
+    updateReviewPackUI() {
+        const packTotalEl = document.getElementById('packTotal');
+        const packReviewEl = document.getElementById('packReview');
+        const packNewEl = document.getElementById('packNew');
         const startBtn = document.getElementById('startFocusBtn');
+        const resetBtn = document.getElementById('resetReviewBtn');
 
-        const current = this.dailyProgress ? this.dailyProgress.count : 0;
-        const goal = this.settings ? this.settings.dailyReviewGoal : 50;
+        const pack = this.reviewPack || { dueWords: [], newWords: [], total: 0 };
+        const isCompleted = this.dailyProgress && this.dailyProgress.completed;
 
-        if (progressEl) {
-            progressEl.textContent = `${current}/${goal}`;
+        // Update pack info
+        if (packTotalEl) {
+            packTotalEl.textContent = `📚 今日复习：${pack.total}个单词`;
+        }
+        if (packReviewEl) {
+            packReviewEl.textContent = `复习：${pack.dueWords.length}个`;
+        }
+        if (packNewEl) {
+            packNewEl.textContent = `新词：${pack.newWords.length}个`;
         }
 
+        // Update button states
         if (startBtn) {
-            if (current >= goal) {
+            if (isCompleted) {
                 startBtn.disabled = true;
-                startBtn.textContent = '今日目标已完成';
+                startBtn.textContent = '今日已完成！';
+                if (resetBtn) resetBtn.style.display = 'block';
+            } else if (pack.total === 0) {
+                startBtn.disabled = true;
+                startBtn.textContent = '暂无待复习单词';
+                if (resetBtn) resetBtn.style.display = 'none';
             } else {
                 startBtn.disabled = false;
                 startBtn.textContent = '开始专注模式';
+                if (resetBtn) resetBtn.style.display = 'none';
             }
         }
+    }
+
+    async resetDailyReview() {
+        if (!window.StorageAdapter) return;
+
+        if (confirm('确定要重置今日复习吗？这将清除今天的学习进度。')) {
+            // Reset daily progress
+            const today = new Date().toISOString().split('T')[0];
+            const resetProgress = { date: today, count: 0, completed: false };
+            localStorage.setItem('daily_study_progress', JSON.stringify(resetProgress));
+
+            this.dailyProgress = resetProgress;
+
+            // Regenerate pack
+            await this.generateReviewPack();
+            this.updateReviewPackUI();
+
+            console.log('Daily review reset');
+        }
+    }
+
+    async updateGoal(newGoal) {
+        // Deprecated - no longer used
+    }
+
+    updateDailyGoalUI() {
+        // Deprecated - replaced by updateReviewPackUI
     }
 }
 

@@ -59,46 +59,26 @@ class StudySession {
         }
 
         try {
-            // Fetch words due for review or new words
-            const response = await window.StorageAdapter.getAllVocabulary();
-            const allWords = response.data || [];
-            const now = Date.now();
+            // Get review pack from main app
+            const mainApp = window.mainAppInstance;
+            if (mainApp && mainApp.reviewPack) {
+                // Use the pre-generated review pack
+                const pack = mainApp.reviewPack;
+                this.queue = [...pack.dueWords, ...pack.newWords];
 
-            // 1. Identify Due Reviews (nextReview <= now)
-            const dueReviews = allWords.filter(w => {
-                return w.nextReview && w.nextReview <= now;
-            }).sort((a, b) => a.nextReview - b.nextReview);
+                console.log(`Loaded ${this.queue.length} words from review pack`);
+            } else {
+                // Fallback: generate pack here if main app not available
+                const response = await window.StorageAdapter.getAllVocabulary();
+                const allWords = response.data || [];
+                const now = Date.now();
 
-            // 2. Identify New Words (repetitions === 0)
-            const newWords = allWords.filter(w => !w.repetitions || w.repetitions === 0);
+                const dueWords = allWords.filter(w => w.nextReview && w.nextReview <= now);
+                const newWords = allWords.filter(w => !w.repetitions || w.repetitions === 0);
 
-            // 3. Determine Session Queue
-            // Priority: Due Reviews -> New Words -> Random Review (if goal not met)
-            let queue = [];
-            const sessionLimit = this.settings?.dailyReviewGoal || 10; // Use setting if available, else default to 10
-
-            // Fill with due reviews first
-            queue = [...dueReviews];
-
-            // If space remains, fill with new words
-            if (queue.length < sessionLimit) {
-                const needed = sessionLimit - queue.length;
-                // Filter out new words that are already in dueReviews to avoid duplicates
-                const uniqueNewWords = newWords.filter(nw => !queue.some(q => q.word === nw.word));
-                queue = [...queue, ...uniqueNewWords.slice(0, needed)];
+                this.queue = [...dueWords.slice(0, 30), ...newWords.slice(0, 20)];
+                console.log(`Loaded ${this.queue.length} words using fallback logic`);
             }
-
-            // If still not enough words or no due/new words, pick random for review
-            if (queue.length < sessionLimit && allWords.length > 0) {
-                const needed = sessionLimit - queue.length;
-                // Get all words not already in the queue
-                const availableForRandom = allWords.filter(aw => !queue.some(q => q.word === aw.word));
-                // Shuffle and add
-                queue = [...queue, ...availableForRandom.sort(() => Math.random() - 0.5).slice(0, needed)];
-            }
-
-            // Final limit to sessionLimit
-            this.queue = queue.slice(0, sessionLimit);
 
             // Seed sample data if absolutely no words (for demo/testing)
             if (this.queue.length === 0) {
@@ -369,16 +349,24 @@ class StudySession {
             : 0;
         this.ui.summaryAccuracy.textContent = `${accuracy}%`;
 
-        // Check Daily Goal
-        const goal = this.settings ? this.settings.dailyReviewGoal : 50;
-        const current = this.dailyProgress ? this.dailyProgress.count : 0;
+        // Mark daily review as completed
+        if (window.StorageAdapter) {
+            const today = new Date().toISOString().split('T')[0];
+            const completedProgress = {
+                date: today,
+                count: this.results.reviewed,
+                completed: true
+            };
+            localStorage.setItem('daily_study_progress', JSON.stringify(completedProgress));
 
-        if (current >= goal) {
-            const title = this.ui.summaryCard.querySelector('.summary-title');
-            if (title) {
-                title.innerHTML = '🎉 今日目标已完成!';
-                title.style.color = '#4CAF50';
-            }
+            console.log('Daily review marked as completed');
+        }
+
+        // Update title to show completion
+        const title = this.ui.summaryCard.querySelector('.summary-title');
+        if (title) {
+            title.innerHTML = '🎉 今日复习完成!';
+            title.style.color = '#4CAF50';
         }
     }
 }

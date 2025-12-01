@@ -207,17 +207,21 @@
                                         来自 <span id="previewSource">Steve Jobs Biography</span>
                                     </div>
 
-                                    <div class="daily-goal-selector">
-                                        <label for="dailyGoalSelect">每日目标：</label>
-                                        <select id="dailyGoalSelect">
-                                            <option value="20">20词</option>
-                                            <option value="50" selected>50词</option>
-                                            <option value="100">100词</option>
-                                        </select>
-                                        <span class="goal-progress" id="goalProgress">0/50</span>
+                                    <div class="review-pack-info">
+                                        <div class="pack-summary">
+                                            <span class="pack-total" id="packTotal">📚 今日复习：0个单词</span>
+                                        </div>
+                                        <div class="pack-breakdown">
+                                            <span class="pack-review" id="packReview">复习：0个</span>
+                                            <span class="pack-new" id="packNew">新词：0个</span>
+                                        </div>
                                     </div>
 
-                                    <button class="start-btn" id="startFocusBtn">开始专注模式</button>
+                                    <div class="study-actions">
+                                        <button class="start-btn" id="startFocusBtn">开始专注模式</button>
+                                        <button class="reset-btn" id="resetReviewBtn" style="display: none;">🔄
+                                            重置今日复习</button>
+                                    </div>
                                 </div>
                             </div>
 
