@@ -115,6 +115,8 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 25px;
+    align-items: start;
+    /* Prevent stretching, allowing cards to be tight */
 }
 
 .card {
@@ -144,10 +146,7 @@
 }
 
 .review-card-content {
-    /* Remove z-index and let content flow naturally */
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    /* Let content determine height */
 }
 
 .review-card h2 {
@@ -231,10 +230,9 @@
 .study-actions {
     display: flex;
     gap: 12px;
-    margin-top: auto;
-    /* Push to bottom */
-    padding-bottom: 10px;
-    /* Tighter bottom padding */
+    margin-top: 0;
+    padding-bottom: 25px;
+    /* Add padding at bottom of button area */
     align-items: center;
 }
 
