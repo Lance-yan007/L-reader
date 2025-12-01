@@ -115,8 +115,7 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 25px;
-    align-items: start;
-    /* Prevent stretching, allowing cards to be tight */
+    /* Default align-items is stretch, which ensures equal height columns */
 }
 
 .card {
@@ -288,10 +287,13 @@
     flex-direction: column;
     gap: 15px;
     /* Reduce gap for tighter layout */
+    height: 100%;
+    /* Ensure full height */
 }
 
 .side-cards .card:last-child {
-    /* Remove flex: 1 to let it shrink naturally */
+    flex: 1;
+    /* Stretch last card to fill space */
 }
 
 .list-card h3 {
