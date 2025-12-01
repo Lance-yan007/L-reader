@@ -143,6 +143,13 @@
     /* Remove bottom padding completely */
 }
 
+.review-card-content {
+    /* Remove z-index and let content flow naturally */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
 .review-card h2 {
     font-size: 24px;
     margin-bottom: 10px;
