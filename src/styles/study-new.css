@@ -186,39 +186,42 @@
     fill: currentColor;
 }
 
-.review-pack-info {
-    margin-top: 20px;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    border: 1px solid rgba(99, 102, 241, 0.15);
+.review-pack-display {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
 }
 
-.pack-summary {
-    margin-bottom: 10px;
+.pack-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
 }
 
-.pack-total {
-    font-size: 16px;
-    font-weight: 600;
+.pack-stat:last-child {
+    border-bottom: none;
+}
+
+.pack-label {
+    font-size: 14px;
+    color: #666;
+}
+
+.pack-value {
+    font-size: 18px;
+    font-weight: 700;
     color: #333;
 }
 
-.pack-breakdown {
-    display: flex;
-    gap: 16px;
-    font-size: 14px;
-}
-
-.pack-review {
+.pack-value.review {
     color: #FF9800;
-    font-weight: 500;
 }
 
-.pack-new {
+.pack-value.new {
     color: #4CAF50;
-    font-weight: 500;
 }
 
 .study-actions {
@@ -247,9 +250,9 @@
 }
 
 .start-btn:disabled {
-    background: #4CAF50;
+    background: #9CA3AF;
     cursor: not-allowed;
-    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 4px 15px rgba(156, 163, 175, 0.3);
 }
 
 .start-btn:disabled::before {

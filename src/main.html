@@ -207,16 +207,6 @@
                                         来自 <span id="previewSource">Steve Jobs Biography</span>
                                     </div>
 
-                                    <div class="review-pack-info">
-                                        <div class="pack-summary">
-                                            <span class="pack-total" id="packTotal">📚 今日复习：0个单词</span>
-                                        </div>
-                                        <div class="pack-breakdown">
-                                            <span class="pack-review" id="packReview">复习：0个</span>
-                                            <span class="pack-new" id="packNew">新词：0个</span>
-                                        </div>
-                                    </div>
-
                                     <div class="study-actions">
                                         <button class="start-btn" id="startFocusBtn">开始专注模式</button>
                                         <button class="reset-btn" id="resetReviewBtn" style="display: none;">🔄
@@ -228,6 +218,23 @@
                             <!-- Side Cards -->
                             <div class="side-cards">
                                 <div class="card list-card">
+                                    <h3>今日复习</h3>
+                                    <div class="review-pack-display">
+                                        <div class="pack-stat">
+                                            <span class="pack-label">总计</span>
+                                            <span class="pack-value" id="packTotal">0</span>
+                                        </div>
+                                        <div class="pack-stat">
+                                            <span class="pack-label">复习</span>
+                                            <span class="pack-value review" id="packReview">0</span>
+                                        </div>
+                                        <div class="pack-stat">
+                                            <span class="pack-label">新词</span>
+                                            <span class="pack-value new" id="packNew">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card list-card">
                                     <h3>最近收录</h3>
                                     <div id="recentWordsList">
                                         <!-- Items will be injected by JS -->
@@ -238,17 +245,6 @@
                                         <div class="list-item">
                                             <span class="word-text">serendipity</span>
                                             <span class="word-source">Novel</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="card list-card">
-                                    <h3>遗忘预警</h3>
-                                    <div id="riskWordsList">
-                                        <!-- Items will be injected by JS -->
-                                        <div class="list-item">
-                                            <span class="word-text">ubiquitous</span>
-                                            <span class="risk-tag">高危</span>
                                         </div>
                                     </div>
                                 </div>

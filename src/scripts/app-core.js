@@ -1290,15 +1290,15 @@ class MainApp {
         const pack = this.reviewPack || { dueWords: [], newWords: [], total: 0 };
         const isCompleted = this.dailyProgress && this.dailyProgress.completed;
 
-        // Update pack info
+        // Update pack info (now just numbers)
         if (packTotalEl) {
-            packTotalEl.textContent = `📚 今日复习：${pack.total}个单词`;
+            packTotalEl.textContent = pack.total;
         }
         if (packReviewEl) {
-            packReviewEl.textContent = `复习：${pack.dueWords.length}个`;
+            packReviewEl.textContent = pack.dueWords.length;
         }
         if (packNewEl) {
-            packNewEl.textContent = `新词：${pack.newWords.length}个`;
+            packNewEl.textContent = pack.newWords.length;
         }
 
         // Update button states
@@ -1334,7 +1334,8 @@ class MainApp {
             await this.generateReviewPack();
             this.updateReviewPackUI();
 
-            console.log('Daily review reset');
+            // Force reload to ensure UI is fresh
+            window.location.reload();
         }
     }
 
