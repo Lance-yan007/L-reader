@@ -752,13 +752,76 @@ class StorageAdapter {
             return { success: true };
         } catch (e) { return { success: false }; }
     }
+
+    // --- User Settings & Daily Progress ---
+
+    async getUserSettings() {
+        const defaultSettings = {
+            dailyReviewGoal: 50,
+            lastStudyDate: null
+        };
+        const stored = localStorage.getItem('user_settings');
+        return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+    }
+
+    async saveUserSettings(settings) {
+        const current = await this.getUserSettings();
+        const updated = { ...current, ...settings };
+        localStorage.setItem('user_settings', JSON.stringify(updated));
+        return updated;
+    }
+
+    async getDailyProgress() {
+        const today = new Date().toISOString().split('T')[0];
+        const stored = localStorage.getItem('daily_study_progress');
+        let progress = stored ? JSON.parse(stored) : { date: today, count: 0 };
+
+        // Reset if date changed
+        if (progress.date !== today) {
+            progress = { date: today, count: 0 };
+            localStorage.setItem('daily_study_progress', JSON.stringify(progress));
+        }
+
+        return progress;
+    }
+
+    async updateDailyProgress(increment = 1) {
+        const progress = await this.getDailyProgress();
+        progress.count += increment;
+        localStorage.setItem('daily_study_progress', JSON.stringify(progress));
+        return progress;
+    }
+
+    async updateVocabulary(wordObj) {
+        try {
+            const db = await this.ensureDB();
+            const transaction = db.transaction(['vocabulary'], 'readwrite');
+            const store = transaction.objectStore('vocabulary');
+
+            // Ensure SM-2 fields are preserved/updated
+            const updatedWord = {
+                ...wordObj,
+                lastReviewed: Date.now(),
+                // Ensure these exist if not present
+                nextReview: wordObj.nextReview || Date.now(),
+                interval: wordObj.interval || 0,
+                repetitions: wordObj.repetitions || 0,
+                easeFactor: wordObj.easeFactor || 2.5
+            };
+
+            store.put(updatedWord);
+            return { success: true };
+        } catch (error) {
+            console.error('Failed to update vocabulary:', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 // 创建全局实例
 window.StorageAdapter = new StorageAdapter();
 
-// 导出
+// Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = StorageAdapter;
 }
-

@@ -207,7 +207,17 @@
                                         来自 <span id="previewSource">Steve Jobs Biography</span>
                                     </div>
 
-                                    <button class="start-btn">开始专注模式</button>
+                                    <div class="daily-goal-selector">
+                                        <label for="dailyGoalSelect">每日目标：</label>
+                                        <select id="dailyGoalSelect">
+                                            <option value="20">20词</option>
+                                            <option value="50" selected>50词</option>
+                                            <option value="100">100词</option>
+                                        </select>
+                                        <span class="goal-progress" id="goalProgress">0/50</span>
+                                    </div>
+
+                                    <button class="start-btn" id="startFocusBtn">开始专注模式</button>
                                 </div>
                             </div>
 

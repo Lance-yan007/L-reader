@@ -39,9 +39,17 @@ class StudySession {
     }
 
     async init() {
+        await this.loadSettings();
         await this.loadWords();
         this.bindEvents();
         this.showNextCard();
+    }
+
+    async loadSettings() {
+        if (window.StorageAdapter) {
+            this.settings = await window.StorageAdapter.getUserSettings();
+            this.dailyProgress = await window.StorageAdapter.getDailyProgress();
+        }
     }
 
     async loadWords() {
@@ -54,11 +62,43 @@ class StudySession {
             // Fetch words due for review or new words
             const response = await window.StorageAdapter.getAllVocabulary();
             const allWords = response.data || [];
+            const now = Date.now();
 
-            // Take all words, shuffle, and limit to 10
-            this.queue = allWords
-                .sort(() => Math.random() - 0.5) // Shuffle
-                .slice(0, 10); // Session limit
+            // 1. Identify Due Reviews (nextReview <= now)
+            const dueReviews = allWords.filter(w => {
+                return w.nextReview && w.nextReview <= now;
+            }).sort((a, b) => a.nextReview - b.nextReview);
+
+            // 2. Identify New Words (repetitions === 0)
+            const newWords = allWords.filter(w => !w.repetitions || w.repetitions === 0);
+
+            // 3. Determine Session Queue
+            // Priority: Due Reviews -> New Words -> Random Review (if goal not met)
+            let queue = [];
+            const sessionLimit = this.settings?.dailyReviewGoal || 10; // Use setting if available, else default to 10
+
+            // Fill with due reviews first
+            queue = [...dueReviews];
+
+            // If space remains, fill with new words
+            if (queue.length < sessionLimit) {
+                const needed = sessionLimit - queue.length;
+                // Filter out new words that are already in dueReviews to avoid duplicates
+                const uniqueNewWords = newWords.filter(nw => !queue.some(q => q.word === nw.word));
+                queue = [...queue, ...uniqueNewWords.slice(0, needed)];
+            }
+
+            // If still not enough words or no due/new words, pick random for review
+            if (queue.length < sessionLimit && allWords.length > 0) {
+                const needed = sessionLimit - queue.length;
+                // Get all words not already in the queue
+                const availableForRandom = allWords.filter(aw => !queue.some(q => q.word === aw.word));
+                // Shuffle and add
+                queue = [...queue, ...availableForRandom.sort(() => Math.random() - 0.5).slice(0, needed)];
+            }
+
+            // Final limit to sessionLimit
+            this.queue = queue.slice(0, sessionLimit);
 
             // Seed sample data if absolutely no words (for demo/testing)
             if (this.queue.length === 0) {
@@ -240,6 +280,49 @@ class StudySession {
         });
     }
 
+    calculateSM2(word, quality) {
+        // Default values
+        let interval = word.interval || 0;
+        let repetitions = word.repetitions || 0;
+        let easeFactor = word.easeFactor || 2.5;
+
+        if (quality < 3) {
+            // Forgot (1) or Hard (2) - Reset or Shorten
+            repetitions = 0;
+            interval = 1;
+        } else {
+            // Good (3)
+            if (repetitions === 0) {
+                interval = 1;
+            } else if (repetitions === 1) {
+                interval = 6;
+            } else {
+                interval = Math.round(interval * easeFactor);
+            }
+            repetitions++;
+        }
+
+        // Update Ease Factor (Standard SM-2 Formula)
+        // EF' = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
+        // q is quality (0-5), but we map our 1-3 buttons to 0-5 scale internally if needed
+        // Here we simplify:
+        // Hard (2) -> decrease EF slightly
+        // Good (3) -> keep or increase slightly
+
+        if (quality === 2) {
+            easeFactor = Math.max(1.3, easeFactor - 0.15);
+        } else if (quality === 3) {
+            easeFactor = easeFactor + 0.1;
+        }
+
+        return {
+            interval,
+            repetitions,
+            easeFactor,
+            nextReview: Date.now() + (interval * 24 * 60 * 60 * 1000)
+        };
+    }
+
     async rate(quality) {
         if (!this.currentWord) return;
 
@@ -247,21 +330,28 @@ class StudySession {
         this.results.reviewed++;
         if (quality >= 3) this.results.correct++;
 
-        // SM-2 Algorithm Implementation (Simplified)
-        // In a real app, we would calculate new interval, repetitions, and ease factor
-        // and save to DB.
+        // Calculate new SM-2 values
+        const sm2Result = this.calculateSM2(this.currentWord, quality);
 
-        /* 
-        const easeFactor = this.currentWord.easeFactor || 2.5;
-        const interval = this.currentWord.interval || 0;
-        const repetitions = this.currentWord.repetitions || 0;
-        // ... calculate new values ...
-        */
+        // Update word object
+        const updatedWord = {
+            ...this.currentWord,
+            ...sm2Result,
+            lastReviewed: Date.now()
+        };
 
-        // For now, just log and move on
-        console.log(`Rated word '${this.currentWord.word}' with quality ${quality}`);
+        // Save to DB
+        if (window.StorageAdapter) {
+            await window.StorageAdapter.updateVocabulary(updatedWord);
+            await window.StorageAdapter.updateDailyProgress(1);
 
-        // Animate card out? Optional.
+            // Update local tracking
+            if (this.dailyProgress) {
+                this.dailyProgress.count++;
+            }
+        }
+
+        console.log(`Rated '${this.currentWord.word}' Q:${quality} -> Int:${sm2Result.interval}d`);
 
         this.currentIndex++;
         this.showNextCard();
@@ -278,6 +368,18 @@ class StudySession {
             ? Math.round((this.results.correct / this.results.reviewed) * 100)
             : 0;
         this.ui.summaryAccuracy.textContent = `${accuracy}%`;
+
+        // Check Daily Goal
+        const goal = this.settings ? this.settings.dailyReviewGoal : 50;
+        const current = this.dailyProgress ? this.dailyProgress.count : 0;
+
+        if (current >= goal) {
+            const title = this.ui.summaryCard.querySelector('.summary-title');
+            if (title) {
+                title.innerHTML = '🎉 今日目标已完成!';
+                title.style.color = '#4CAF50';
+            }
+        }
     }
 }
 

@@ -28,6 +28,7 @@ class MainApp {
         this.setupWindowStateListener();
         this.checkSubscriptionStatus();
         this.checkPaymentStatus();
+        await this.initDailyGoal();
     }
 
     checkPaymentStatus() {
@@ -1210,6 +1211,58 @@ class MainApp {
 
     saveRecentFiles() {
         localStorage.setItem('recentFiles', JSON.stringify(this.recentFiles));
+    }
+
+    // Daily Goal System
+    async initDailyGoal() {
+        if (!window.StorageAdapter) {
+            console.warn('StorageAdapter not available for daily goal');
+            return;
+        }
+
+        // Load settings and progress
+        this.settings = await window.StorageAdapter.getUserSettings();
+        this.dailyProgress = await window.StorageAdapter.getDailyProgress();
+
+        // Bind goal selector
+        const goalSelect = document.getElementById('dailyGoalSelect');
+        if (goalSelect) {
+            goalSelect.value = this.settings.dailyReviewGoal;
+            goalSelect.addEventListener('change', (e) => this.updateGoal(parseInt(e.target.value)));
+        }
+
+        // Update UI
+        this.updateDailyGoalUI();
+    }
+
+    async updateGoal(newGoal) {
+        if (window.StorageAdapter) {
+            await window.StorageAdapter.saveUserSettings({ dailyReviewGoal: newGoal });
+            this.settings.dailyReviewGoal = newGoal;
+            this.updateDailyGoalUI();
+        }
+    }
+
+    updateDailyGoalUI() {
+        const progressEl = document.getElementById('goalProgress');
+        const startBtn = document.getElementById('startFocusBtn');
+
+        const current = this.dailyProgress ? this.dailyProgress.count : 0;
+        const goal = this.settings ? this.settings.dailyReviewGoal : 50;
+
+        if (progressEl) {
+            progressEl.textContent = `${current}/${goal}`;
+        }
+
+        if (startBtn) {
+            if (current >= goal) {
+                startBtn.disabled = true;
+                startBtn.textContent = '今日目标已完成';
+            } else {
+                startBtn.disabled = false;
+                startBtn.textContent = '开始专注模式';
+            }
+        }
     }
 }
 

@@ -411,3 +411,5 @@ WebApp.prototype.showStudyCardView = async function () {
         appRoot.innerHTML = '<div style="padding: 20px;">加载失败</div>';
     }
 };
+
+
