@@ -139,8 +139,8 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
-    padding: 25px 25px 20px 25px;
-    /* Reduce bottom padding */
+    padding: 25px 25px 0 25px;
+    /* Remove bottom padding completely */
 }
 
 .review-card h2 {
@@ -225,6 +225,8 @@
     display: flex;
     gap: 12px;
     margin-top: 0;
+    padding-bottom: 25px;
+    /* Add padding at bottom of button area */
     align-items: center;
 }
 
