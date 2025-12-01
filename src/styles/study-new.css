@@ -226,8 +226,8 @@
     gap: 12px;
     margin-top: auto;
     /* Push to bottom */
-    padding-bottom: 25px;
-    /* Add padding at bottom of button area */
+    padding-bottom: 10px;
+    /* Tighter bottom padding */
     align-items: center;
 }
 
