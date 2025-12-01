@@ -1234,6 +1234,10 @@ class MainApp {
 
         // Update UI
         this.updateReviewPackUI();
+
+        // Sync heights initially and on resize
+        setTimeout(() => this.syncCardHeights(), 100);
+        window.addEventListener('resize', () => this.syncCardHeights());
     }
 
     async generateReviewPack() {
@@ -1336,6 +1340,39 @@ class MainApp {
 
             // Force reload to ensure UI is fresh
             window.location.reload();
+        }
+    }
+
+    // Sync heights of review card and side cards
+    syncCardHeights() {
+        const reviewCard = document.getElementById('startReviewCard');
+        const sideCards = document.querySelector('.side-cards');
+
+        if (reviewCard && sideCards) {
+            // Reset height first to get natural height
+            sideCards.style.height = 'auto';
+
+            // Get review card height
+            const height = reviewCard.offsetHeight;
+
+            // Apply to side cards
+            sideCards.style.height = `${height}px`;
+
+            // Ensure last card stretches
+            const lastCard = sideCards.querySelector('.card:last-child');
+            if (lastCard) {
+                lastCard.style.flex = '1';
+                lastCard.style.display = 'flex';
+                lastCard.style.flexDirection = 'column';
+
+                // Make list scrollable if needed
+                const list = lastCard.querySelector('#recentWordsList');
+                if (list) {
+                    list.style.flex = '1';
+                    list.style.overflowY = 'auto';
+                    list.style.minHeight = '0'; // Important for flex scrolling
+                }
+            }
         }
     }
 

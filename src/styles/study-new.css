@@ -115,7 +115,8 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 25px;
-    /* Default align-items is stretch, which ensures equal height columns */
+    align-items: start;
+    /* Keep left card tight */
 }
 
 .card {
