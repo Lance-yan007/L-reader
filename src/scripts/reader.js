@@ -4582,14 +4582,26 @@ class ReaderApp {
             const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
             highlightDivs.forEach(div => div.remove());
 
-            // 清除span上的高亮标记
+            // 清除span上的高亮标记 - 完全清理所有相关属性和样式
             const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
             spans.forEach(span => {
+                // 删除所有高亮相关的 data 属性
                 delete span.dataset.highlightId;
                 delete span.dataset.highlightColor;
+
+                // 删除所有高亮相关的类
                 span.classList.remove('word-highlighted');
-                // 确保背景色也被清除 (虽然由unified-highlight处理，但以防万一)
+                span.classList.remove('merged-highlighted');
+
+                // 清除所有可能的内联样式
                 span.style.backgroundColor = '';
+                span.style.background = '';
+                span.style.color = '';
+
+                // 如果span没有其他属性和内容，可以考虑移除style属性
+                if (span.style.length === 0) {
+                    span.removeAttribute('style');
+                }
             });
         }
 
@@ -4604,13 +4616,25 @@ class ReaderApp {
             spans.forEach(span => {
                 delete span.dataset.underlineId;
                 span.classList.remove('word-underlined');
+
+                // 清除下划线相关的样式
+                span.style.textDecoration = '';
+                span.style.borderBottom = '';
+
+                // 如果span没有其他样式，移除style属性
+                if (span.style.length === 0) {
+                    span.removeAttribute('style');
+                }
             });
         }
 
-        // 3. 隐藏菜单
+        // 3. 清理当前上下文目标
+        this.currentContextTarget = null;
+
+        // 4. 隐藏菜单
         this.hideContextMenu();
 
-        // 4. 保存更改
+        // 5. 保存更改
         this.isDirty = true;
         this.updateSaveButtonState();
         await this.saveDocument();
