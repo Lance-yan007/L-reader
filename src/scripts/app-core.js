@@ -322,10 +322,13 @@ class MainApp {
     initSidebarInteractions() {
         const sidebar = document.getElementById('sidebar');
         if (!sidebar) {
+            console.warn('⚠️ Sidebar element not found');
             return;
         }
 
         const collapseBtn = document.getElementById('collapseSidebarBtn');
+        console.log('🔍 Collapse button found:', collapseBtn);
+
         const updateSidebarState = () => {
             const isCollapsed = document.body.classList.contains('sidebar-collapsed');
             if (collapseBtn) {
@@ -338,7 +341,9 @@ class MainApp {
         };
 
         if (collapseBtn) {
-            collapseBtn.addEventListener('click', () => {
+            console.log('✅ Attaching click event to collapse button');
+            collapseBtn.addEventListener('click', (e) => {
+                console.log('🖱️ Collapse button clicked!');
                 const willCollapse = !document.body.classList.contains('sidebar-collapsed');
                 if (willCollapse) {
                     document.body.classList.add('sidebar-collapsed');
@@ -349,6 +354,8 @@ class MainApp {
                 }
                 updateSidebarState();
             });
+        } else {
+            console.error('❌ Collapse button not found! Cannot attach event listener.');
         }
 
         const hoverZone = document.getElementById('sidebarHoverZone');
