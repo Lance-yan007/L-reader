@@ -4574,19 +4574,29 @@ class ReaderApp {
 
         // 1. 删除高亮
         if (highlightId) {
+            console.log(`🔍 开始删除高亮 ID: ${highlightId}`);
+
             // 从数据中移除
             const index = this.highlights.findIndex(h => h.highlightId === highlightId);
             if (index !== -1) {
                 this.highlights.splice(index, 1);
+                console.log(`✅ 从数据中移除高亮，剩余: ${this.highlights.length}`);
             }
 
             // 移除统一高亮层 (使用更精确的选择器)
             const highlightDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
-            highlightDivs.forEach(div => div.remove());
+            console.log(`🔍 找到 ${highlightDivs.length} 个 unified-highlight div`);
+            highlightDivs.forEach((div, idx) => {
+                console.log(`  - 删除 div ${idx + 1}:`, div);
+                div.remove();
+            });
 
             // 清除span上的高亮标记 - 完全清理所有相关属性和样式
             const spans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
-            spans.forEach(span => {
+            console.log(`🔍 找到 ${spans.length} 个带有 data-highlight-id 的 span`);
+            spans.forEach((span, idx) => {
+                console.log(`  - 清理 span ${idx + 1}:`, span.textContent);
+
                 // 删除所有高亮相关的 data 属性
                 delete span.dataset.highlightId;
                 delete span.dataset.highlightColor;
@@ -4605,6 +4615,15 @@ class ReaderApp {
                     span.removeAttribute('style');
                 }
             });
+
+            // 验证是否还有残留
+            const remainingDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${highlightId}"]`);
+            const remainingSpans = document.querySelectorAll(`span[data-highlight-id="${highlightId}"]`);
+            if (remainingDivs.length > 0 || remainingSpans.length > 0) {
+                console.error(`❌ 警告：仍有残留元素！divs: ${remainingDivs.length}, spans: ${remainingSpans.length}`);
+            } else {
+                console.log(`✅ 高亮已完全删除，无残留`);
+            }
         }
 
         // 2. 删除下划线
