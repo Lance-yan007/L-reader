@@ -4630,18 +4630,17 @@ class ReaderApp {
             });
         }
 
-        // 3. 清理当前上下文目标
-        this.currentContextTarget = null;
-
-        // 4. 隐藏菜单
+        // 3. 隐藏菜单
         this.hideContextMenu();
 
-        // 5. 保存更改
+        // 4. 保存更改
         this.isDirty = true;
         this.updateSaveButtonState();
         await this.saveDocument();
 
         this.showToast('标记已删除');
+
+        // Note: currentContextTarget will be updated on next right-click, no need to null it here
     }
 
     /**
