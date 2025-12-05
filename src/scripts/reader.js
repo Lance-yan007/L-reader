@@ -4553,6 +4553,8 @@ class ReaderApp {
      * 删除当前选中的标记 (高亮或下划线)
      */
     async deleteHighlight() {
+        console.log('🗑️ deleteHighlight v2.0 - Enhanced deletion with complete cleanup');
+
         if (!this.currentContextTarget) {
             console.warn('⚠️ 没有选中的目标，无法删除');
             this.hideContextMenu();
