@@ -3947,6 +3947,9 @@ class ReaderApp {
         }
 
         // 标记选中的 span
+        // 🧹 在应用新高亮前，清除重叠的旧高亮
+        this.clearOverlappingHighlights(spans);
+
         spans.forEach(span => {
             span.dataset.highlightId = highlightId;
             span.dataset.highlightColor = color;
@@ -4692,6 +4695,12 @@ class ReaderApp {
         await this.saveDocument();
 
         this.showToast('标记已删除');
+
+        // 🧹 清除浏览器选择，防止出现蓝色选择残留
+        const selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+        }
 
         // Note: currentContextTarget will be updated on next right-click, no need to null it here
     }
