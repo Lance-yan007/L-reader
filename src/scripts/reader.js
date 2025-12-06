@@ -500,6 +500,9 @@ class ReaderApp {
                             }
                         }
 
+                        // 🧹 在应用新高亮前，清除重叠的旧高亮（防止加载时出现叠加）
+                        this.clearOverlappingHighlights(spans);
+
                         // 为所有span设置高亮属性（但不设置backgroundColor，由unified-highlight div处理）
                         spans.forEach(span => {
                             span.dataset.highlightId = highlight.highlightId;
