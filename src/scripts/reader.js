@@ -4062,6 +4062,9 @@ class ReaderApp {
             bgColor = colorMap[color] || colorMap['yellow'];
         }
 
+        // 🧹 在应用新高亮前，清除该位置已有的高亮，防止叠加
+        this.clearOverlappingHighlights([span]);
+
         const highlightId = this.generateHighlightId();
         span.dataset.highlightId = highlightId;
         span.dataset.highlightColor = color;
@@ -4080,6 +4083,37 @@ class ReaderApp {
             color: color,
             text: span.textContent,
             spanCount: 1
+        });
+    }
+
+    /**
+     * 清除指定spans上已有的高亮（防止叠加）
+     * @param {HTMLElement[]} spans 
+     */
+    clearOverlappingHighlights(spans) {
+        const processedIds = new Set();
+
+        spans.forEach(span => {
+            const oldId = span.dataset.highlightId;
+            if (oldId && !processedIds.has(oldId)) {
+                processedIds.add(oldId);
+                console.log(`🧹 清除重叠的旧高亮 ID: ${oldId}`);
+
+                // 移除旧的统一高亮层
+                const oldDivs = document.querySelectorAll(`.unified-highlight[data-highlight-id="${oldId}"]`);
+                oldDivs.forEach(div => div.remove());
+
+                // 清理所有属于旧ID的span（包括当前选区外的）
+                const oldSpans = document.querySelectorAll(`span[data-highlight-id="${oldId}"]`);
+                oldSpans.forEach(s => {
+                    delete s.dataset.highlightId;
+                    delete s.dataset.highlightColor;
+                    s.classList.remove('word-highlighted');
+                    s.classList.remove('merged-highlighted');
+                    s.style.backgroundColor = '';
+                    s.style.background = '';
+                });
+            }
         });
     }
 
