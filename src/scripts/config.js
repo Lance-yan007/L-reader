@@ -7,7 +7,7 @@ const AppConfig = {
     supabase: {
         // 用户的 Supabase 项目配置
         url: 'https://rjmumvfwpbcvtkllcehm.supabase.co',
-        anonKey: 'sb_publishable_F2pZVeDCJMnxy7K8ZsqTuQ_UrG5w3BM'
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqbXVtdmZ3cGJjdnRrbGxjZWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NDI1NTgsImV4cCI6MjA3OTQxODU1OH0.yL8AyCuRIY7qRN0dl7p4-A_An39ft3ZroQRVBFzctNQ'
     },
     payment: {
         prices: {
