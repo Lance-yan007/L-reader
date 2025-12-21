@@ -74,7 +74,7 @@ class ReaderApp {
         // Gemini API配置
         this.geminiApiKey = 'AIzaSyCqcvZmcr1-BbAthoDVIvotcjM2gANMklY';
         // 使用Gemini 2.0 Flash模型 - 快速且稳定
-        this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
+        this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 
         // API请求限流器配置（免费层：15次/分钟）
         this.apiRequestQueue = []; // 请求时间戳队列
