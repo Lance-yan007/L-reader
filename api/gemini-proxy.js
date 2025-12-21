@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
         });
         return;
     }
-    const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
+    const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent';
 
     try {
         console.log('Proxying request to Gemini API...');
