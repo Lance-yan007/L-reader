@@ -30,11 +30,11 @@ try {
         console.log('✅ 使用预初始化的 Supabase 客户端');
     }
     // 如果还没有初始化，尝试使用全局 supabase 对象创建客户端
-    else if (typeof window !== 'undefined' && typeof supabase !== 'undefined' && supabase.createClient) {
+    else if (typeof window !== 'undefined' && typeof window.supabase !== 'undefined' && window.supabase.createClient) {
         // 优先使用 window.SUPABASE_CONFIG（如果存在），否则使用本地常量
         const url = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || SUPABASE_URL;
         const key = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.anonKey) || SUPABASE_ANON_KEY;
-        supabase = supabase.createClient(url, key);
+        supabase = window.supabase.createClient(url, key);
         window.supabaseClient = supabase; // 保存到全局，供后续使用
         console.log('✅ 创建浏览器 Supabase 客户端');
     }
@@ -71,8 +71,8 @@ try {
             console.warn('⚠️ Node.js 加载失败，尝试使用浏览器版本');
             if (typeof window !== 'undefined' && window.supabaseClient) {
                 supabase = window.supabaseClient;
-            } else if (typeof window !== 'undefined' && typeof supabase !== 'undefined' && supabase.createClient) {
-                supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else if (typeof window !== 'undefined' && typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 window.supabaseClient = supabase;
             } else {
                 throw new Error('Supabase 库未加载，请确保 CDN 脚本已加载');
