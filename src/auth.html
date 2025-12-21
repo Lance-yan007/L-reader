@@ -27,9 +27,9 @@
 
         // 初始化 Supabase 客户端的函数
         function initSupabaseClient() {
-            if (typeof supabase !== 'undefined' && supabase.createClient && window.SUPABASE_CONFIG) {
+            if (typeof window.supabase !== 'undefined' && window.supabase.createClient && window.SUPABASE_CONFIG) {
                 try {
-                    window.supabaseClient = supabase.createClient(
+                    window.supabaseClient = window.supabase.createClient(
                         window.SUPABASE_CONFIG.url,
                         window.SUPABASE_CONFIG.anonKey
                     );
