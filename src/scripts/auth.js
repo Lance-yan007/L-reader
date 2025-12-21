@@ -1,6 +1,6 @@
 // 认证管理模块
 // 加载 Supabase 客户端
-let supabase;
+let supabaseClient;
 
 // Supabase 配置
 // Supabase 配置
@@ -26,7 +26,7 @@ try {
     // 优先使用浏览器环境的 Supabase（通过 CDN 加载）
     // 检查是否已经在 HTML 中初始化了 Supabase 客户端
     if (typeof window !== 'undefined' && window.supabaseClient) {
-        supabase = window.supabaseClient;
+        supabaseClient = window.supabaseClient;
         console.log('✅ 使用预初始化的 Supabase 客户端');
     }
     // 如果还没有初始化，尝试使用全局 supabase 对象创建客户端
@@ -34,8 +34,8 @@ try {
         // 优先使用 window.SUPABASE_CONFIG（如果存在），否则使用本地常量
         const url = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || SUPABASE_URL;
         const key = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.anonKey) || SUPABASE_ANON_KEY;
-        supabase = window.supabase.createClient(url, key);
-        window.supabaseClient = supabase; // 保存到全局，供后续使用
+        supabaseClient = window.supabase.createClient(url, key);
+        window.supabaseClient = supabaseClient; // 保存到全局，供后续使用
         console.log('✅ 创建浏览器 Supabase 客户端');
     }
     // 如果在 Electron 环境中，尝试使用 Node.js 版本
@@ -54,7 +54,7 @@ try {
             for (const tryPath of possiblePaths) {
                 try {
                     const supabaseModule = require(tryPath);
-                    supabase = supabaseModule.supabase;
+                    supabaseClient = supabaseModule.supabase;
                     console.log('✅ 使用 Node.js Supabase 客户端:', tryPath);
                     loaded = true;
                     break;
@@ -70,10 +70,10 @@ try {
             // 如果 require 失败，尝试使用浏览器版本
             console.warn('⚠️ Node.js 加载失败，尝试使用浏览器版本');
             if (typeof window !== 'undefined' && window.supabaseClient) {
-                supabase = window.supabaseClient;
+                supabaseClient = window.supabaseClient;
             } else if (typeof window !== 'undefined' && typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                window.supabaseClient = supabase;
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                window.supabaseClient = supabaseClient;
             } else {
                 throw new Error('Supabase 库未加载，请确保 CDN 脚本已加载');
             }
@@ -84,7 +84,7 @@ try {
 } catch (e) {
     console.error('❌ 加载 Supabase 失败:', e.message);
     // 创建一个假的 supabase 对象，避免应用崩溃
-    supabase = {
+    supabaseClient = {
         auth: {
             signInWithPassword: async () => ({ data: null, error: new Error('Supabase 未加载') }),
             signUp: async () => ({ data: null, error: new Error('Supabase 未加载') }),
@@ -302,7 +302,7 @@ class AuthManager {
         }
 
         try {
-            const { error } = await supabase.auth.resend({
+            const { error } = await supabaseClient.auth.resend({
                 type: 'signup',
                 email: emailToUse
             });
@@ -349,7 +349,7 @@ class AuthManager {
         }
 
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
                 email,
                 password
             });
@@ -406,7 +406,7 @@ class AuthManager {
 
         try {
             // 1. 注册认证账号
-            const { data: authData, error: authError } = await supabase.auth.signUp({
+            const { data: authData, error: authError } = await supabaseClient.auth.signUp({
                 email,
                 password,
                 options: {
@@ -491,7 +491,7 @@ class AuthManager {
 
     async checkAuth() {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
                 // 已登录，跳转到主界面
                 if (window.location.pathname.includes('auth.html')) {
