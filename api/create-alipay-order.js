@@ -96,7 +96,7 @@ module.exports = async (req, res) => {
         console.error('Alipay Error:', err);
         res.status(500).json({
             statusCode: 500,
-            message: `Alipay Error (v3-rsa-fix): ${err.message}`
+            message: `Alipay Error: ${err.message}`
         });
     }
 };
