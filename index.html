@@ -75,7 +75,12 @@
                                     const json = JSON.parse(text);
                                     throw new Error('服务器错误: ' + (json.message || 'Internal Server Error'));
                                 } catch (e) {
-                                    throw new Error('服务器错误 (500): 可能是环境配置缺失。');
+                                    // Make the raw HTML/text visible for debugging
+                                    console.error('Raw Server Response:', text);
+                                    // Extract title if it's HTML
+                                    const match = text.match(/<title>(.*?)<\/title>/i);
+                                    const title = match ? match[1] : text.substring(0, 100);
+                                    throw new Error(`服务器错误 (500) - 非JSON响应: ${title}... (请查看控制台)`);
                                 }
                             }
                             throw new Error(`支付请求失败: ${response.status} ${response.statusText}`);
