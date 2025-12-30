@@ -1,5 +1,3 @@
-const AlipaySdk = require('alipay-sdk').default;
-const AlipayFormData = require('alipay-sdk/lib/form').default;
 
 module.exports = async (req, res) => {
     // 1. Check Method
@@ -10,6 +8,15 @@ module.exports = async (req, res) => {
     }
 
     try {
+        // 0. Load Modules Safely
+        // Ensure dependencies are loaded inside try-catch to report installation errors
+        const AlipaySdk = require('alipay-sdk').default;
+        const AlipayFormData = require('alipay-sdk/lib/form').default;
+
+        if (!AlipaySdk || !AlipayFormData) {
+            throw new Error('Failed to load alipay-sdk module');
+        }
+
         // 2. Check Environment Variables
         const appId = process.env.ALIPAY_APP_ID;
         const privateKey = process.env.ALIPAY_PRIVATE_KEY;
@@ -71,7 +78,8 @@ module.exports = async (req, res) => {
         console.error('Alipay Error:', err);
         res.status(500).json({
             statusCode: 500,
-            message: err.message || 'Alipay SDK Execution Error'
+            message: `Alipay Error: ${err.message}`
         });
     }
 };
+
