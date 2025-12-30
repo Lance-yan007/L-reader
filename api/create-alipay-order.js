@@ -33,17 +33,26 @@ module.exports = async (req, res) => {
         // Helper to ensure private key is in valid PEM format
         const formatPrivateKey = (key) => {
             if (!key) return '';
-            // If it already has headers, return as is
-            if (key.includes('BEGIN PRIVATE KEY')) return key;
 
-            // Otherwise, wrap it
-            return `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+            // 1. Remove all spaces and newlines to get pure base64
+            let cleanKey = key.replace(/[\s\r\n]/g, '');
+
+            // 2. Remove headers/footers if they were included in the "clean" string causing issues
+            cleanKey = cleanKey.replace(/-----BEGIN.*?KEY-----/g, '').replace(/-----END.*?KEY-----/g, '');
+
+            // 3. Wrap in standard PKCS#8 header (usually works for Node crypto)
+            // If it fails, it might need 'RSA PRIVATE KEY' but 'PRIVATE KEY' is safer for most alipay keys
+            return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
         };
 
-        // 3. Initialize SDK (Lazy initialization to prevent cold start crashes)
+        const formattedKey = formatPrivateKey(privateKey);
+        // Debug info (do not log full key)
+        console.log('Key length:', formattedKey.length);
+
+        // 3. Initialize SDK
         const alipaySdk = new AlipaySdk({
             appId: appId,
-            privateKey: formatPrivateKey(privateKey),
+            privateKey: formattedKey,
             alipayPublicKey: alipayPublicKey,
             gateway: 'https://openapi.alipay.com/gateway.do',
             timeout: 5000,
@@ -88,7 +97,7 @@ module.exports = async (req, res) => {
         console.error('Alipay Error:', err);
         res.status(500).json({
             statusCode: 500,
-            message: `Alipay Error: ${err.message}`
+            message: `Alipay Error (v2-fix): ${err.message}`
         });
     }
 };
