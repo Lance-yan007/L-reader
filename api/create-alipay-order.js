@@ -48,12 +48,14 @@ module.exports = async (req, res) => {
         // Debug info (do not log full key)
         console.log('Key length:', formattedKey.length);
 
+        const gateway = process.env.ALIPAY_GATEWAY || 'https://openapi.alipay.com/gateway.do';
+
         // 3. Initialize SDK
         const alipaySdk = new AlipaySdk({
             appId: appId,
             privateKey: formattedKey,
             alipayPublicKey: alipayPublicKey,
-            gateway: 'https://openapi.alipay.com/gateway.do',
+            gateway: gateway,
             timeout: 5000,
             camelcase: true
         });
