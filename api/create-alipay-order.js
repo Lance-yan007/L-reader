@@ -30,10 +30,20 @@ module.exports = async (req, res) => {
             });
         }
 
+        // Helper to ensure private key is in valid PEM format
+        const formatPrivateKey = (key) => {
+            if (!key) return '';
+            // If it already has headers, return as is
+            if (key.includes('BEGIN PRIVATE KEY')) return key;
+
+            // Otherwise, wrap it
+            return `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+        };
+
         // 3. Initialize SDK (Lazy initialization to prevent cold start crashes)
         const alipaySdk = new AlipaySdk({
             appId: appId,
-            privateKey: privateKey,
+            privateKey: formatPrivateKey(privateKey),
             alipayPublicKey: alipayPublicKey,
             gateway: 'https://openapi.alipay.com/gateway.do',
             timeout: 5000,
