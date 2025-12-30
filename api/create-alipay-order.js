@@ -37,12 +37,11 @@ module.exports = async (req, res) => {
             // 1. Remove all spaces and newlines to get pure base64
             let cleanKey = key.replace(/[\s\r\n]/g, '');
 
-            // 2. Remove headers/footers if they were included in the "clean" string causing issues
+            // 2. Remove headers/footers if they were included
             cleanKey = cleanKey.replace(/-----BEGIN.*?KEY-----/g, '').replace(/-----END.*?KEY-----/g, '');
 
-            // 3. Wrap in standard PKCS#8 header (usually works for Node crypto)
-            // If it fails, it might need 'RSA PRIVATE KEY' but 'PRIVATE KEY' is safer for most alipay keys
-            return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+            // 3. Wrap in RSA PRIVATE KEY header (Common for Alipay/OpenSSL)
+            return `-----BEGIN RSA PRIVATE KEY-----\n${cleanKey}\n-----END RSA PRIVATE KEY-----`;
         };
 
         const formattedKey = formatPrivateKey(privateKey);
@@ -97,8 +96,7 @@ module.exports = async (req, res) => {
         console.error('Alipay Error:', err);
         res.status(500).json({
             statusCode: 500,
-            message: `Alipay Error (v2-fix): ${err.message}`
+            message: `Alipay Error (v3-rsa-fix): ${err.message}`
         });
     }
 };
-
