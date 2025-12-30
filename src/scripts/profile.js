@@ -43,7 +43,7 @@ function waitForSupabase(callback) {
         callback();
         return;
     }
-    
+
     const onSupabaseReady = () => {
         if (initSupabase()) {
             window.removeEventListener('supabase-ready', onSupabaseReady);
@@ -51,7 +51,7 @@ function waitForSupabase(callback) {
         }
     };
     window.addEventListener('supabase-ready', onSupabaseReady);
-    
+
     let attempts = 0;
     const maxAttempts = 100;
     const checkInterval = setInterval(() => {
@@ -92,7 +92,7 @@ class ProfileManager {
     async loadUserInfo() {
         try {
             const { data: { user }, error } = await supabase.auth.getUser();
-            
+
             if (error) throw error;
             if (!user) {
                 this.showError('未登录，请先登录');
@@ -100,6 +100,22 @@ class ProfileManager {
             }
 
             this.currentUser = user;
+
+            // 尝试获取扩展用户信息
+            let profile = null;
+            try {
+                const { data, error: profileError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!profileError && data) {
+                    profile = data;
+                }
+            } catch (e) {
+                console.warn('获取用户档案失败:', e);
+            }
 
             // 更新用户信息显示
             const userEmail = document.getElementById('userEmail');
@@ -111,9 +127,9 @@ class ProfileManager {
             }
 
             if (userName) {
-                // 尝试从 metadata 获取用户名
-                const username = user.user_metadata?.username || user.email?.split('@')[0] || '用户';
-                userName.textContent = username;
+                // 优先使用 profile 中的用户名，其次是 metadata，最后是邮箱前缀
+                const displayname = profile?.username || user.user_metadata?.username || user.email?.split('@')[0] || '用户';
+                userName.textContent = displayname;
             }
 
             if (userCreatedAt) {
@@ -161,7 +177,7 @@ class ProfileManager {
                         .from('subscriptions')
                         .update({ status: 'expired' })
                         .eq('id', data.id);
-                    
+
                     this.subscriptionStatus = { planType: 'free', subscription: null };
                 } else {
                     this.subscriptionStatus = {
@@ -174,7 +190,7 @@ class ProfileManager {
             }
 
             this.updateSubscriptionUI();
-            
+
             // 检查订阅到期提醒
             if (this.subscriptionStatus.subscription) {
                 this.checkSubscriptionExpiry();
@@ -204,7 +220,7 @@ class ProfileManager {
                 yearly: '年订阅'
             };
             const planName = planNames[this.subscriptionStatus.planType] || '订阅';
-            
+
             this.showExpiryReminder(daysUntilExpiry, planName, endDate);
         }
     }
@@ -219,7 +235,7 @@ class ProfileManager {
             return; // 今天已经提醒过了
         }
 
-        const message = daysLeft === 1 
+        const message = daysLeft === 1
             ? `您的${planName}将在明天到期，请及时续费以继续享受服务。`
             : `您的${planName}将在${daysLeft}天后到期（${endDate.toLocaleDateString('zh-CN')}），请及时续费以继续享受服务。`;
 
@@ -278,7 +294,7 @@ class ProfileManager {
             if (!supabase || !this.currentUser) return;
 
             const today = new Date().toISOString().split('T')[0];
-            
+
             // 获取今日使用量
             const { data: usageData, error: usageError } = await supabase
                 .from('usage_stats')
@@ -414,11 +430,11 @@ class ProfileManager {
         } else {
             countEl.textContent = `${current}/${limit}`;
             countEl.classList.remove('unlimited');
-            
+
             // 更新进度条
             const percentage = Math.min(100, Math.round((current / limit) * 100));
             progressEl.style.width = `${percentage}%`;
-            
+
             // 根据使用率设置颜色
             if (percentage >= 90) {
                 progressEl.className = 'usage-progress-bar danger';
@@ -449,7 +465,7 @@ class ProfileManager {
 
     bindEvents() {
         console.log('开始绑定事件...');
-        
+
         // 账号操作
         const changePasswordBtn = document.getElementById('changePasswordBtn');
         const deleteAccountBtn = document.getElementById('deleteAccountBtn');
@@ -605,20 +621,62 @@ class ProfileManager {
     }
 
     async handleDeleteAccount() {
-        if (!confirm('确定要删除账号吗？此操作不可恢复，所有数据将被永久删除。')) {
+        if (!confirm('确定要删除账号吗？此操作不可恢复，所有数据（包括生词本、翻译记录、标注等）将被永久删除。')) {
             return;
         }
 
-        if (!confirm('再次确认：你真的要删除账号吗？')) {
+        if (!confirm('再次确认：你真的要删除账号吗？此操作无法撤销！')) {
             return;
+        }
+
+        const deleteBtn = document.getElementById('deleteAccountBtn');
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '删除中...';
         }
 
         try {
-            this.showError('账号删除功能开发中...');
-            // TODO: 实现账号删除功能
+            const userId = this.currentUser.id;
+
+            // 1. 删除所有用户数据 (由于设置了 RLS 和 Cascade，可能只需要删除 users 表记录，
+            // 但为了安全起见，我们可以显式尝试删除关联数据或依赖级联删除)
+
+            // 尝试删除 public.users 记录 (如果设置了 ON DELETE CASCADE，这会删除所有关联数据)
+            const { error: deleteProfileError } = await supabase
+                .from('users')
+                .delete()
+                .eq('id', userId);
+
+            if (deleteProfileError) {
+                console.warn('删除用户档案失败，尝试手动清除数据:', deleteProfileError);
+
+                // 手动清除各项数据
+                await Promise.all([
+                    supabase.from('annotations').delete().eq('user_id', userId),
+                    supabase.from('translations').delete().eq('user_id', userId),
+                    supabase.from('usage_stats').delete().eq('user_id', userId),
+                    supabase.from('subscriptions').delete().eq('user_id', userId),
+                    supabase.from('vocabulary').delete().eq('user_id', userId)
+                ]);
+            }
+
+            // 2. 退出登录
+            await supabase.auth.signOut();
+
+            this.showSuccess('账号及数据已删除');
+
+            // 3. 跳转到首页
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1000);
+
         } catch (error) {
             console.error('删除账号失败:', error);
             this.showError('删除账号失败：' + error.message);
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '删除账号';
+            }
         }
     }
 
@@ -626,7 +684,7 @@ class ProfileManager {
         const modal = document.getElementById('changePasswordModal');
         const form = document.getElementById('changePasswordForm');
         const errorDiv = document.getElementById('passwordFormError');
-        
+
         if (modal) {
             modal.style.display = 'flex';
             // 清空表单
@@ -654,25 +712,25 @@ class ProfileManager {
 
     async handleChangePassword() {
         console.log('handleChangePassword 被调用');
-        
+
         // 检查 supabase 是否已初始化
         if (!supabase) {
             console.error('Supabase 客户端未初始化');
             this.showError('系统未就绪，请刷新页面重试');
             return;
         }
-        
+
         console.log('Supabase 客户端已初始化');
 
         // 检查用户是否已登录
         const { data: { user }, error: getUserError } = await supabase.auth.getUser();
-        
+
         if (getUserError) {
             console.error('获取用户信息失败:', getUserError);
             this.showError('获取用户信息失败: ' + getUserError.message);
             return;
         }
-        
+
         if (!user) {
             this.showError('请先登录');
             return;
@@ -729,13 +787,13 @@ class ProfileManager {
         try {
             // 获取当前用户
             const { data: { user }, error: getUserError } = await supabase.auth.getUser();
-            
+
             if (getUserError || !user) {
                 throw new Error('获取用户信息失败');
             }
 
             console.log('开始验证当前密码...');
-            
+
             // 先验证当前密码（通过重新登录验证）
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: user.email,
@@ -915,10 +973,10 @@ class ProfileManager {
             }
 
             // 显示处理中状态
-            const planButton = planType === 'monthly' 
+            const planButton = planType === 'monthly'
                 ? document.getElementById('selectMonthlyPlan')
                 : document.getElementById('selectYearlyPlan');
-            
+
             if (planButton) {
                 const originalText = planButton.textContent;
                 planButton.disabled = true;
@@ -927,7 +985,7 @@ class ProfileManager {
 
             // 检查是否在Electron环境中
             const isElectron = typeof require !== 'undefined' && require('electron');
-            
+
             if (isElectron) {
                 // 在Electron环境中，使用StoreKit进行真实购买
                 await this.purchaseWithStoreKit(planType);
@@ -935,16 +993,16 @@ class ProfileManager {
                 // 在浏览器环境中，提示用户下载应用
                 this.showError('请在 macOS 应用中完成订阅购买');
             }
-            
+
         } catch (error) {
             console.error('选择订阅计划失败:', error);
             this.showError('订阅失败：' + error.message);
-            
+
             // 恢复按钮状态
-            const planButton = planType === 'monthly' 
+            const planButton = planType === 'monthly'
                 ? document.getElementById('selectMonthlyPlan')
                 : document.getElementById('selectYearlyPlan');
-            
+
             if (planButton) {
                 planButton.disabled = false;
                 planButton.textContent = planType === 'monthly' ? '选择月订阅' : '选择年订阅';
@@ -994,7 +1052,7 @@ class ProfileManager {
                         '2. 集成原生 StoreKit 模块\n' +
                         '3. 配置收据验证服务'
                     );
-                    
+
                     if (useTestMode) {
                         await this.createSubscription(planType);
                     }
@@ -1015,7 +1073,7 @@ class ProfileManager {
         try {
             // 验证收据
             const verificationResult = await this.verifyReceipt(receipt, planType);
-            
+
             if (!verificationResult.success) {
                 throw new Error(verificationResult.error || '收据验证失败');
             }
@@ -1026,11 +1084,11 @@ class ProfileManager {
                 transactionId: verificationResult.transactionId,
                 originalTransactionId: verificationResult.originalTransactionId
             });
-            
+
             // 重新加载订阅状态
             await this.loadSubscriptionStatus();
             await this.loadUsageStats();
-            
+
             this.hideSubscriptionModal();
             this.showSuccess('订阅成功！感谢您的支持！');
         } catch (error) {
@@ -1049,13 +1107,13 @@ class ProfileManager {
         try {
             // 方案1：使用 Apple 的验证 API（推荐）
             // 需要服务器端实现，这里提供客户端验证的占位
-            
+
             // 方案2：使用 App Store Connect API
             // 需要配置 API Key
-            
+
             // 临时：对于测试模式，直接返回成功
             // 生产环境必须实现真实的收据验证
-            
+
             if (!receipt || receipt === 'test') {
                 // 测试模式
                 return {
@@ -1070,7 +1128,7 @@ class ProfileManager {
             // 1. 将收据发送到您的服务器
             // 2. 服务器调用 Apple 验证 API
             // 3. 返回验证结果
-            
+
             // 示例：调用服务器验证 API
             /*
             const response = await fetch('https://your-server.com/verify-receipt', {
@@ -1110,7 +1168,7 @@ class ProfileManager {
 
             const now = new Date();
             const endDate = new Date();
-            
+
             if (planType === 'monthly') {
                 endDate.setMonth(endDate.getMonth() + 1);
             } else if (planType === 'yearly') {
@@ -1174,7 +1232,7 @@ class ProfileManager {
             // 重新加载订阅状态
             await this.loadSubscriptionStatus();
             await this.loadUsageStats();
-            
+
             return data;
         } catch (error) {
             console.error('创建订阅失败:', error);
@@ -1191,7 +1249,7 @@ class ProfileManager {
 
             const subscription = this.subscriptionStatus.subscription;
             const planType = this.subscriptionStatus.planType;
-            
+
             // 显示订阅管理弹窗
             this.showSubscriptionManagementModal(subscription, planType);
         } catch (error) {
@@ -1209,7 +1267,7 @@ class ProfileManager {
         modalDiv.className = 'modal-overlay';
         modalDiv.id = 'subscriptionManagementModal';
         modalDiv.style.display = 'flex';
-        
+
         const endDate = subscription.end_date ? new Date(subscription.end_date) : null;
         const endDateStr = endDate ? endDate.toLocaleDateString('zh-CN', {
             year: 'numeric',
@@ -1327,14 +1385,14 @@ class ProfileManager {
 
             // 检查是否在 Electron 环境中
             const isElectron = typeof require !== 'undefined' && require('electron');
-            
+
             if (isElectron) {
                 // 使用 StoreKit 恢复购买
                 const { getStoreKitManager } = await import('../utils/storekit.js');
                 const storeKit = getStoreKitManager();
-                
+
                 const result = await storeKit.restorePurchases();
-                
+
                 if (result.success) {
                     // 重新加载订阅状态
                     await this.loadSubscriptionStatus();

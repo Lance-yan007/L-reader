@@ -154,6 +154,7 @@ class StorageAdapter {
                         console.warn('云端翻译同步失败:', error);
                     } else {
                         console.log('✅ 翻译已同步到云端');
+                        this.updateUsageStats('word_translations');
                     }
                 } catch (cloudError) {
                     console.warn('云端翻译同步异常:', cloudError);
@@ -166,6 +167,59 @@ class StorageAdapter {
             return { success: false, error: error.message };
         }
     }
+
+    /**
+     * 更新使用统计
+     * @param {string} type - 'word_translations' | 'ai_chat_count' | 'vocabulary_count'
+     */
+    async updateUsageStats(type) {
+        try {
+            const userId = await this.getCurrentUserId();
+            if (!userId) return;
+
+            const date = new Date().toISOString().split('T')[0];
+
+            // 1. 获取今日统计
+            const { data: stats, error: fetchError } = await window.supabaseClient
+                .from('usage_stats')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('date', date)
+                .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.warn('获取今日统计失败:', fetchError);
+                return;
+            }
+
+            // 2. 更新或插入
+            const currentVal = stats ? (stats[type] || 0) : 0;
+            const updates = {
+                user_id: userId,
+                date: date,
+                updated_at: new Date().toISOString()
+            };
+            updates[type] = currentVal + 1;
+
+            // 如果没有记录，初始化其他字段
+            if (!stats) {
+                if (type !== 'word_translations') updates.word_translations = 0;
+                if (type !== 'ai_chat_count') updates.ai_chat_count = 0;
+                if (type !== 'vocabulary_count') updates.vocabulary_count = 0;
+            }
+
+            const { error: upsertError } = await window.supabaseClient
+                .from('usage_stats')
+                .upsert(updates, { onConflict: 'user_id,date' });
+
+            if (upsertError) {
+                console.warn('更新统计失败:', upsertError);
+            }
+        } catch (e) {
+            console.warn('更新使用统计异常:', e);
+        }
+    }
+
 
     /**
      * 获取指定文件的翻译记录
@@ -516,6 +570,10 @@ class StorageAdapter {
                         console.warn('云端同步失败，已保存到本地:', error);
                     } else {
                         console.log('✅ 生词已同步到云端');
+                        // 如果是新添加的词，更新统计
+                        if (!localResult.updated) {
+                            this.updateUsageStats('vocabulary_count');
+                        }
                     }
                 } catch (cloudError) {
                     console.warn('云端同步失败，已保存到本地:', cloudError);
@@ -817,6 +875,7 @@ class StorageAdapter {
         }
     }
 }
+
 
 // 创建全局实例
 window.StorageAdapter = new StorageAdapter();

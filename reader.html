@@ -395,26 +395,26 @@
     </div>
 
     <!-- 移动所有脚本到body底部 -->
+    <!-- Load Configuration -->
+    <script src="src/scripts/config.js"></script>
+
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        // Mock Supabase client
-        window.supabaseClient = {
-            auth: {
-                getUser: async () => ({ data: { user: null }, error: null }),
-                getSession: async () => ({ data: { session: null }, error: null }),
-                onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-                signOut: async () => ({ error: null })
-            },
-            from: () => ({
-                select: () => ({
-                    eq: () => ({
-                        single: async () => ({ data: null, error: null }),
-                        data: [],
-                        error: null
-                    })
-                })
-            })
-        };
-        console.log('Supabase disabled for web version');
+        // Initialize Supabase Client
+        try {
+            if (window.AppConfig && window.AppConfig.supabase && window.supabase) {
+                window.supabaseClient = window.supabase.createClient(
+                    window.AppConfig.supabase.url,
+                    window.AppConfig.supabase.anonKey
+                );
+                console.log('✅ Supabase initialized');
+            } else {
+                console.warn('⚠️ Supabase configuration missing or SDK not loaded');
+            }
+        } catch (error) {
+            console.error('❌ Failed to initialize Supabase:', error);
+        }
     </script>
 
     <!-- 直接从CDN加载PDF.js -->
