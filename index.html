@@ -37,6 +37,20 @@
                         return;
                     }
 
+                    // Check if running on localhost with static server (no API support)
+                    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (isLocalhost && window.location.port !== '3000' && !window.location.href.includes('vercel.app')) {
+                        // Assuming port 3000 or vercel.app has API support, others (like python http.server) might not
+                        console.warn('Running on localhost without dedicated API server?');
+                    }
+
+                    const deleteBtn = document.getElementById('btn-alipay');
+                    const originalText = deleteBtn ? deleteBtn.innerHTML : '';
+                    if (deleteBtn) {
+                        deleteBtn.disabled = true;
+                        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+                    }
+
                     try {
                         const response = await fetch('/api/create-alipay-order', {
                             method: 'POST',
@@ -46,8 +60,26 @@
                             body: JSON.stringify({
                                 amount: window.AppConfig.payment.prices.lifetime,
                                 subject: 'L-reader Pro 终身版',
+                                userId: session.user.id
                             }),
                         });
+
+                        // Check for HTTP errors
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                throw new Error('找不到支付服务接口 (404)。如果您在本地运行，请确保 API 服务已启动。');
+                            }
+                            if (response.status === 500) {
+                                const text = await response.text();
+                                try {
+                                    const json = JSON.parse(text);
+                                    throw new Error('服务器错误: ' + (json.message || 'Internal Server Error'));
+                                } catch (e) {
+                                    throw new Error('服务器错误 (500): 可能是环境配置缺失。');
+                                }
+                            }
+                            throw new Error(`支付请求失败: ${response.status} ${response.statusText}`);
+                        }
 
                         const result = await response.json();
 
@@ -55,12 +87,17 @@
                             // Redirect to Alipay payment page
                             window.location.href = result.url;
                         } else {
-                            alert('支付宝支付初始化失败: ' + (result.message || '未知错误'));
+                            throw new Error(result.message || '获取支付链接失败');
                         }
 
                     } catch (error) {
-                        console.error('Error:', error);
-                        alert('支付服务暂时不可用');
+                        console.error('Payment Error:', error);
+                        alert('支付无法启动: ' + error.message);
+                    } finally {
+                        if (deleteBtn) {
+                            deleteBtn.disabled = false;
+                            deleteBtn.innerHTML = originalText;
+                        }
                     }
                 };
 
