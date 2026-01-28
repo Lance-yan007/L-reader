@@ -65,9 +65,18 @@ module.exports = async (req, res) => {
         const formData = new AlipayFormData();
         formData.setMethod('get');
 
+        // Generate unique order ID
+        const outTradeNo = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        // Validate amount against hardcoded prices
+        const validPrices = [49.9, 99.9, 199.9]; // lifetime, monthly, yearly
+        if (!validPrices.includes(parseFloat(amount))) {
+            throw new Error('Invalid payment amount');
+        }
+
         // Use page pay for PC
         formData.addField('bizContent', {
-            outTradeNo: Date.now().toString(),
+            outTradeNo: outTradeNo,
             productCode: 'FAST_INSTANT_TRADE_PAY',
             totalAmount: amount,
             subject: subject || 'L-reader Pro',
@@ -80,10 +89,10 @@ module.exports = async (req, res) => {
 
         // Use request origin for return URL
         const origin = req.headers.origin || 'https://l-reader.com';
-        formData.addField('returnUrl', `${origin}/app.html?status=success`);
+        formData.addField('returnUrl', `${origin}/payment-result.html?status=success`);
 
-        // Optional: Notify URL
-        // formData.addField('notifyUrl', `${origin}/api/alipay-webhook`);
+        // Enable webhook for automatic subscription updates
+        formData.addField('notifyUrl', `${origin}/api/alipay-webhook`);
 
         const result = await alipaySdk.exec(
             'alipay.trade.page.pay',
