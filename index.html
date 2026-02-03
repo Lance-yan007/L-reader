@@ -52,7 +52,10 @@
                     }
 
                     try {
-                        const response = await fetch('/api/create-alipay-order', {
+                        // Use Aliyun API endpoint for payment (ICP compliance)
+                        // Fallback to Vercel if ALIYUN_API_URL not configured
+                        const apiEndpoint = window.ALIYUN_API_URL || '/api/create-alipay-order';
+                        const response = await fetch(apiEndpoint, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',

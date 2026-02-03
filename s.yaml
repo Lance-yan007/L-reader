@@ -1,0 +1,84 @@
+version: 1.0.0
+name: l-reader-alipay
+access: default
+
+services:
+  create-alipay-order:
+    component: fc
+    props:
+      region: cn-shanghai
+      service:
+        name: l-reader-payment
+        description: 'L-reader Alipay Payment Service'
+        internetAccess: true
+      function:
+        name: create-alipay-order
+        description: 'Create Alipay payment order'
+        runtime: nodejs18
+        codeUri: ./
+        handler: api/create-alipay-order.handler
+        timeout: 60
+        memorySize: 512
+        instanceConcurrency: 100
+        environmentVariables:
+          ALIPAY_APP_ID: ${env.ALIPAY_APP_ID}
+          ALIPAY_PRIVATE_KEY: ${env.ALIPAY_PRIVATE_KEY}
+          ALIPAY_PUBLIC_KEY: ${env.ALIPAY_PUBLIC_KEY}
+          SUPABASE_URL: ${env.SUPABASE_URL}
+          SUPABASE_SERVICE_ROLE_KEY: ${env.SUPABASE_SERVICE_ROLE_KEY}
+      triggers:
+        - name: httpTrigger
+          type: http
+          config:
+            authType: anonymous
+            methods:
+              - POST
+              - OPTIONS
+      customDomains:
+        - domainName: auto
+          protocol: HTTP,HTTPS
+          routeConfigs:
+            - path: /*
+              methods:
+                - POST
+                - OPTIONS
+
+  alipay-webhook:
+    component: fc
+    props:
+      region: cn-shanghai
+      service:
+        name: l-reader-payment
+        description: 'L-reader Alipay Payment Service'
+        internetAccess: true
+      function:
+        name: alipay-webhook
+        description: 'Alipay payment webhook callback'
+        runtime: nodejs18
+        codeUri: ./
+        handler: api/alipay-webhook.handler
+        timeout: 60
+        memorySize: 512
+        instanceConcurrency: 100
+        environmentVariables:
+          ALIPAY_APP_ID: ${env.ALIPAY_APP_ID}
+          ALIPAY_PRIVATE_KEY: ${env.ALIPAY_PRIVATE_KEY}
+          ALIPAY_PUBLIC_KEY: ${env.ALIPAY_PUBLIC_KEY}
+          SUPABASE_URL: ${env.SUPABASE_URL}
+          SUPABASE_SERVICE_ROLE_KEY: ${env.SUPABASE_SERVICE_ROLE_KEY}
+      triggers:
+        - name: httpTrigger
+          type: http
+          config:
+            authType: anonymous
+            methods:
+              - POST
+              - OPTIONS
+      customDomains:
+        - domainName: auto
+          protocol: HTTP,HTTPS
+          routeConfigs:
+            - path: /*
+              methods:
+                - POST
+                - OPTIONS
