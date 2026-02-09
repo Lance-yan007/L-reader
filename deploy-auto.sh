@@ -8,10 +8,10 @@
 echo "Installing Node.js 18..."
 if [ -x "$(command -v apt-get)" ]; then
     curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    sudo apt-get install -y nodejs git
 elif [ -x "$(command -v yum)" ]; then
     curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-    sudo yum install -y nodejs
+    sudo yum install -y nodejs git
 else
     echo "Unsupported OS package manager"
     exit 1
