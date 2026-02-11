@@ -5,4 +5,4 @@
  */
 
 // Uncomment and update after Aliyun deployment:
-window.ALIYUN_API_URL = 'http://47.98.144.154:3001/create-alipay-order';
+window.ALIYUN_API_URL = 'http://api.l-reader.com:3001/create-alipay-order';
