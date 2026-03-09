@@ -16,6 +16,8 @@ app.use(express.urlencoded({ extended: true }));
 // 导入 Vercel 风格的 API 处理函数
 const createAlipayOrder = require('./api/create-alipay-order');
 const alipayWebhook = require('./api/alipay-webhook');
+const createWechatOrder = require('./api/create-wechat-order');
+const wechatWebhook = require('./api/wechat-webhook');
 
 // API 路由
 app.post('/create-alipay-order', (req, res) => {
@@ -24,6 +26,14 @@ app.post('/create-alipay-order', (req, res) => {
 
 app.post('/alipay-webhook', (req, res) => {
     alipayWebhook(req, res);
+});
+
+app.post('/create-wechat-order', (req, res) => {
+    createWechatOrder(req, res);
+});
+
+app.post('/wechat-webhook', (req, res) => {
+    wechatWebhook(req, res);
 });
 
 // 健康检查端点

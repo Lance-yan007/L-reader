@@ -6,3 +6,4 @@
 
 // Uncomment and update after Aliyun deployment:
 window.ALIYUN_API_URL = 'http://api.l-reader.com:3001/create-alipay-order';
+window.WECHAT_API_URL = 'http://api.l-reader.com:3001/create-wechat-order';

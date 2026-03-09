@@ -37,86 +37,124 @@
                         return;
                     }
 
-                    // Check if running on localhost with static server (no API support)
-                    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                    if (isLocalhost && window.location.port !== '3000' && !window.location.href.includes('vercel.app')) {
-                        // Assuming port 3000 or vercel.app has API support, others (like python http.server) might not
-                        console.warn('Running on localhost without dedicated API server?');
-                    }
-
-                    const deleteBtn = document.getElementById('btn-alipay');
-                    const originalText = deleteBtn ? deleteBtn.innerHTML : '';
-                    if (deleteBtn) {
-                        deleteBtn.disabled = true;
-                        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+                    const alipayBtn = document.getElementById('btn-alipay');
+                    const originalText = alipayBtn ? alipayBtn.innerHTML : '';
+                    if (alipayBtn) {
+                        alipayBtn.disabled = true;
+                        alipayBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
                     }
 
                     try {
-                        // Use Aliyun API endpoint for payment (ICP compliance)
-                        // Fallback to Vercel if ALIYUN_API_URL not configured
                         const apiEndpoint = window.ALIYUN_API_URL || '/api/create-alipay-order';
                         const response = await fetch(apiEndpoint, {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 amount: window.AppConfig.payment.prices.lifetime,
                                 subject: 'L-reader Pro 终身版',
-                                userId: session.user.id
+                                userId: session.user.id,
+                                planType: 'lifetime'
                             }),
                         });
 
-                        // Check for HTTP errors
-                        if (!response.ok) {
-                            if (response.status === 404) {
-                                throw new Error('找不到支付服务接口 (404)。如果您在本地运行，请确保 API 服务已启动。');
-                            }
-                            if (response.status === 500) {
-                                const text = await response.text();
-                                try {
-                                    const json = JSON.parse(text);
-                                    throw new Error('服务器错误: ' + (json.message || 'Internal Server Error'));
-                                } catch (e) {
-                                    // Make the raw HTML/text visible for debugging
-                                    console.error('Raw Server Response:', text);
-                                    // Extract title if it's HTML
-                                    const match = text.match(/<title>(.*?)<\/title>/i);
-                                    const title = match ? match[1] : text.substring(0, 100);
-                                    throw new Error(`服务器错误 (500) - 非JSON响应: ${title}... (请查看控制台)`);
-                                }
-                            }
-                            throw new Error(`支付请求失败: ${response.status} ${response.statusText}`);
-                        }
-
                         const result = await response.json();
-
                         if (result.url) {
-                            // Redirect to Alipay payment page
                             window.location.href = result.url;
                         } else {
                             throw new Error(result.message || '获取支付链接失败');
                         }
-
                     } catch (error) {
-                        console.error('Payment Error:', error);
+                        console.error('Alipay Error:', error);
                         alert('支付无法启动: ' + error.message);
                     } finally {
-                        if (deleteBtn) {
-                            deleteBtn.disabled = false;
-                            deleteBtn.innerHTML = originalText;
+                        if (alipayBtn) {
+                            alipayBtn.disabled = false;
+                            alipayBtn.innerHTML = originalText;
                         }
                     }
                 };
 
-                // Bind Alipay button
+                // Handle WeChat Payment
+                const handleWechatPayment = async () => {
+                    const { data: { session } } = await client.auth.getSession();
+                    if (!session) {
+                        window.location.href = 'src/auth.html';
+                        return;
+                    }
+
+                    const wechatBtn = document.getElementById('btn-wechat');
+                    const originalText = wechatBtn ? wechatBtn.innerHTML : '';
+                    if (wechatBtn) {
+                        wechatBtn.disabled = true;
+                        wechatBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+                    }
+
+                    try {
+                        const apiEndpoint = window.WECHAT_API_URL || '/api/create-wechat-order';
+                        const response = await fetch(apiEndpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                amount: window.AppConfig.payment.prices.lifetime,
+                                subject: 'L-reader Pro 终身版',
+                                userId: session.user.id,
+                                planType: 'lifetime'
+                            }),
+                        });
+
+                        const result = await response.json();
+                        if (result.url) {
+                            // Show QR Code Modal
+                            const modal = document.getElementById('wechat-qr-modal');
+                            const qrImg = document.getElementById('wechat-qr-img');
+                            // Using a public QR code API to display the URL
+                            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(result.url)}`;
+                            modal.style.display = 'flex';
+                        } else {
+                            throw new Error(result.message || '生成微信支付二维码失败');
+                        }
+                    } catch (error) {
+                        console.error('WeChat Error:', error);
+                        alert('支付无法启动: ' + error.message);
+                    } finally {
+                        if (wechatBtn) {
+                            wechatBtn.disabled = false;
+                            wechatBtn.innerHTML = originalText;
+                        }
+                    }
+                };
+
+                // Bind Buttons
                 const alipayBtn = document.getElementById('btn-alipay');
-                if (alipayBtn) {
-                    alipayBtn.addEventListener('click', handleAlipayPayment);
+                if (alipayBtn) alipayBtn.addEventListener('click', handleAlipayPayment);
+
+                const wechatBtn = document.getElementById('btn-wechat');
+                if (wechatBtn) wechatBtn.addEventListener('click', handleWechatPayment);
+
+                // Modal Close Logic
+                const closeBtn = document.getElementById('close-wechat-modal');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        document.getElementById('wechat-qr-modal').style.display = 'none';
+                    });
                 }
             }
         });
     </script>
+    <!-- WeChat QR Modal -->
+    <div id="wechat-qr-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center; flex-direction:column;">
+        <div
+            style="background:white; padding:30px; border-radius:15px; text-align:center; position:relative; min-width:300px;">
+            <button id="close-wechat-modal"
+                style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+            <h3 style="margin-bottom:20px; color:#333;">微信扫码支付</h3>
+            <img id="wechat-qr-img" src="" alt="WeChat Pay QR Code"
+                style="width:250px; height:250px; margin-bottom:15px; border:1px solid #eee;">
+            <p style="color:#666; font-size:14px;">请使用微信扫描上方二维码进行支付</p>
+            <p style="color:#1AAD19; font-weight:bold; margin-top:10px;">支付成功后，权限将自动开通</p>
+        </div>
+    </div>
 </head>
 
 <body>
@@ -456,8 +494,12 @@
                         <li><i class="fas fa-check"></i> 支持支付宝支付</li>
                     </ul>
                     <button class="btn-pricing btn-primary" id="btn-alipay"
-                        style="background-color: #1677FF; width: 100%;">
+                        style="background-color: #1677FF; width: 100%; margin-bottom: 10px;">
                         <i class="fab fa-alipay"></i> 支付宝支付
+                    </button>
+                    <button class="btn-pricing btn-primary" id="btn-wechat"
+                        style="background-color: #1AAD19; width: 100%; border: none;">
+                        <i class="fab fa-weixin"></i> 微信支付
                     </button>
                 </div>
             </div>
@@ -578,6 +620,14 @@
             </div>
             <div class="footer-bottom">
                 <p>&copy; 2024 L-reader. All rights reserved.</p>
+                <div class="footer-beian">
+                    <a href="https://beian.miit.gov.cn" target="_blank">浙ICP备2026010326号-1</a>
+                    <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33021102001215"
+                        target="_blank">
+                        <img src="https://beian.mps.gov.cn/img/logo.png" alt="公安备案图标">
+                        <span>浙公网安备 33021102001215号</span>
+                    </a>
+                </div>
             </div>
         </div>
     </footer>

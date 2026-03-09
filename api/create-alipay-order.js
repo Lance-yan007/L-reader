@@ -92,7 +92,9 @@ module.exports = async (req, res) => {
         formData.addField('returnUrl', `${origin}/payment-result.html?status=success`);
 
         // Enable webhook for automatic subscription updates
-        formData.addField('notifyUrl', `${origin}/api/alipay-webhook`);
+        // Use the Aliyun subdomain for the notify URL
+        const notifyOrigin = 'http://api.l-reader.com:3001';
+        formData.addField('notifyUrl', `${notifyOrigin}/alipay-webhook`);
 
         const result = await alipaySdk.exec(
             'alipay.trade.page.pay',
