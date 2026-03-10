@@ -69,7 +69,7 @@ module.exports = async (req, res) => {
         const outTradeNo = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         // Validate amount against hardcoded prices
-        const validPrices = [49.9, 99.9, 199.9]; // lifetime, monthly, yearly
+        const validPrices = [39.9, 49.9, 99.9, 199.9]; // lifetime, monthly, yearly
         if (!validPrices.includes(parseFloat(amount))) {
             throw new Error('Invalid payment amount');
         }
