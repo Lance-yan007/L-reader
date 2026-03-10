@@ -1058,6 +1058,35 @@ body {
     color: var(--text-muted);
 }
 
+.footer-beian {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    font-size: 0.9rem;
+}
+
+.footer-beian a {
+    color: var(--text-muted);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color var(--transition-fast);
+}
+
+.footer-beian a:hover {
+    color: var(--text-light);
+}
+
+.footer-beian img {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+}
+
 /* ============================================
    动画效果
    ============================================ */
