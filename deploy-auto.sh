@@ -40,8 +40,9 @@ echo "Installing project dependencies..."
 npm install
 
 # 6. Configure Environment Variables (Using provided keys)
-echo "Creating .env file..."
-cat > .env << 'EOF'
+if [ ! -f .env ]; then
+    echo "Creating .env file..."
+    cat > .env << 'EOF'
 PORT=3001
 ALIPAY_APP_ID=YOUR_ALIPAY_APP_ID
 ALIPAY_PRIVATE_KEY="YOUR_ALIPAY_PRIVATE_KEY"
@@ -56,6 +57,9 @@ WECHAT_API_V3_KEY=YOUR_API_V3_KEY
 WECHAT_SERIAL_NO=YOUR_CERT_SERIAL_NO
 WECHAT_PRIVATE_KEY="YOUR_PRIVATE_KEY_CONTENT_WITH_NEWLINES"
 EOF
+else
+    echo ".env file already exists, skipping creation to preserve keys."
+fi
 
 # 7. Start Server with PM2
 echo "Starting server..."
