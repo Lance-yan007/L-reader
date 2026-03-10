@@ -1,27 +1,17 @@
 const AlipaySdk = require('alipay-sdk').default;
 const { createClient } = require('@supabase/supabase-js');
 
-// Initialize Alipay SDK
-const alipaySdk = new AlipaySdk({
-    appId: process.env.ALIPAY_APP_ID,
-    privateKey: process.env.ALIPAY_PRIVATE_KEY,
-    alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY,
-    gateway: 'https://openapi.alipay.com/gateway.do',
-    camelcase: true
-});
-
 // Initialize Supabase Admin Client (Service Role Key required for backend updates)
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const getSupabase = () => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Check if Supabase is configured
-if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('Missing Supabase configuration');
-}
-
-const supabase = (supabaseUrl && supabaseServiceKey)
-    ? createClient(supabaseUrl, supabaseServiceKey)
-    : null;
+    if (!supabaseUrl || !supabaseServiceKey) {
+        console.error('Missing Supabase configuration');
+        return null;
+    }
+    return createClient(supabaseUrl, supabaseServiceKey);
+};
 
 module.exports = async (req, res) => {
     // Only accept POST requests
@@ -32,6 +22,26 @@ module.exports = async (req, res) => {
     }
 
     try {
+        // 0. Initialize SDK inside handler to prevent top-level crash if env vars are missing
+        const appId = process.env.ALIPAY_APP_ID;
+        const privateKey = process.env.ALIPAY_PRIVATE_KEY;
+        const alipayPublicKey = process.env.ALIPAY_PUBLIC_KEY;
+
+        if (!appId) {
+            console.error('Missing ALIPAY_APP_ID in environment variables');
+            return res.status(500).send('fail');
+        }
+
+        const alipaySdk = new AlipaySdk({
+            appId: appId,
+            privateKey: privateKey,
+            alipayPublicKey: alipayPublicKey,
+            gateway: 'https://openapi.alipay.com/gateway.do',
+            camelcase: true
+        });
+
+        const supabase = getSupabase();
+
         const params = req.body;
         console.log('Received Alipay Webhook:', JSON.stringify(params));
 
@@ -99,13 +109,11 @@ module.exports = async (req, res) => {
                     amount: params.total_amount,
                     updated_at: new Date().toISOString()
                 }, {
-                    onConflict: 'user_id' // Assuming one active subscription per user, or logic might need adjustment based on table schema
+                    onConflict: 'user_id' // Assuming one active subscription per user
                 });
 
             if (error) {
                 console.error('Failed to update subscription in Supabase:', error);
-                // If database update fails, we might want to return 'fail' to let Alipay retry
-                // But be careful not to create infinite loops if the error is permanent
                 res.status(500).send('fail');
                 return;
             }

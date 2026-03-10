@@ -1,8 +1,17 @@
 const WxPay = require('wechatpay-node-v3');
 const { createClient } = require('@supabase/supabase-js');
 
-// Initialize Supabase
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Initialize Supabase Admin Client
+const getSupabase = () => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+        console.error('Missing Supabase configuration');
+        return null;
+    }
+    return createClient(supabaseUrl, supabaseServiceKey);
+};
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
@@ -47,22 +56,28 @@ module.exports = async (req, res) => {
                 endDate.setMonth(endDate.getMonth() + 1);
             }
 
-            const { error } = await supabase
-                .from('subscriptions')
-                .upsert({
-                    user_id: userId,
-                    plan_type: planType,
-                    status: 'active',
-                    start_date: startDate.toISOString(),
-                    end_date: endDate.toISOString(),
-                    payment_id: transactionId,
-                    amount: amountCents / 100,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
+            const supabase = getSupabase();
 
-            if (error) {
-                console.error('Supabase update failed:', error);
-                return res.status(500).json({ code: 'FAIL', message: 'Database update failed' });
+            if (supabase) {
+                const { error } = await supabase
+                    .from('subscriptions')
+                    .upsert({
+                        user_id: userId,
+                        plan_type: planType,
+                        status: 'active',
+                        start_date: startDate.toISOString(),
+                        end_date: endDate.toISOString(),
+                        payment_id: transactionId,
+                        amount: amountCents / 100,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+
+                if (error) {
+                    console.error('Supabase update failed:', error);
+                    return res.status(500).json({ code: 'FAIL', message: 'Database update failed' });
+                }
+            } else {
+                console.error('Supabase client not initialized');
             }
 
             console.log(`✓ WeChat Payment Success for user ${userId}`);
