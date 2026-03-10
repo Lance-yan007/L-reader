@@ -1,0 +1,36 @@
+name: Deploy to Aliyun VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          password: ${{ secrets.REMOTE_PASSWORD }} # Can be password or SSH private key
+          port: 22
+          script: |
+            echo "Starting deployment to Aliyun..."
+            cd /www/wwwroot/alipay-api
+            
+            # Update code
+            git pull origin main
+            
+            # Install dependencies if package.json has changed
+            npm install --production
+            
+            # Restart service with PM2
+            pm2 restart alipay-api || pm2 start server.js --name alipay-api
+            
+            echo "✓ Deployment successfully finished"
