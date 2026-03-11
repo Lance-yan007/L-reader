@@ -25,12 +25,10 @@ module.exports = async (req, res) => {
         // 0. Initialize SDK inside handler to prevent top-level crash if env vars are missing
         const formatPrivateKey = (key) => {
             if (!key) return '';
-            let cleanKey = key.replace(/[\s\r\n"']/g, '');
-            cleanKey = cleanKey.replace(/-----BEGIN.*?KEY-----/g, '').replace(/-----END.*?KEY-----/g, '');
-            return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+            const cleanKey = key.replace(/[\s\r\n"']/g, '');
+            return `-----BEGIN RSA PRIVATE KEY-----\n${cleanKey}\n-----END RSA PRIVATE KEY-----`;
         };
-
-        const formattedKey = formatPrivateKey(privateKey);
+        const formattedKey = formatPrivateKey(process.env.ALIPAY_PRIVATE_KEY);
 
         const alipaySdk = new AlipaySdk({
             appId: appId,

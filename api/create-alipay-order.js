@@ -30,31 +30,14 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Helper to ensure private key is in valid PEM format
         const formatPrivateKey = (key) => {
             if (!key) return '';
-
-            // 1. Remove all spaces, newlines, and quotes that might have leaked from .env
-            let cleanKey = key.replace(/[\s\r\n"']/g, '');
-
-            // 2. Remove any existing headers/footers
-            cleanKey = cleanKey.replace(/-----BEGIN.*?KEY-----/g, '').replace(/-----END.*?KEY-----/g, '');
-
-            // 3. Ensure it's just the base64 content
-            // If it's still empty or looks wrong, return as is (let SDK handle)
-            if (!cleanKey) return key;
-
-            // 4. Wrap in PRIVATE KEY header (PKCS#8 style, most universal in modern Node)
-            return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+            const cleanKey = key.replace(/[\s\r\n"']/g, '');
+            // 关键修复：对于 PKCS#1 格式密钥，必须使用 BEGIN RSA PRIVATE KEY
+            return `-----BEGIN RSA PRIVATE KEY-----\n${cleanKey}\n-----END RSA PRIVATE KEY-----`;
         };
 
         const formattedKey = formatPrivateKey(privateKey);
-        console.log('--- Alipay Debug Info ---');
-        console.log('AppID:', appId);
-        console.log('Key Length (Raw):', privateKey.length);
-        console.log('Key Length (Formatted):', formattedKey.length);
-        console.log('Has Public Key:', !!alipayPublicKey);
-        console.log('-------------------------');
 
         const gateway = process.env.ALIPAY_GATEWAY || 'https://openapi.alipay.com/gateway.do';
 
