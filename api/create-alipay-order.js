@@ -34,19 +34,27 @@ module.exports = async (req, res) => {
         const formatPrivateKey = (key) => {
             if (!key) return '';
 
-            // 1. Remove all spaces and newlines to get pure base64
+            // 1. Remove all spaces and newlines
             let cleanKey = key.replace(/[\s\r\n]/g, '');
 
-            // 2. Remove headers/footers if they were included
+            // 2. Remove any existing headers/footers
             cleanKey = cleanKey.replace(/-----BEGIN.*?KEY-----/g, '').replace(/-----END.*?KEY-----/g, '');
 
-            // 3. Wrap in RSA PRIVATE KEY header (Common for Alipay/OpenSSL)
-            return `-----BEGIN RSA PRIVATE KEY-----\n${cleanKey}\n-----END RSA PRIVATE KEY-----`;
+            // 3. Determine if it's PKCS#1 or PKCS#8
+            // PKCS#1 typically starts with MIIE (but not always)
+            // PKCS#8 has a different structure. 
+            // We'll use the generic "PRIVATE KEY" header which is more compatible with PKCS#8
+            // If it fails, we alternate.
+            return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
         };
 
         const formattedKey = formatPrivateKey(privateKey);
-        // Debug info (do not log full key)
-        console.log('Key length:', formattedKey.length);
+        console.log('--- Alipay Debug Info ---');
+        console.log('AppID:', appId);
+        console.log('Key Length (Raw):', privateKey.length);
+        console.log('Key Length (Formatted):', formattedKey.length);
+        console.log('Has Public Key:', !!alipayPublicKey);
+        console.log('-------------------------');
 
         const gateway = process.env.ALIPAY_GATEWAY || 'https://openapi.alipay.com/gateway.do';
 
