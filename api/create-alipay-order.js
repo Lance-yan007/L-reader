@@ -30,22 +30,18 @@ module.exports = async (req, res) => {
             });
         }
 
-        const formatPrivateKey = (key) => {
-            if (!key) return '';
-            const cleanKey = key.replace(/[\s\r\n"']/g, '');
-            // 关键修复：对于 PKCS#1 格式密钥，必须使用 BEGIN RSA PRIVATE KEY
-            return `-----BEGIN RSA PRIVATE KEY-----\n${cleanKey}\n-----END RSA PRIVATE KEY-----`;
-        };
-
-        const formattedKey = formatPrivateKey(privateKey);
+        // 直接传原始密钥，让 SDK 自己处理格式化
+        // keyType: 'PKCS8' 因为密钥是 PKCS#8 编码（以 MIIEvQIBADA 开头）
+        const cleanKey = privateKey.replace(/[\s\r\n"']/g, '');
 
         const gateway = process.env.ALIPAY_GATEWAY || 'https://openapi.alipay.com/gateway.do';
 
         // 3. Initialize SDK
         const alipaySdk = new AlipaySdk({
             appId: appId,
-            privateKey: formattedKey,
+            privateKey: cleanKey,
             alipayPublicKey: alipayPublicKey,
+            keyType: 'PKCS8',
             gateway: gateway,
             timeout: 5000,
             camelcase: true

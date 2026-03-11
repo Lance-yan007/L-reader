@@ -23,17 +23,13 @@ module.exports = async (req, res) => {
 
     try {
         // 0. Initialize SDK inside handler to prevent top-level crash if env vars are missing
-        const formatPrivateKey = (key) => {
-            if (!key) return '';
-            const cleanKey = key.replace(/[\s\r\n"']/g, '');
-            return `-----BEGIN RSA PRIVATE KEY-----\n${cleanKey}\n-----END RSA PRIVATE KEY-----`;
-        };
-        const formattedKey = formatPrivateKey(process.env.ALIPAY_PRIVATE_KEY);
+        const cleanKey = (process.env.ALIPAY_PRIVATE_KEY || '').replace(/[\s\r\n"']/g, '');
 
         const alipaySdk = new AlipaySdk({
             appId: appId,
-            privateKey: formattedKey,
+            privateKey: cleanKey,
             alipayPublicKey: alipayPublicKey,
+            keyType: 'PKCS8',
             gateway: 'https://openapi.alipay.com/gateway.do',
             camelcase: true
         });
