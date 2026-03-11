@@ -23,18 +23,18 @@ module.exports = async (req, res) => {
 
     try {
         // 0. Initialize SDK inside handler to prevent top-level crash if env vars are missing
-        const appId = process.env.ALIPAY_APP_ID;
-        const privateKey = process.env.ALIPAY_PRIVATE_KEY;
-        const alipayPublicKey = process.env.ALIPAY_PUBLIC_KEY;
+        const formatPrivateKey = (key) => {
+            if (!key) return '';
+            let cleanKey = key.replace(/[\s\r\n"']/g, '');
+            cleanKey = cleanKey.replace(/-----BEGIN.*?KEY-----/g, '').replace(/-----END.*?KEY-----/g, '');
+            return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+        };
 
-        if (!appId) {
-            console.error('Missing ALIPAY_APP_ID in environment variables');
-            return res.status(500).send('fail');
-        }
+        const formattedKey = formatPrivateKey(privateKey);
 
         const alipaySdk = new AlipaySdk({
             appId: appId,
-            privateKey: privateKey,
+            privateKey: formattedKey,
             alipayPublicKey: alipayPublicKey,
             gateway: 'https://openapi.alipay.com/gateway.do',
             camelcase: true

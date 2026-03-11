@@ -34,17 +34,17 @@ module.exports = async (req, res) => {
         const formatPrivateKey = (key) => {
             if (!key) return '';
 
-            // 1. Remove all spaces and newlines
-            let cleanKey = key.replace(/[\s\r\n]/g, '');
+            // 1. Remove all spaces, newlines, and quotes that might have leaked from .env
+            let cleanKey = key.replace(/[\s\r\n"']/g, '');
 
             // 2. Remove any existing headers/footers
             cleanKey = cleanKey.replace(/-----BEGIN.*?KEY-----/g, '').replace(/-----END.*?KEY-----/g, '');
 
-            // 3. Determine if it's PKCS#1 or PKCS#8
-            // PKCS#1 typically starts with MIIE (but not always)
-            // PKCS#8 has a different structure. 
-            // We'll use the generic "PRIVATE KEY" header which is more compatible with PKCS#8
-            // If it fails, we alternate.
+            // 3. Ensure it's just the base64 content
+            // If it's still empty or looks wrong, return as is (let SDK handle)
+            if (!cleanKey) return key;
+
+            // 4. Wrap in PRIVATE KEY header (PKCS#8 style, most universal in modern Node)
             return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
         };
 
